@@ -23,6 +23,16 @@ export function review(srs: Srs, grade: Grade, now = Date.now()): Srs {
     }
   }
 
+  // Knew the word, missed der/die/das. Requeue now; smaller ease hit than Again.
+  if (grade === 'wrong_gender') {
+    return {
+      ease: Math.max(MIN_EASE, ease - 0.1),
+      interval: 0,
+      reps: 0,
+      due: now,
+    }
+  }
+
   let nextEase = ease
   if (grade === 'hard') nextEase = Math.max(MIN_EASE, ease - 0.15)
   if (grade === 'easy') nextEase = ease + 0.15

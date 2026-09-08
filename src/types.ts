@@ -1,5 +1,5 @@
 export type Article = 'der' | 'die' | 'das' | 'none'
-export type Grade = 'again' | 'hard' | 'good' | 'easy'
+export type Grade = 'again' | 'wrong_gender' | 'hard' | 'good' | 'easy'
 export type Direction = 'de-en' | 'en-de'
 
 export interface Srs {
@@ -47,4 +47,4 @@ export type GithubConfig = {
 }
 
 export const ARTICLES: Article[] = ['der', 'die', 'das', 'none']
-export const GRADES: Grade[] = ['again', 'hard', 'good', 'easy']
+export const GRADES: Grade[] = ['again', 'wrong_gender', 'hard', 'good', 'easy']

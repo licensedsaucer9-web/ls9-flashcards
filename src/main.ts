@@ -3,7 +3,6 @@ import { registerSW } from 'virtual:pwa-register'
 import type { Article, Card, Direction, GithubConfig, Grade, Settings } from './types.ts'
 import { ARTICLES } from './types.ts'
 import {
-  countCards,
   deleteCard,
   getAllCards,
   getCard,
@@ -79,9 +78,21 @@ function toast(msg: string) {
   toastTimer = window.setTimeout(() => el.remove(), 2400)
 }
 
-async function ensureSeed(): Promise<void> {
-  const n = await countCards()
-  if (n === 0) await putCards(seedCards())
+async function ensureSeed(): Promise<number> {
+  const existing = await getAllCards()
+  const byId = new Set(existing.map((c) => c.id))
+  const byKey = new Set(
+    existing.map((c) => `${c.de.trim().toLowerCase()}|${c.en.trim().toLowerCase()}`),
+  )
+  const missing = seedCards().filter((c) => {
+    const key = `${c.de.trim().toLowerCase()}|${c.en.trim().toLowerCase()}`
+    return !byId.has(c.id) && !byKey.has(key)
+  })
+  if (missing.length) {
+    await putCards(missing)
+    schedulePush()
+  }
+  return missing.length
 }
 
 async function patchSettings(patch: Partial<Settings>): Promise<Settings> {
@@ -261,7 +272,14 @@ async function renderReview() {
     const frontIsDe = settings.direction === 'de-en'
     const front = frontIsDe ? deText : card.en
     const backHead = frontIsDe ? card.en : deText
-    const articleLabel = card.article === 'none' ? 'verb' : card.article
+    const articleLabel =
+      card.article !== 'none'
+        ? card.article
+        : card.tags.includes('adj')
+          ? 'adj'
+          : card.tags.includes('verb')
+            ? 'verb'
+            : 'word'
 
     main.innerHTML = `
       <section class="screen review">
@@ -293,8 +311,13 @@ async function renderReview() {
             </div>
           </button>
         </div>
-        <div class="grades" ${flipped ? '' : 'hidden'}>
+        <div class="grades ${card.article !== 'none' ? 'noun' : ''}" ${flipped ? '' : 'hidden'}>
           <button class="grade again" data-grade="again">Again<small>1</small></button>
+          ${
+            card.article !== 'none'
+              ? `<button class="grade gender" data-grade="wrong_gender">Gender<small>5</small></button>`
+              : ''
+          }
           <button class="grade hard" data-grade="hard">Hard<small>2</small></button>
           <button class="grade good" data-grade="good">Good<small>3</small></button>
           <button class="grade easy" data-grade="easy">Easy<small>4</small></button>
@@ -320,7 +343,7 @@ async function renderReview() {
     const saved = touch(card)
     await putCard(saved)
     schedulePush()
-    if (g === 'again') queue.push(saved)
+    if (g === 'again' || g === 'wrong_gender') queue.push(saved)
     flipped = false
     paint()
   }
@@ -336,8 +359,15 @@ async function renderReview() {
       return
     }
     if (!flipped) return
-    const map: Record<string, Grade> = { '1': 'again', '2': 'hard', '3': 'good', '4': 'easy' }
+    const map: Record<string, Grade> = {
+      '1': 'again',
+      '2': 'hard',
+      '3': 'good',
+      '4': 'easy',
+      '5': 'wrong_gender',
+    }
     const g = map[e.key]
+    if (g === 'wrong_gender' && queue[0]?.article === 'none') return
     if (g) void grade(g)
   }
 
@@ -632,7 +662,7 @@ async function renderSettings() {
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">SRS</p>
-        <p class="note">SM-2 with Again / Hard / Good / Easy. Home shows the due queue only. Session size limits how many of those you review at once.</p>
+        <p class="note">SM-2 with Again / Gender / Hard / Good / Easy. Gender is for nouns: you knew the word but missed der, die, or das. It requeues the card now with a smaller ease penalty than Again. Verbs and adjectives hide that button.</p>
       </div>
     </section>
   `
@@ -731,9 +761,10 @@ async function render() {
 }
 
 async function boot() {
+  let added = 0
   if (isGithubConfigured()) {
     await bootSync()
-    await ensureSeed()
+    added = await ensureSeed()
     const st = getSyncStatus()
     if (st.message === 'No remote file yet') {
       try {
@@ -743,9 +774,10 @@ async function boot() {
       }
     }
   } else {
-    await ensureSeed()
+    added = await ensureSeed()
   }
   await render()
+  if (added > 0) toast(`Added ${added} new cards`)
   window.addEventListener('hashchange', () => {
     void render()
   })

@@ -15,6 +15,7 @@
   --hard: #e8a23c;
   --good: #3dd68c;
   --easy: #4ea1ff;
+  --gender: #c77dff;
   --radius: 18px;
   --tabbar-h: 64px;
   --safe-b: env(safe-area-inset-bottom, 0px);
@@ -385,8 +386,23 @@ a {
   padding-bottom: max(8px, var(--safe-b));
 }
 
+.grades.noun {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.grades.noun .again,
+.grades.noun .gender {
+  grid-column: span 3;
+}
+
+.grades.noun .hard,
+.grades.noun .good,
+.grades.noun .easy {
+  grid-column: span 2;
+}
+
 .grades[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .grade {
@@ -419,6 +435,9 @@ a {
 }
 .grade.easy {
   color: var(--easy);
+}
+.grade.gender {
+  color: var(--gender);
 }
 
 .grade:active {

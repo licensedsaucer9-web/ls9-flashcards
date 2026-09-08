@@ -29,10 +29,15 @@ const good2 = review(good, 'good', good.due)
 assert(good2.interval === 6, 'Good second interval is 6 days')
 
 const seed = seedCards(now)
-assert(seed.length === 50 && SEED_COUNT === 50, `seed is 50, got ${seed.length}`)
+assert(seed.length === SEED_COUNT && SEED_COUNT >= 400, `seed is ${seed.length}, expected >= 400`)
 assert(seed.every((c) => ['der', 'die', 'das', 'none'].includes(c.article)), 'articles valid')
-assert(seed.filter((c) => c.article === 'none').length === 10, '10 verbs')
-assert(seed.filter((c) => c.tags.includes('noun')).length === 40, '40 nouns')
+assert(seed.filter((c) => c.tags.includes('noun')).length >= 300, 'enough nouns')
+assert(seed[0].id === 'seed-01' && seed[49].id === 'seed-50', 'original seed ids kept')
+assert(seed[50].id === 'seed-51', 'new seed ids continue at 51')
+
+const wg = review(fresh, 'wrong_gender', now)
+assert(wg.reps === 0 && wg.interval === 0 && wg.due === now, 'wrong gender requeues now')
+assert(wg.ease > review(fresh, 'again', now).ease, 'wrong gender is milder than Again')
 
 const csv = `de,en,article,example_de
 Bahnhof,train station,der,Der Bahnhof ist nah.
@@ -41,9 +46,9 @@ laufen,to run,none,Ich laufe schnell.
 Hund,dog,der,duplicate of seed
 `
 const result = importCsv(csv, seed, now)
-assert(result.imported.length === 2, `imported 2, got ${result.imported.length}`)
+assert(result.imported.length === 1, `imported 1 (laufen gloss differs), got ${result.imported.length}`)
 assert(result.errors.length === 1, 'one error for missing de')
-assert(result.skipped === 1, `skipped Hund duplicate, got ${result.skipped}`)
+assert(result.skipped === 2, `skipped Bahnhof + Hund, got ${result.skipped}`)
 const againCsv = importCsv(csv, [...seed, ...result.imported], now)
 assert(againCsv.imported.length === 0, 'duplicates skipped on second import')
 

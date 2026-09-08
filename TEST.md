@@ -1,6 +1,6 @@
 # German Flashcards — click path
 
-App lives in this folder. IndexedDB is the offline cache. Connect a **private GitHub repo** in Settings so the deck and SRS follow you across browsers (PC, iPhone Safari, etc.). A fresh profile with no remote file seeds 50 A1 cards.
+App lives in this folder. IndexedDB is the offline cache. Connect a **private GitHub repo** in Settings so the deck and SRS follow you across browsers (PC, iPhone Safari, etc.). A fresh profile with no remote file seeds ~500 A1/A2 cards. Existing decks gain the new seed cards on launch without resetting SRS on cards you already have.
 
 ## Run
 
@@ -27,8 +27,8 @@ Open the preview URL (usually http://localhost:4173/).
 3. Pick a session size (suggested chip is marked). Tap **Start**. Review only that many due cards; leftover due stay on home.
 4. You see a big German card (`der` blue, `die` red, `das` green; verbs have no article color).
 5. Tap the card to flip (or press Space / Enter).
-6. Four grade buttons appear at the bottom: **Again / Hard / Good / Easy**.
-7. Grade with the buttons or keys **1–4** (1 Again, 2 Hard, 3 Good, 4 Easy).
+6. Grade buttons appear at the bottom: **Again / Hard / Good / Easy**. Nouns also get **Gender** (key **5**): you knew the word but missed der/die/das. It comes back in the session, with a smaller ease penalty than Again.
+7. Grade with the buttons or keys **1–4** (and **5** for Gender on nouns).
 8. The next due card appears. Close returns to home.
 
 ## 2. Grades persist after reload

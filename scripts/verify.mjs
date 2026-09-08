@@ -25,13 +25,13 @@ try {
   await page.goto(BASE, { waitUntil: 'networkidle' })
   await page.waitForSelector('[data-due-count]')
   const due0 = Number(await page.locator('[data-due-count]').innerText())
-  assert(due0 === 50, `seed due should be 50, got ${due0}`)
-  console.log('slice1: seeded 50 due cards')
+  assert(due0 >= 400, `seed due should be >= 400, got ${due0}`)
+  console.log(`slice1: seeded ${due0} due cards`)
 
   await page.click('#start')
   await page.waitForSelector('#card')
   const article = (await page.locator('.face.front .article').innerText()).trim()
-  assert(['der', 'die', 'das', 'verb'].includes(article.toLowerCase()), `article ${article}`)
+  assert(['der', 'die', 'das', 'verb', 'adj', 'word'].includes(article.toLowerCase()), `article ${article}`)
   const color = await page.locator('.face.front .article').evaluate((el) => getComputedStyle(el).color)
   if (article === 'der') assert(color.includes('78, 161, 255') || color.includes('4ea1ff'), `der color ${color}`)
   if (article === 'die') assert(color.includes('255, 107, 138') || color.includes('ff6b8a'), `die color ${color}`)
@@ -43,13 +43,13 @@ try {
   await page.click('#back')
   await page.waitForSelector('[data-due-count]')
   const due1 = Number(await page.locator('[data-due-count]').innerText())
-  assert(due1 === 49, `after Good, due should be 49, got ${due1}`)
-  console.log('slice1: review + Good grade updates due to 49')
+  assert(due1 === due0 - 1, `after Good, due should be ${due0 - 1}, got ${due1}`)
+  console.log(`slice1: review + Good grade updates due to ${due1}`)
 
   await page.reload({ waitUntil: 'networkidle' })
   await page.waitForSelector('[data-due-count]')
   const due2 = Number(await page.locator('[data-due-count]').innerText())
-  assert(due2 === 49, `after reload, due should stay 49, got ${due2}`)
+  assert(due2 === due1, `after reload, due should stay ${due1}, got ${due2}`)
   console.log('slice2: due count persists after reload')
 
   await page.click('#start')
@@ -62,7 +62,7 @@ try {
   await page.reload({ waitUntil: 'networkidle' })
   await page.waitForSelector('[data-due-count]')
   const due3 = Number(await page.locator('[data-due-count]').innerText())
-  assert(due3 === 49, `Again should keep card due (49), got ${due3}`)
+  assert(due3 === due2, `Again should keep card due (${due2}), got ${due3}`)
   console.log('slice2: Again stays due after reload')
 
   await page.goto(BASE + '#/card/new', { waitUntil: 'networkidle' })
@@ -78,14 +78,14 @@ try {
   await page.goto(BASE + '#/', { waitUntil: 'networkidle' })
   await page.waitForSelector('[data-due-count]')
   const due4 = Number(await page.locator('[data-due-count]').innerText())
-  assert(due4 === 50, `new card is due, expected 50, got ${due4}`)
-  console.log('slice3: add card works, due is 50')
+  assert(due4 === due3 + 1, `new card is due, expected ${due3 + 1}, got ${due4}`)
+  console.log(`slice3: add card works, due is ${due4}`)
 
   await page.goto(BASE + '#/import', { waitUntil: 'networkidle' })
   await page.waitForSelector('#paste')
   await page.fill(
     '#paste',
-    'de,en,article,example_de\nBahnhof,train station,der,Der Bahnhof ist nah.\nToilette,toilet,die,Wo ist die Toilette?\nBett,bed,das,Das Bett ist bequem.\nlaufen,to run,none,Ich laufe schnell.\n',
+    'de,en,article,example_de\nQuark,curd cheese,der,Der Quark ist frisch.\nQuittung,receipt,die,Die Quittung bitte.\nLabyrinth,labyrinth,das,Das Labyrinth ist groß.\nflüstern,to whisper,none,Bitte flüstern.\n',
   )
   await page.click('#run')
   await page.waitForFunction(() => /Imported 4/.test(document.getElementById('toast')?.textContent || ''))
@@ -94,7 +94,7 @@ try {
   await page.goto(BASE + '#/deck', { waitUntil: 'networkidle' })
   await page.waitForSelector('.card-list')
   const deck = await page.locator('.card-list').innerText()
-  assert(deck.includes('Bahnhof') && deck.includes('laufen'), 'imported cards in deck')
+  assert(deck.includes('Quark') && deck.includes('flüstern'), 'imported cards in deck')
   await page.goto(BASE + '#/import', { waitUntil: 'networkidle' })
   await page.fill(
     '#paste',
