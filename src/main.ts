@@ -603,23 +603,23 @@ async function renderSettings() {
         <p class="note">Single-user backup: a private repo file holds the deck and SRS so every browser (including iPhone Safari) shares progress. Paste a <strong>personal access token</strong> (<code>github_pat_</code> or <code>ghp_</code>), not your GitHub password. Fine-grained PAT: Contents read/write on <code>german-flashcards-data</code> only. Token stays in this browser.</p>
         <form class="form" id="gh-form" style="padding:0" autocomplete="off">
           <label>Owner
-            <input name="owner" type="text" autocomplete="off" value="${esc(gh.owner)}" placeholder="your-github-user" />
+            <input name="owner" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(gh.owner)}" />
           </label>
           <label>Repo
-            <input name="repo" type="text" autocomplete="off" value="${esc(gh.repo)}" placeholder="german-flashcards-data" />
+            <input name="repo" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(gh.repo)}" />
           </label>
           <label>Path
-            <input name="path" type="text" autocomplete="off" value="${esc(gh.path)}" />
+            <input name="path" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(gh.path)}" />
           </label>
           <label>Branch
-            <input name="branch" type="text" autocomplete="off" value="${esc(gh.branch)}" />
+            <input name="branch" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(gh.branch)}" />
           </label>
           <label>Token
-            <input name="github_pat" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="${
+            <input name="github_pat" id="github_pat" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="done" placeholder="${
               gh.token ? 'saved — paste a new token to replace' : 'github_pat_… or ghp_…'
             }" />
           </label>
-          <button class="primary" type="submit">${connected ? 'Save and sync' : 'Connect and sync'}</button>
+          <button class="primary" type="submit" id="gh-connect">${connected ? 'Save and sync' : 'Connect and sync'}</button>
           ${connected ? `<button class="secondary" type="button" id="sync-now">Sync now</button>
           <button class="danger" type="button" id="gh-disconnect">Disconnect this browser</button>` : ''}
         </form>
@@ -650,20 +650,29 @@ async function renderSettings() {
     await patchSettings({ sessionSize: v })
     toast(v === 0 ? 'Session: all due' : `Session: ${v}`)
   })
-  $('#gh-form').addEventListener('submit', async (e) => {
-    e.preventDefault()
-    const fd = new FormData(e.target as HTMLFormElement)
-    const typed = sanitizeToken(String(fd.get('github_pat') ?? ''))
+  const ghForm = $('#gh-form') as HTMLFormElement
+  const inputVal = (name: string) => {
+    const el = ghForm.elements.namedItem(name)
+    return el instanceof HTMLInputElement ? el.value : ''
+  }
+  const connectGithub = async () => {
+    ;(document.activeElement instanceof HTMLElement ? document.activeElement : null)?.blur()
+    await new Promise((r) => window.setTimeout(r, 50))
+    const typed = sanitizeToken(inputVal('github_pat'))
     const cfg: GithubConfig = {
       token: typed || loadGithubConfig().token,
-      owner: String(fd.get('owner') ?? '').trim(),
-      repo: String(fd.get('repo') ?? '').trim(),
-      path: String(fd.get('path') ?? 'data.json').trim() || 'data.json',
-      branch: String(fd.get('branch') ?? 'main').trim() || 'main',
+      owner: inputVal('owner').trim(),
+      repo: inputVal('repo').trim(),
+      path: inputVal('path').trim() || 'data.json',
+      branch: inputVal('branch').trim() || 'main',
     }
     saveGithubConfig(cfg)
-    if (!isGithubConfigured(cfg)) {
-      toast('Owner, repo, and token are required')
+    const missing: string[] = []
+    if (!cfg.owner) missing.push('owner')
+    if (!cfg.repo) missing.push('repo')
+    if (!cfg.token) missing.push('token')
+    if (missing.length) {
+      toast(`Missing: ${missing.join(', ')}. Paste the token, then tap Connect.`)
       return
     }
     if (!/^(ghp_|github_pat_)/.test(cfg.token)) {
@@ -677,6 +686,17 @@ async function renderSettings() {
       toast(err instanceof Error ? err.message : 'Sync failed')
     }
     await renderSettings()
+  }
+  ghForm.addEventListener('submit', (e) => {
+    e.preventDefault()
+    void connectGithub()
+  })
+  $('#github_pat').addEventListener('paste', (e) => {
+    const pasted = e.clipboardData?.getData('text') ?? ''
+    if (pasted) {
+      e.preventDefault()
+      ;($('#github_pat') as HTMLInputElement).value = sanitizeToken(pasted)
+    }
   })
   document.getElementById('sync-now')?.addEventListener('click', async () => {
     try {

@@ -4,8 +4,11 @@ import { parseSnapshot } from './merge.ts'
 const STORAGE_KEY = 'german-flashcards.github'
 const SHA_KEY = 'german-flashcards.github.sha'
 
+export const DEFAULT_OWNER = 'licensedsaucer9-web'
+export const DEFAULT_REPO = 'german-flashcards-data'
+
 export function defaultGithubConfig(): GithubConfig {
-  return { token: '', owner: '', repo: '', path: 'data.json', branch: 'main' }
+  return { token: '', owner: DEFAULT_OWNER, repo: DEFAULT_REPO, path: 'data.json', branch: 'main' }
 }
 
 export function sanitizeToken(raw: string): string {
@@ -21,8 +24,8 @@ export function loadGithubConfig(): GithubConfig {
     const o = JSON.parse(raw) as Partial<GithubConfig>
     return {
       token: sanitizeToken(String(o.token ?? '')),
-      owner: String(o.owner ?? '').trim(),
-      repo: String(o.repo ?? '').trim(),
+      owner: String(o.owner ?? '').trim() || DEFAULT_OWNER,
+      repo: String(o.repo ?? '').trim() || DEFAULT_REPO,
       path: String(o.path ?? 'data.json').trim() || 'data.json',
       branch: String(o.branch ?? 'main').trim() || 'main',
     }
