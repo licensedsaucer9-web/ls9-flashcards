@@ -8,13 +8,19 @@ export function defaultGithubConfig(): GithubConfig {
   return { token: '', owner: '', repo: '', path: 'data.json', branch: 'main' }
 }
 
+export function sanitizeToken(raw: string): string {
+  return raw
+    .replace(/^(Bearer|token)\s+/i, '')
+    .replace(/[\s\u00a0\u200b\u200c\u200d]/g, '')
+}
+
 export function loadGithubConfig(): GithubConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return defaultGithubConfig()
     const o = JSON.parse(raw) as Partial<GithubConfig>
     return {
-      token: String(o.token ?? ''),
+      token: sanitizeToken(String(o.token ?? '')),
       owner: String(o.owner ?? '').trim(),
       repo: String(o.repo ?? '').trim(),
       path: String(o.path ?? 'data.json').trim() || 'data.json',
@@ -26,7 +32,7 @@ export function loadGithubConfig(): GithubConfig {
 }
 
 export function saveGithubConfig(cfg: GithubConfig): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg))
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...cfg, token: sanitizeToken(cfg.token) }))
 }
 
 export function isGithubConfigured(cfg = loadGithubConfig()): boolean {
@@ -58,7 +64,7 @@ function decodeUtf8Base64(b64: string): string {
 
 function headers(token: string): HeadersInit {
   return {
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${sanitizeToken(token)}`,
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
   }
@@ -86,7 +92,7 @@ export type RemoteFile =
   | { kind: 'file'; sha: string; snapshot: Snapshot }
 
 export async function fetchRemote(cfg: GithubConfig): Promise<RemoteFile> {
-  const res = await fetch(contentsUrl(cfg), { headers: headers(cfg.token) })
+  const res = await fetch(contentsUrl(cfg), { headers: headers(cfg.token), credentials: 'omit' })
   if (res.status === 404) return { kind: 'missing' }
   if (!res.ok) {
     const body = await res.text()
@@ -124,6 +130,7 @@ export async function putRemote(
     headers: { ...headers(cfg.token), 'Content-Type': 'application/json' },
     body,
     keepalive: opts?.keepalive ?? false,
+    credentials: 'omit',
   })
   if (res.status === 409 || res.status === 422) {
     throw new GithubError(res.status, 'conflict')
@@ -139,7 +146,9 @@ export async function putRemote(
 }
 
 function githubMessage(status: number, body: string): string {
-  if (status === 401) return 'GitHub token was rejected'
+  if (status === 401) {
+    return 'GitHub token was rejected (401). Use a PAT starting with github_pat_ or ghp_, not your GitHub password. Paste the full token again.'
+  }
   if (status === 403) return 'GitHub forbidden (token scope or rate limit)'
   if (status === 404) return 'Repo or path not found (use a private repo with Contents access)'
   try {

@@ -27,7 +27,13 @@ import {
   schedulePush,
   syncNow,
 } from './sync.ts'
-import { defaultGithubConfig, isGithubConfigured, loadGithubConfig, saveGithubConfig } from './github.ts'
+import {
+  defaultGithubConfig,
+  isGithubConfigured,
+  loadGithubConfig,
+  sanitizeToken,
+  saveGithubConfig,
+} from './github.ts'
 
 registerSW({ immediate: true })
 
@@ -594,8 +600,8 @@ async function renderSettings() {
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">GitHub sync</p>
-        <p class="note">Single-user backup: a private repo file holds the deck and SRS so every browser (including iPhone Safari) shares progress. Create the repo with a README so <code>main</code> exists. Fine-grained PAT: Contents read/write on that repo. Token stays in this browser, not in the JSON file.</p>
-        <form class="form" id="gh-form" style="padding:0">
+        <p class="note">Single-user backup: a private repo file holds the deck and SRS so every browser (including iPhone Safari) shares progress. Paste a <strong>personal access token</strong> (<code>github_pat_</code> or <code>ghp_</code>), not your GitHub password. Fine-grained PAT: Contents read/write on <code>german-flashcards-data</code> only. Token stays in this browser.</p>
+        <form class="form" id="gh-form" style="padding:0" autocomplete="off">
           <label>Owner
             <input name="owner" type="text" autocomplete="off" value="${esc(gh.owner)}" placeholder="your-github-user" />
           </label>
@@ -609,7 +615,9 @@ async function renderSettings() {
             <input name="branch" type="text" autocomplete="off" value="${esc(gh.branch)}" />
           </label>
           <label>Token
-            <input name="token" type="password" autocomplete="off" value="${esc(gh.token)}" placeholder="ghp_…" />
+            <input name="github_pat" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="${
+              gh.token ? 'saved — paste a new token to replace' : 'github_pat_… or ghp_…'
+            }" />
           </label>
           <button class="primary" type="submit">${connected ? 'Save and sync' : 'Connect and sync'}</button>
           ${connected ? `<button class="secondary" type="button" id="sync-now">Sync now</button>
@@ -645,8 +653,9 @@ async function renderSettings() {
   $('#gh-form').addEventListener('submit', async (e) => {
     e.preventDefault()
     const fd = new FormData(e.target as HTMLFormElement)
+    const typed = sanitizeToken(String(fd.get('github_pat') ?? ''))
     const cfg: GithubConfig = {
-      token: String(fd.get('token') ?? '').trim(),
+      token: typed || loadGithubConfig().token,
       owner: String(fd.get('owner') ?? '').trim(),
       repo: String(fd.get('repo') ?? '').trim(),
       path: String(fd.get('path') ?? 'data.json').trim() || 'data.json',
@@ -655,6 +664,10 @@ async function renderSettings() {
     saveGithubConfig(cfg)
     if (!isGithubConfigured(cfg)) {
       toast('Owner, repo, and token are required')
+      return
+    }
+    if (!/^(ghp_|github_pat_)/.test(cfg.token)) {
+      toast('Token should start with github_pat_ or ghp_ — not your GitHub password')
       return
     }
     try {
