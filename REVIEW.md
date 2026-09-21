@@ -39,6 +39,11 @@ credential to GitHub. The value is deliberately not reproduced here.
    `git rev-list --all --objects | grep -w token`. If it ever was committed,
    rotate is mandatory even after removal.
 
+> **Partly done since this review was written.** `.gitignore` now has `/token`,
+> `*.token`, `*.pem`, `*.key`, `.env*`. The project root has no `token` file.
+> `git log --all -- token` and `rev-list --objects` are clean — it was never
+> committed. Remaining: rotate the PAT if that has not already happened.
+
 ### S2. The token is stored in `localStorage` in plaintext (accepted, but scope it)
 
 `github.ts` persists the PAT in `localStorage` under
@@ -190,6 +195,10 @@ until the session is restarted. Low impact; worth a note in `TEST.md`.
 - **No LICENSE.**
 - **`.gitignore` gaps** beyond S1: no `*.local` is present but `token`, `.env*`,
   editor dirs (`.vscode/`, `.idea/`) are missing.
+
+> **Disagree:** `*.local` has been in `.gitignore` since the first commit.
+> `/token` and `.env*` were added after this review. Editor dirs are still
+> missing; that is a real (small) gap.
 
 ---
 
