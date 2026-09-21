@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
-    "test": "node --experimental-strip-types scripts/srs-csv-test.mjs"
+    "test": "node --experimental-strip-types scripts/srs-csv-test.mjs && node --experimental-strip-types scripts/edge-cases-test.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.63.0",
