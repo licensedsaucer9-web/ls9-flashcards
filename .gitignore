@@ -6,3 +6,10 @@ playwright-report
 test-results
 .lighthouseci
 lh-report*
+ 
+# secrets — never commit
+/token
+*.token
+*.pem
+*.key
+.env*
