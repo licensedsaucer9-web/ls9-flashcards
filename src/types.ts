@@ -28,6 +28,10 @@ export interface Settings {
   /** 0 means review every due card. */
   sessionSize: number
   deletedIds: Record<string, number>
+  /** Local writes are numbered in the same transaction as their data. */
+  localRevision: number
+  acknowledgedRevision: number
+  settingsUpdatedAt: number
 }
 
 export type Snapshot = {
@@ -36,6 +40,8 @@ export type Snapshot = {
   settings: Pick<Settings, 'direction' | 'sessionSize'>
   cards: Card[]
   deleted_ids: Record<string, number>
+  /** Optional so existing version-1 data.json files still load. */
+  settings_updated_at?: number
 }
 
 export type GithubConfig = {

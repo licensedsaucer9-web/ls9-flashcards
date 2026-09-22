@@ -8,6 +8,7 @@ import {
   getCard,
   getDueCards,
   getSettings,
+  insertMissingSeeds,
   putCard,
   putCards,
   putSettings,
@@ -19,10 +20,9 @@ import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
 import { sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
 import {
   bootSync,
-  flushPush,
   getSyncStatus,
   onSyncStatus,
-  pullFromGithub,
+  pauseSync,
   schedulePush,
   syncNow,
 } from './sync.ts'
@@ -79,27 +79,15 @@ function toast(msg: string) {
 }
 
 async function ensureSeed(): Promise<number> {
-  const existing = await getAllCards()
-  const byId = new Set(existing.map((c) => c.id))
-  const byKey = new Set(
-    existing.map((c) => `${c.de.trim().toLowerCase()}|${c.en.trim().toLowerCase()}`),
-  )
-  const missing = seedCards().filter((c) => {
-    const key = `${c.de.trim().toLowerCase()}|${c.en.trim().toLowerCase()}`
-    return !byId.has(c.id) && !byKey.has(key)
-  })
-  if (missing.length) {
-    await putCards(missing)
-    schedulePush()
-  }
-  return missing.length
+  const added = await insertMissingSeeds(seedCards())
+  if (added) schedulePush()
+  return added
 }
 
 async function patchSettings(patch: Partial<Settings>): Promise<Settings> {
-  const next = { ...(await getSettings()), ...patch }
-  await putSettings(next)
+  await putSettings(patch)
   schedulePush()
-  return next
+  return getSettings()
 }
 
 function touch(card: Card): Card {
@@ -110,13 +98,13 @@ function syncLineText(): string {
   const st = getSyncStatus()
   if (st.state === 'off') return 'This device only · connect GitHub in Settings'
   if (st.state === 'syncing') return st.message || 'Syncing…'
-  if (st.state === 'error') return `Sync error: ${st.message}`
+  if (st.state === 'waiting' || st.state === 'error') return st.message
   if (st.state === 'ok' && st.at) {
     const sec = Math.max(0, Math.round((Date.now() - st.at) / 1000))
-    if (sec < 10) return 'Synced just now'
-    if (sec < 60) return `Synced ${sec}s ago`
+    if (sec < 10) return 'Backed up just now'
+    if (sec < 60) return `Backed up ${sec}s ago`
     const min = Math.round(sec / 60)
-    return `Synced ${min}m ago`
+    return `Backed up ${min}m ago`
   }
   return st.message || 'GitHub connected'
 }
@@ -339,8 +327,8 @@ async function renderReview() {
   const grade = async (g: Grade) => {
     const card = queue.shift()
     if (!card) return
-    card.srs = review(card.srs, g)
-    const saved = touch(card)
+    const current = (await getCard(card.id)) ?? card
+    const saved = touch({ ...current, srs: review(current.srs, g) })
     await putCard(saved)
     schedulePush()
     if (g === 'again' || g === 'wrong_gender') queue.push(saved)
@@ -521,9 +509,8 @@ async function renderEdit(id: string | null) {
   del?.addEventListener('click', async () => {
     if (!c) return
     if (!confirm(`Delete ${germanHead(c.article, c.de)}?`)) return
-    const settings = await getSettings()
     await deleteCard(c.id)
-    await patchSettings({ deletedIds: { ...settings.deletedIds, [c.id]: Date.now() } })
+    schedulePush()
     toast('Deleted')
     go('/deck')
   })
@@ -765,14 +752,6 @@ async function boot() {
   if (isGithubConfigured()) {
     await bootSync()
     added = await ensureSeed()
-    const st = getSyncStatus()
-    if (st.message === 'No remote file yet') {
-      try {
-        await syncNow()
-      } catch {
-        /* status already set */
-      }
-    }
   } else {
     added = await ensureSeed()
   }
@@ -782,13 +761,11 @@ async function boot() {
     void render()
   })
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      void flushPush()
+    if (document.visibilityState !== 'visible') {
+      pauseSync()
       return
     }
-    const name = parseRoute().name
-    if (name === 'review' || name === 'settings' || name === 'edit' || name === 'import') return
-    void pullFromGithub()
+    void syncNow()
       .then(() => {
         const now = parseRoute().name
         if (now === 'home' || now === 'deck') void render()
@@ -797,9 +774,7 @@ async function boot() {
         /* status already set */
       })
   })
-  window.addEventListener('pagehide', () => {
-    void flushPush()
-  })
+  window.addEventListener('pagehide', pauseSync)
   onSyncStatus(() => {
     const el = document.getElementById('sync-line')
     if (el) el.textContent = syncLineText()

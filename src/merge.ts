@@ -5,6 +5,7 @@ export function emptySnapshot(now = Date.now()): Snapshot {
     version: 1,
     updated_at: now,
     settings: { direction: 'de-en', sessionSize: 20 },
+    settings_updated_at: now,
     cards: [],
     deleted_ids: {},
   }
@@ -27,6 +28,7 @@ export function parseSnapshot(raw: unknown): Snapshot | null {
   return {
     version: 1,
     updated_at: typeof o.updated_at === 'number' ? o.updated_at : 0,
+    settings_updated_at: typeof o.settings_updated_at === 'number' ? o.settings_updated_at : undefined,
     settings: { direction, sessionSize },
     cards: o.cards as Card[],
     deleted_ids,
@@ -54,14 +56,20 @@ export function mergeSnapshots(local: Snapshot, remote: Snapshot): Snapshot {
 
   const cards = [...map.values()].filter((c) => {
     const del = Number(deleted_ids[c.id]) || 0
+    // Built-in cards have no restore path. An offline device must not revive a deletion.
+    if (del && c.id.startsWith('seed-')) return false
     return !(del && del >= cardTouched(c))
   })
 
-  const settings = local.updated_at >= remote.updated_at ? local.settings : remote.settings
+  const localSettingsTime = local.settings_updated_at ?? local.updated_at
+  const remoteSettingsTime = remote.settings_updated_at ?? remote.updated_at
+  const localSettingsWin = localSettingsTime >= remoteSettingsTime
+  const settings = localSettingsWin ? local.settings : remote.settings
 
   return {
     version: 1,
-    updated_at: Math.max(local.updated_at, remote.updated_at, Date.now()),
+    updated_at: Math.max(local.updated_at, remote.updated_at),
+    settings_updated_at: localSettingsWin ? localSettingsTime : remoteSettingsTime,
     settings,
     cards,
     deleted_ids,

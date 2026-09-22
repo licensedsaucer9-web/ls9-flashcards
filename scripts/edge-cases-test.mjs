@@ -94,6 +94,11 @@ const eL = emptySnapshot(now)
 eL.cards = [card('e', 'keep', 'me', { updated_at: now + 20 })]
 eL.deleted_ids = { e: now + 10 }
 assert(mergeSnapshots(eL, emptySnapshot(now)).cards.length === 1, 'newer edit beats older delete')
+const deletedSeed = emptySnapshot(now)
+deletedSeed.deleted_ids = { 'seed-01': now }
+const laterSeed = emptySnapshot(now)
+laterSeed.cards = [card('seed-01', 'Mann', 'man', { updated_at: now + 50 })]
+assert(mergeSnapshots(deletedSeed, laterSeed).cards.length === 0, 'offline seed edit cannot revive a deleted built-in card')
 
 // deleted_ids take the max timestamp across snapshots
 const del1 = emptySnapshot(now); del1.deleted_ids = { z: 100 }

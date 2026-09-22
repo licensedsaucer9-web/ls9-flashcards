@@ -1,26 +1,24 @@
 import type { Snapshot } from './types.ts'
-import { getAllCards, getSettings, putSettings, replaceAllCards } from './db.ts'
-import { mergeSnapshots } from './merge.ts'
+import { acknowledgeRevision, mergeRemoteIntoDb, readLocalState } from './db.ts'
 import {
   fetchRemote,
   GithubError,
   isGithubConfigured,
   loadGithubConfig,
-  loadKnownSha,
   putRemote,
   saveKnownSha,
 } from './github.ts'
 
 export type SyncStatus = {
-  state: 'off' | 'idle' | 'syncing' | 'ok' | 'error'
+  state: 'off' | 'idle' | 'waiting' | 'syncing' | 'ok' | 'error'
   message: string
   at: number | null
 }
 
 let status: SyncStatus = { state: 'off', message: '', at: null }
-let dirty = false
-let applying = false
 let timer = 0
+let activeSync: Promise<void> | null = null
+let syncAgain = false
 const listeners = new Set<() => void>()
 
 export function getSyncStatus(): SyncStatus {
@@ -33,148 +31,115 @@ export function onSyncStatus(fn: () => void): () => void {
   return () => listeners.delete(fn)
 }
 
-function emit() {
+function setStatus(patch: Partial<SyncStatus>) {
+  status = { ...status, ...patch }
   for (const fn of listeners) fn()
 }
 
-function setStatus(patch: Partial<SyncStatus>) {
-  status = { ...status, ...patch }
-  emit()
-}
-
 export async function snapshotFromDb(): Promise<Snapshot> {
-  const settings = await getSettings()
-  return {
-    version: 1,
-    updated_at: Date.now(),
-    settings: { direction: settings.direction, sessionSize: settings.sessionSize },
-    cards: await getAllCards(),
-    deleted_ids: settings.deletedIds,
-  }
+  return (await readLocalState()).snapshot
 }
 
-async function applySnapshot(snap: Snapshot): Promise<void> {
-  applying = true
-  try {
-    await replaceAllCards(snap.cards)
-    const cur = await getSettings()
-    await putSettings({
-      ...cur,
-      direction: snap.settings.direction,
-      sessionSize: snap.settings.sessionSize,
-      deletedIds: snap.deleted_ids,
-    })
-  } finally {
-    applying = false
-  }
-}
-
-export async function pullFromGithub(): Promise<'missing' | 'applied' | 'skipped'> {
-  const cfg = loadGithubConfig()
-  if (!isGithubConfigured(cfg)) return 'skipped'
-  setStatus({ state: 'syncing', message: 'Pulling…' })
-  const remote = await fetchRemote(cfg)
-  if (remote.kind === 'missing') {
-    setStatus({ state: 'idle', message: 'No remote file yet' })
-    return 'missing'
-  }
-  const hadDirty = dirty
-  const local = await snapshotFromDb()
-  const merged = mergeSnapshots(local, remote.snapshot)
-  await applySnapshot(merged)
-  saveKnownSha(remote.sha)
-  if (hadDirty) {
-    dirty = true
-    setStatus({ state: 'ok', message: 'Merged', at: Date.now() })
-    schedulePush()
-  } else {
-    dirty = false
-    setStatus({ state: 'ok', message: 'Synced', at: Date.now() })
-  }
-  return 'applied'
-}
-
-export async function pushToGithub(opts?: { keepalive?: boolean }): Promise<void> {
-  const cfg = loadGithubConfig()
-  if (!isGithubConfigured(cfg) || applying) return
-  setStatus({ state: 'syncing', message: 'Saving…' })
-  const local = await snapshotFromDb()
-  let sha = loadKnownSha()
-  try {
-    const next = await putRemote(cfg, local, sha, opts)
-    saveKnownSha(next)
-    dirty = false
-    setStatus({ state: 'ok', message: 'Synced', at: Date.now() })
-  } catch (err) {
-    if (err instanceof GithubError && err.message === 'conflict') {
-      const remote = await fetchRemote(cfg)
-      if (remote.kind === 'missing') {
-        const next = await putRemote(cfg, local, null, opts)
-        saveKnownSha(next)
-        dirty = false
-        setStatus({ state: 'ok', message: 'Synced', at: Date.now() })
-        return
-      }
-      const merged = mergeSnapshots(local, remote.snapshot)
-      const next = await putRemote(cfg, merged, remote.sha, opts)
-      saveKnownSha(next)
-      await applySnapshot(merged)
-      dirty = false
-      setStatus({ state: 'ok', message: 'Synced', at: Date.now() })
-      return
-    }
-    const message = err instanceof Error ? err.message : 'Sync failed'
-    setStatus({ state: 'error', message, at: Date.now() })
-    throw err
-  }
-}
-
-export async function syncNow(): Promise<void> {
+async function syncPass(): Promise<void> {
   const cfg = loadGithubConfig()
   if (!isGithubConfigured(cfg)) {
     setStatus({ state: 'off', message: '', at: null })
     return
   }
+  setStatus({ state: 'syncing', message: 'Checking GitHub…' })
   try {
-    const remote = await fetchRemote(cfg)
-    if (remote.kind === 'missing') {
-      await pushToGithub()
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const remote = await fetchRemote(cfg)
+      let snapshot: Snapshot
+      let includedRevision: number
+      let pending: boolean
+      let sha: string | null
+      if (remote.kind === 'file') {
+        const applied = await mergeRemoteIntoDb(remote.snapshot)
+        snapshot = applied.snapshot
+        includedRevision = applied.revision
+        pending = applied.pending
+        sha = remote.sha
+        saveKnownSha(sha)
+      } else {
+        const local = await readLocalState()
+        snapshot = local.snapshot
+        includedRevision = local.settings.localRevision
+        pending = includedRevision > local.settings.acknowledgedRevision
+        sha = null
+      }
+
+      if (remote.kind === 'missing' && snapshot.cards.length === 0) {
+        setStatus({ state: 'idle', message: 'Saved on this device · no cards to back up', at: null })
+        return
+      }
+      if (!pending && remote.kind === 'file') {
+        setStatus({ state: 'ok', message: 'Backed up on GitHub', at: Date.now() })
+        return
+      }
+
+      setStatus({ state: 'syncing', message: 'Backing up to GitHub…' })
+      try {
+        const nextSha = await putRemote(cfg, snapshot, sha)
+        saveKnownSha(nextSha)
+      } catch (error) {
+        if (error instanceof GithubError && error.message === 'conflict' && attempt < 3) continue
+        throw error
+      }
+      if (await acknowledgeRevision(includedRevision)) {
+        syncAgain = true
+        setStatus({ state: 'waiting', message: 'Saved on this device · waiting to back up newer changes', at: null })
+      } else {
+        setStatus({ state: 'ok', message: 'Backed up on GitHub', at: Date.now() })
+      }
       return
     }
-    const local = await snapshotFromDb()
-    const merged = mergeSnapshots(local, remote.snapshot)
-    await applySnapshot(merged)
-    const next = await putRemote(cfg, merged, remote.sha)
-    saveKnownSha(next)
-    dirty = false
-    setStatus({ state: 'ok', message: 'Synced', at: Date.now() })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Sync failed'
-    setStatus({ state: 'error', message, at: Date.now() })
-    throw err
+  } catch (error) {
+    const local = await readLocalState()
+    const pending = local.settings.localRevision > local.settings.acknowledgedRevision
+    const detail = error instanceof Error ? error.message : 'Sync failed'
+    setStatus({
+      state: 'error',
+      message: pending ? `Saved on this device · waiting to back up (${detail})` : detail,
+      at: Date.now(),
+    })
+    throw error
   }
 }
 
-export function schedulePush(): void {
-  if (applying || !isGithubConfigured()) return
-  dirty = true
+/** All foreground triggers share one serialized pull/merge/push loop. */
+export function syncNow(): Promise<void> {
   window.clearTimeout(timer)
+  if (activeSync) {
+    syncAgain = true
+    return activeSync
+  }
+  activeSync = (async () => {
+    do {
+      syncAgain = false
+      await syncPass()
+    } while (syncAgain)
+  })().finally(() => {
+    activeSync = null
+  })
+  return activeSync
+}
+
+/** The data write already recorded a pending revision before this is called. */
+export function schedulePush(): void {
+  if (!isGithubConfigured()) return
+  setStatus({ state: 'waiting', message: 'Saved on this device · waiting to back up', at: null })
+  window.clearTimeout(timer)
+  if (document.visibilityState === 'hidden') return
   timer = window.setTimeout(() => {
-    void pushToGithub().catch(() => {
-      /* status already set */
+    void syncNow().catch(() => {
+      /* The pending revision and status remain for the next foreground retry. */
     })
   }, 1200)
 }
 
-export async function flushPush(): Promise<void> {
+export function pauseSync(): void {
   window.clearTimeout(timer)
-  if (dirty && isGithubConfigured()) {
-    try {
-      await pushToGithub({ keepalive: true })
-    } catch {
-      /* status already set */
-    }
-  }
 }
 
 export async function bootSync(): Promise<void> {
@@ -182,17 +147,13 @@ export async function bootSync(): Promise<void> {
     setStatus({ state: 'off', message: '', at: null })
     return
   }
+  const local = await readLocalState()
+  if (local.settings.localRevision > local.settings.acknowledgedRevision) {
+    setStatus({ state: 'waiting', message: 'Saved on this device · waiting to back up', at: null })
+  }
   try {
-    const result = await pullFromGithub()
-    if (result === 'missing') {
-      const snap = await snapshotFromDb()
-      if (snap.cards.length === 0) return
-      await pushToGithub()
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Sync failed'
-    setStatus({ state: 'error', message, at: Date.now() })
+    await syncNow()
+  } catch {
+    /* Keep locally committed changes pending until the next foreground retry. */
   }
 }
-
-
