@@ -19,6 +19,10 @@ npm test         # unit and Chromium sync tests
 ## Public site
 
 The app is published at <https://licensedsaucer9-web.github.io/german-flashcards-site/>.
+Scan this code with your iPhone camera to open the app in Safari:
+
+![QR code for the German Flashcards app](docs/app-qr.png)
+
 This source repository and the [review-data repository](https://github.com/licensedsaucer9-web/german-flashcards-data)
 stay private. The public `german-flashcards-site` repository contains only the
 built site. Its `gh-pages` branch is the Pages source.
