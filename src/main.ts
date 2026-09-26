@@ -327,7 +327,14 @@ async function renderReview() {
   const grade = async (g: Grade) => {
     const card = queue.shift()
     if (!card) return
-    const current = (await getCard(card.id)) ?? card
+    const current = await getCard(card.id)
+    // Sync may have merge-deleted this card while the review screen was open.
+    // Do not fall back to the stale queue object — that would resurrect it.
+    if (!current) {
+      flipped = false
+      paint()
+      return
+    }
     const saved = touch({ ...current, srs: review(current.srs, g) })
     await putCard(saved)
     schedulePush()
@@ -486,23 +493,44 @@ async function renderEdit(id: string | null) {
       return
     }
     const now = Date.now()
-    const card: Card = c
-      ? touch({ ...c, de, en, article, example_de, example_en, tags })
-      : {
-          id: crypto.randomUUID(),
-          de,
-          en,
-          article,
-          example_de,
-          example_en,
-          tags,
-          created_at: now,
-          updated_at: now,
-          srs: newSrs(now),
-        }
+    if (c) {
+      // Re-read so a foreground merge cannot lose remote SRS or resurrect a deletion.
+      const fresh = await getCard(c.id)
+      if (!fresh) {
+        toast('Card was deleted')
+        go('/deck')
+        return
+      }
+      const card = touch({
+        ...fresh,
+        de,
+        en,
+        article,
+        example_de,
+        example_en,
+        tags,
+      })
+      await putCard(card)
+      schedulePush()
+      toast('Saved')
+      go('/deck')
+      return
+    }
+    const card: Card = {
+      id: crypto.randomUUID(),
+      de,
+      en,
+      article,
+      example_de,
+      example_en,
+      tags,
+      created_at: now,
+      updated_at: now,
+      srs: newSrs(now),
+    }
     await putCard(card)
     schedulePush()
-    toast(c ? 'Saved' : 'Card added')
+    toast('Card added')
     go('/deck')
   })
   const del = document.getElementById('delete')

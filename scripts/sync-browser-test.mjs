@@ -228,8 +228,15 @@ try {
   assert.equal(seeded.reviewed.srs.reps, 9)
   assert(await page.evaluate(async () => (await import('/src/db.ts')).getCard('from-second-device')))
 
-  // Upgrade an old local settings record without losing an unacknowledged review.
-  await page.evaluate(async () => {
+  // Upgrade an old local settings record: keep local direction/sessionSize and unsynced review.
+  // Remote is an old data.json (no settings_updated_at) with different settings and an older updated_at.
+  const legacyCardTime = Date.now()
+  remote.snapshot = structuredClone(remote.snapshot)
+  remote.snapshot.settings = { direction: 'de-en', sessionSize: 20 }
+  delete remote.snapshot.settings_updated_at
+  remote.snapshot.updated_at = legacyCardTime - 60_000
+  remote.sha = `sha-legacy-${remote.writes}`
+  await page.evaluate(async (cardTime) => {
     const db = await new Promise((resolve, reject) => {
       const request = indexedDB.open('german-flashcards', 1)
       request.onsuccess = () => resolve(request.result)
@@ -241,21 +248,129 @@ try {
       request.onsuccess = () => {
         const card = request.result
         card.srs.reps = 11
-        card.updated_at = Date.now()
+        card.updated_at = cardTime
         tx.objectStore('cards').put(card)
-        tx.objectStore('settings').put({ id: 'settings', direction: 'en-de', sessionSize: 20, deletedIds: {} })
+        // Legacy row: no revision clocks, no settingsUpdatedAt (normalizes to 0).
+        // Keep existing tombstones so upgrade only strips the new clock fields.
+        const prev = tx.objectStore('settings').get('settings')
+        prev.onsuccess = () => {
+          const deletedIds = (prev.result && prev.result.deletedIds) || {}
+          tx.objectStore('settings').put({
+            id: 'settings',
+            direction: 'en-de',
+            sessionSize: 50,
+            deletedIds,
+          })
+        }
       }
       tx.oncomplete = resolve
       tx.onerror = () => reject(tx.error)
     })
     db.close()
     await (await import('/src/sync.ts')).syncNow()
-  })
+  }, legacyCardTime)
   assert.equal(remote.snapshot.cards.find((card) => card.id === 'seed-07').srs.reps, 11)
+  assert.equal(remote.snapshot.settings.direction, 'en-de', 'legacy upgrade must keep local direction')
+  assert.equal(remote.snapshot.settings.sessionSize, 50, 'legacy upgrade must keep local sessionSize')
+  assert.equal((await state(page)).settings.direction, 'en-de')
+  assert.equal((await state(page)).settings.sessionSize, 50)
   assert.equal((await state(page)).settings.localRevision, (await state(page)).settings.acknowledgedRevision)
+
+  // Edit save after remote SRS change must keep remote SRS; after deletion must not resurrect.
+  const editId = 'seed-09'
+  await page.goto(`${base}#/card/${editId}`)
+  await page.waitForSelector('#form')
+  const remoteReps = 42
+  await page.evaluate(async ({ id, reps }) => {
+    const db = await import('/src/db.ts')
+    const card = await db.getCard(id)
+    card.srs = { ...card.srs, reps }
+    card.updated_at = Date.now() + 5000
+    await db.mergeRemoteIntoDb({
+      ...(await db.readLocalState()).snapshot,
+      cards: (await db.getAllCards()).map((c) => (c.id === id ? card : c)),
+    })
+  }, { id: editId, reps: remoteReps })
+  await page.fill('input[name="de"]', 'Tür (edited)')
+  await page.click('button.primary[type="submit"]')
+  await page.waitForFunction(() => location.hash === '#/deck' || location.hash === '#/')
+  const afterSrsEdit = await page.evaluate(async (id) => {
+    const card = await (await import('/src/db.ts')).getCard(id)
+    return card ? { de: card.de, reps: card.srs.reps } : null
+  }, editId)
+  assert(afterSrsEdit, 'edited card should still exist')
+  assert.equal(afterSrsEdit.de, 'Tür (edited)')
+  assert.equal(afterSrsEdit.reps, remoteReps, 'edit save must not overwrite fresher remote SRS')
+
+  await page.goto(`${base}#/card/seed-10`)
+  await page.waitForSelector('#form')
+  await page.evaluate(async () => {
+    const db = await import('/src/db.ts')
+    const { snapshot } = await db.readLocalState()
+    const deletedAt = Date.now() + 2000
+    snapshot.cards = snapshot.cards.filter((card) => card.id !== 'seed-10')
+    snapshot.deleted_ids = { ...snapshot.deleted_ids, 'seed-10': deletedAt }
+    snapshot.updated_at = deletedAt
+    await db.mergeRemoteIntoDb(snapshot)
+  })
+  await page.fill('input[name="en"]', 'window (edited)')
+  await page.click('button.primary[type="submit"]')
+  await page.waitForFunction(() => location.hash === '#/deck' || location.hash === '#/')
+  assert.equal(
+    await page.evaluate(async () => (await import('/src/db.ts')).getCard('seed-10')),
+    undefined,
+    'edit save must not resurrect a merge-deleted card',
+  )
+  assert(
+    await page.evaluate(async () => (await (await import('/src/db.ts')).getSettings()).deletedIds['seed-10']),
+    'tombstone must remain after skipped edit save',
+  )
+
+  // Grade after merge deleted the open card must not resurrect it.
+  await page.goto(`${base}#/review`)
+  await page.waitForSelector('#card')
+  const reviewFront = (await page.locator('.face.front .word').textContent()).trim()
+  const gradedId = await page.evaluate(async (front) => {
+    const db = await import('/src/db.ts')
+    const settings = await db.getSettings()
+    const cards = await db.getAllCards()
+    if (settings.direction === 'en-de') {
+      return cards.find((card) => card.en === front)?.id
+    }
+    const match = cards.find((card) => {
+      const head = card.article === 'none' ? card.de : `${card.article} ${card.de}`
+      return head === front
+    })
+    return match?.id
+  }, reviewFront)
+  assert(gradedId, `could not resolve review card for front=${reviewFront}`)
+  await page.evaluate(async (id) => {
+    const db = await import('/src/db.ts')
+    const { snapshot } = await db.readLocalState()
+    const deletedAt = Date.now() + 1000
+    snapshot.cards = snapshot.cards.filter((card) => card.id !== id)
+    snapshot.deleted_ids = { ...snapshot.deleted_ids, [id]: deletedAt }
+    snapshot.updated_at = deletedAt
+    await db.mergeRemoteIntoDb(snapshot)
+  }, gradedId)
+  assert.equal(await page.evaluate(async (id) => (await import('/src/db.ts')).getCard(id), gradedId), undefined)
+  await page.click('#card')
+  await page.waitForSelector('[data-grade="good"]')
+  await page.click('[data-grade="good"]')
+  await new Promise((resolve) => setTimeout(resolve, 100))
+  assert.equal(
+    await page.evaluate(async (id) => (await import('/src/db.ts')).getCard(id), gradedId),
+    undefined,
+    'grading a merge-deleted card must not resurrect it',
+  )
+  assert(
+    await page.evaluate(async (id) => (await (await import('/src/db.ts')).getSettings()).deletedIds[id], gradedId),
+    'tombstone must remain after skipped grade',
+  )
+
   await other.close()
   await context.close()
-  console.log('sync-browser-test: offline reload, large payload, in-flight edit, conflict, settings, tombstone, second device, legacy DB: ok')
+  console.log('sync-browser-test: offline reload, large payload, in-flight edit, conflict, settings, tombstone, second device, legacy DB, grade/edit guards: ok')
 } finally {
   if (browser) await browser.close()
   server.kill()

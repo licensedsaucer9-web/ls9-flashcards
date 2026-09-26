@@ -52,6 +52,18 @@ function value<T>(request: IDBRequest<T>): Promise<T> {
   })
 }
 
+/** Newest card/tombstone time — used as a stand-in when a legacy settings row has no clock. */
+function legacySettingsClock(cards: Card[], deletedIds: Record<string, number>): number {
+  let t = 0
+  for (const card of cards) t = Math.max(t, card.updated_at || card.created_at || 0)
+  for (const time of Object.values(deletedIds)) t = Math.max(t, Number(time) || 0)
+  return t
+}
+
+function hasRealSettingsClock(stored?: Partial<Settings> | null): boolean {
+  return typeof stored?.settingsUpdatedAt === 'number' && stored.settingsUpdatedAt > 0
+}
+
 function localSnapshot(cards: Card[], settings: Settings): Snapshot {
   let updatedAt = settings.settingsUpdatedAt
   for (const card of cards) updatedAt = Math.max(updatedAt, card.updated_at || card.created_at || 0)
@@ -59,7 +71,8 @@ function localSnapshot(cards: Card[], settings: Settings): Snapshot {
   return {
     version: 1,
     updated_at: updatedAt,
-    settings_updated_at: settings.settingsUpdatedAt,
+    // 0 means "legacy unknown" — omit so merge can fall back to updated_at.
+    settings_updated_at: settings.settingsUpdatedAt > 0 ? settings.settingsUpdatedAt : undefined,
     settings: { direction: settings.direction, sessionSize: settings.sessionSize },
     cards,
     deleted_ids: settings.deletedIds,
@@ -79,10 +92,18 @@ export async function readLocalState(): Promise<{ snapshot: Snapshot; settings: 
       value(settingsRequest) as Promise<Settings | undefined>,
     ])
     const settings = normalizeSettings(stored)
+    let dirty = false
     if (stored?.localRevision === undefined && cards.length) {
       settings.localRevision = 1
-      tx.objectStore('settings').put(settings)
+      dirty = true
     }
+    // Legacy rows lack settingsUpdatedAt; 0 is not a real clock. Derive from local data
+    // so the first merge/upload keeps IndexedDB direction and session size.
+    if (stored !== undefined && !hasRealSettingsClock(stored)) {
+      settings.settingsUpdatedAt = legacySettingsClock(cards, settings.deletedIds)
+      dirty = true
+    }
+    if (dirty) tx.objectStore('settings').put(settings)
     await done
     return { snapshot: localSnapshot(cards, settings), settings }
   } finally {
@@ -237,6 +258,9 @@ export async function mergeRemoteIntoDb(remote: Snapshot): Promise<{ snapshot: S
     ])
     const settings = normalizeSettings(stored)
     if (stored?.localRevision === undefined && cards.length) settings.localRevision = 1
+    if (stored !== undefined && !hasRealSettingsClock(stored)) {
+      settings.settingsUpdatedAt = legacySettingsClock(cards, settings.deletedIds)
+    }
     const merged = mergeSnapshots(localSnapshot(cards, settings), remote)
     const cardStore = tx.objectStore('cards')
     cardStore.clear()

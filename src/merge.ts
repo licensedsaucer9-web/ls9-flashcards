@@ -61,8 +61,10 @@ export function mergeSnapshots(local: Snapshot, remote: Snapshot): Snapshot {
     return !(del && del >= cardTouched(c))
   })
 
-  const localSettingsTime = local.settings_updated_at ?? local.updated_at
-  const remoteSettingsTime = remote.settings_updated_at ?? remote.updated_at
+  // 0 is the legacy unknown sentinel (normalizeSettings / old rows), not epoch.
+  // Treat it like missing so the snapshot updated_at fallback can preserve local settings.
+  const localSettingsTime = local.settings_updated_at || local.updated_at
+  const remoteSettingsTime = remote.settings_updated_at || remote.updated_at
   const localSettingsWin = localSettingsTime >= remoteSettingsTime
   const settings = localSettingsWin ? local.settings : remote.settings
 
