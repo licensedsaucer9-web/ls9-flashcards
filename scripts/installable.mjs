@@ -23,6 +23,13 @@ const page = context.pages()[0] || (await context.newPage())
 const cdp = await context.newCDPSession(page)
 
 try {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    try {
+      if ((await fetch(BASE)).ok) break
+    } catch { /* preview server is starting */ }
+    if (attempt === 99) throw new Error(`Preview did not start at ${BASE}`)
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
   await page.goto(BASE, { waitUntil: 'load' })
   await page.waitForSelector('[data-due-count]')
 
@@ -33,6 +40,8 @@ try {
   assert(manifest.name && manifest.short_name, 'name/short_name')
   assert(['standalone', 'fullscreen', 'minimal-ui'].includes(manifest.display), `display ${manifest.display}`)
   assert(manifest.start_url, 'start_url')
+  assert(new URL(manifest.start_url, manifestUrl).pathname === new URL(BASE).pathname, 'manifest start_url escapes site base')
+  assert(new URL(manifest.scope, manifestUrl).pathname === new URL(BASE).pathname, 'manifest scope escapes site base')
   const sizes = (manifest.icons || []).flatMap((i) => String(i.sizes).split(' '))
   assert(sizes.includes('192x192'), '192 icon')
   assert(sizes.includes('512x512'), '512 icon')
@@ -47,6 +56,7 @@ try {
     }
   })
   assert(sw.controlling, `SW not controlling: ${JSON.stringify(sw)}`)
+  assert(new URL(sw.scope).pathname === new URL(BASE).pathname, 'service worker scope escapes site base')
 
   let errors = { installabilityErrors: [] }
   try {
@@ -72,7 +82,14 @@ try {
   const gbox = await page.locator('[data-grade="good"]').boundingBox()
   assert(gbox && gbox.height >= 56, `grade hit target ${gbox?.height}`)
 
-  console.log('installable: manifest + SW + Chrome installability errors empty')
+  await page.goto(BASE, { waitUntil: 'load' })
+  await page.waitForSelector('[data-due-count]')
+  await page.reload({ waitUntil: 'load' }) // let the installed worker control this tab
+  await context.setOffline(true)
+  await page.reload({ waitUntil: 'load' })
+  await page.waitForSelector('[data-due-count]')
+
+  console.log('installable: manifest + SW + offline reload + Chrome installability errors empty')
   console.log('mobile: grade bar in thumb zone, tabbar hidden in review')
   console.log(JSON.stringify({ manifest: manifest.short_name, sw, installabilityErrors: list }, null, 2))
 } finally {
