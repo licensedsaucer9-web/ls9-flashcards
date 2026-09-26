@@ -1,5 +1,10 @@
 # Review of `proposed_plan.md`
 
+> **Historical review of a proposal.** Its "live system" observations refer
+> to the older commit named below. Settings freshness and data reliability
+> have since been fixed; interval multiplier, review history, and FSRS remain
+> proposals. See [REVIEW.md](REVIEW.md) for current status.
+
 Reviewed against the PWA on `master` (`29e175b` plus the prior app commits) and the live private snapshot in `german-flashcards-data`.
 
 The plan is a good fit for this app. It describes the current SM-2 scheduler, Close/Back home, whole-snapshot GitHub sync, and the settings-merge bug accurately. It puts that bug in front of the new interval factor, and treats FSRS as a later evaluation rather than a scheduler swap. Steps **0–4** are the right next slice. Steps **5–6** should stay parked until sync can carry a larger file.

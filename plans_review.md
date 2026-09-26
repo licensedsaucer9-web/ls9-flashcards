@@ -1,5 +1,10 @@
 # Review of the two plans
 
+> **Historical planning review.** The recommended reliability work in
+> `plan.md` has been completed. Its descriptions of the then-current sync path
+> are not current status. See [REVIEW.md](REVIEW.md)
+> and [README.md](README.md) for the deployed app.
+
 `plan.md` (`d76db4f`) and `proposed_plan.md` (`29e175b`) are similar in craft and different in job. Both name the current code, give an order of work, and end in checks you can fail. `plan.md` is the one to implement now.
 
 ## What each document is

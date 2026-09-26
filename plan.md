@@ -1,5 +1,11 @@
 # iPhone data reliability plan
 
+> **Completed historical plan (issues #1–#3).** The behavior and risks below
+> describe the app before durable revisions, foreground retry, and seed
+> tombstones were implemented. For current behavior use the [README](README.md),
+> [click-path guide](TEST.md), and [current review](REVIEW.md). Do not treat the
+> work order below as open tasks.
+
 This plan covers three existing data-loss and data-resurrection risks in the German Flashcards Home Screen web app. It does not implement them. The app remains a local-first PWA: IndexedDB holds the working deck, and the private `german-flashcards-data` repository remains the remote backup and cross-device sync target. The data repository needs no manual edit for this plan.
 
 ## Current behavior and risk
