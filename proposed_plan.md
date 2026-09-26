@@ -1,5 +1,12 @@
 # Proposed German flashcards improvement plan
 
+> **Unimplemented feature proposal, written before the reliability fixes.**
+> The present-tense sync and settings-bug descriptions below reflect the older
+> code at the time of writing. Durable backup, foreground retry, seed
+> tombstones, and independent settings freshness are now implemented. The
+> interval multiplier, review history, and FSRS described here are **not**
+> implemented. See the [current review](REVIEW.md) before using this plan.
+
 This plan belongs to the `german-flashcards` PWA repository. The separate `german-flashcards-data` repository is only the private GitHub-backed data file and should not contain application plans or behavior changes.
 
 ## What the current app already does

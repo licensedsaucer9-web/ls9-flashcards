@@ -2,19 +2,30 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-German flashcards as a local-first PWA (Vite + TypeScript). The SRS review history lives in a separate private repo, [german-flashcards-data](https://github.com/licensedsaucer9-web/german-flashcards-data).
+German flashcards as a local-first PWA (Vite + TypeScript). Current card progress and settings are backed up to a separate private repo, [german-flashcards-data](https://github.com/licensedsaucer9-web/german-flashcards-data). The app does not store a review event history.
 
 ## Develop
 
 ```bash
+npm ci           # install the locked dependencies (Node 22 as used in CI)
 npm run dev      # Vite dev server
 npm run build    # type-check + production build
 npm run preview  # serve the build on 127.0.0.1:4173
 npm test         # unit and Chromium sync tests
 ```
 
-`npm test` also runs a Chromium test of IndexedDB persistence and GitHub sync. Set
-`CHROME=/path/to/chromium` if Chromium is not installed at `/usr/bin/chromium`.
+`npm test` includes Chromium tests of IndexedDB persistence and mocked GitHub
+sync; it never needs a live token. Install Chromium with
+`node node_modules/playwright-core/cli.js install chromium` if needed, or set
+`CHROME=/path/to/chromium`.
+
+For a local preview of the **public deployment path**, use the same base for
+both build and preview:
+
+```bash
+BASE=/german-flashcards-site/ npm run build
+BASE=/german-flashcards-site/ npm run preview
+```
 
 ## Public site
 
@@ -34,7 +45,7 @@ build to the public repository. The private repository secret
 `PUBLIC_SITE_DEPLOY_KEY` is a write-enabled SSH deploy key for that public
 repository only. The workflow does not publish from pull requests.
 
-## Move an existing iPhone Home Screen app
+## Move an older iPhone Home Screen installation
 
 The new site has a different URL. Treat it as a new installation; do not rely
 on the old Home Screen app's local cards, login token, or service worker moving
@@ -57,10 +68,11 @@ to it automatically.
 ## iPhone backup check
 
 The app saves each change to IndexedDB first. **Saved on this device · waiting to
-back up** means GitHub has not acknowledged it yet; **Backed up** appears only
-after GitHub confirms the upload. The Home Screen app retries while open, at the
-next launch, and when it returns to the foreground. Switching apps does not
-attempt a background upload.
+back up** means GitHub has not acknowledged the latest local changes yet.
+**Backed up** means a successful GitHub sync found no pending local changes,
+or GitHub acknowledged the upload. The Home Screen app retries while open, at
+the next launch, and when it returns to the foreground. Switching apps does
+not attempt a background upload.
 
 To check a new release on an iPhone:
 
@@ -72,8 +84,19 @@ To check a new release on an iPhone:
 3. Turn Airplane Mode off and return to Flashcards. Wait for **Backed up**, then
    inspect `data.json` in the private repo or open a second device and confirm
    that the review arrived. Use **Sync now** in Settings to retry manually.
-4. Delete a built-in card, close and reopen the app twice, and sync the second
-   device. The deleted card must remain absent on both devices.
+4. To check deletion sync without losing a real card, create a disposable card,
+   wait for **Backed up**, then delete it. After reopening and syncing a second
+   device, the test card should remain absent. Built-in-card deletion and
+   reseeding are covered by the automated browser tests.
+
+For a read-only backup verification or recovery drill, see the private
+[data repository guide](https://github.com/licensedsaucer9-web/german-flashcards-data#verify-an-existing-backup-without-changing-it).
+
+## Other documentation
+
+- [TEST.md](TEST.md) is the manual click path for review, import, installability, and sync.
+- [REVIEW.md](REVIEW.md) records the current project state and known limitations.
+- [plan.md](plan.md) and [plans_review.md](plans_review.md) document completed reliability work; [proposed_plan.md](proposed_plan.md) and [proposed_plan_review.md](proposed_plan_review.md) preserve feature proposals. Their historical observations are labeled at the top of each file.
 
 ## License
 

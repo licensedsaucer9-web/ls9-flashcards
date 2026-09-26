@@ -1,17 +1,17 @@
 # German Flashcards — click path
 
-App lives in this folder. IndexedDB is the offline cache. Connect a **private GitHub repo** in Settings so the deck and SRS follow you across browsers (PC, iPhone Safari, etc.). A fresh profile with no remote file seeds ~500 A1/A2 cards. Existing decks gain the new seed cards on launch without resetting SRS on cards you already have.
+App lives in this folder. IndexedDB is the offline cache. Connect the **private GitHub data repo** in Settings so the deck and SRS follow you across browsers (PC, iPhone Safari, etc.). A fresh profile without sync currently seeds 514 A1/A2 cards. Existing decks gain missing seed cards on launch without resetting SRS on cards you already have. Use a disposable browser profile for this click path so the tests do not change your personal deck.
 
 ## Run
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
 Open the URL Vite prints (usually http://localhost:5173/).
 
-For the installable PWA (service worker + Lighthouse):
+For the installable PWA (service worker):
 
 ```bash
 npm run build
@@ -19,10 +19,13 @@ npm run preview
 ```
 
 Open the preview URL (usually http://localhost:4173/).
+If checking the public site's subpath locally, set
+`BASE=/german-flashcards-site/` for **both** the build and preview commands and
+open `http://localhost:4173/german-flashcards-site/`.
 
 ## 1. Review loop (due queue only)
 
-1. Home shows a large **due** count (50 on first launch), a **This session** cap (10 / 20 / 30 / All, plus custom), and **Start N of 50**.
+1. Home shows a large **due** count (currently 514 in a fresh profile), a **This session** cap (10 / 20 / 30 / All, plus custom), and **Start N of M**.
 2. The Deck and Settings tabs are in the bottom bar; home is not a full deck list.
 3. Pick a session size (suggested chip is marked). Tap **Start**. Review only that many due cards; leftover due stay on home.
 4. You see a big German card (`der` blue, `die` red, `das` green; verbs have no article color).
@@ -33,10 +36,10 @@ Open the preview URL (usually http://localhost:4173/).
 
 ## 2. Grades persist after reload
 
-1. Note the due count on home (e.g. 50).
+1. Note the due count on home (e.g. 514 in a fresh profile).
 2. Start review, flip, tap **Good** on one card.
-3. Close, or go home. Due count should be 49.
-4. Reload the page (F5). Due count stays 49.
+3. Close, or go home. Due count should be one lower.
+4. Reload the page (F5). The lower due count persists.
 5. Start review: the card you graded Good is gone from the queue.
 6. Optional: grade a card **Again**, reload — that card is still due (interval reset).
 
@@ -63,18 +66,20 @@ Open the preview URL (usually http://localhost:4173/).
 1. **Settings** → **EN → DE**. Home → Start review: front is English, back is German.
 2. Switch back to **DE → EN** the same way.
 3. On `npm run preview` (or a hosted HTTPS build), Chrome/Edge: install icon or menu → **Install page as app**.
-4. Lighthouse 13 dropped the PWA category. On `npm run preview`, Chromium reports **no installability errors** (manifest + 192/512 icons + `standalone` + controlling service worker). Chrome/Edge show an install affordance on desktop.
+4. On `npm run preview`, `node scripts/installable.mjs` checks the manifest,
+   controlling service worker, offline reload, and Chromium installability
+   errors. Chrome/Edge can show an install option on desktop.
 
 ## 5. GitHub sync (cross-device)
 
-1. Create a **private** GitHub repo with a README (so `main` exists), e.g. `german-flashcards-data`.
-2. GitHub → Settings → Developer settings → Fine-grained personal access tokens: Contents **read/write** on that repo.
-3. In the app: **Settings → GitHub sync**. Owner, repo, path `data.json`, branch `main`, paste the token → **Connect and sync**.
+1. Use the existing private `licensedsaucer9-web/german-flashcards-data` repository only when checking your real backup. For a disposable test, create a separate **private** repository with a `main` branch (initialize it with a README). The app creates `data.json` on first sync if it is absent.
+2. Create a fine-grained GitHub personal access token with Contents **read/write** on the selected private repository only.
+3. In the app: **Settings → GitHub sync**. Enter owner, repo, path `data.json`, branch `main`, and the token → **Connect and sync**. Wait for **Backed up**.
 4. Reload another browser (or iPhone Safari on the HTTPS-hosted PWA), enter the same owner/repo/token, **Sync now**. Due counts and grades match.
-5. Grade a card on device A, wait ~1s or switch apps, open device B, wait a moment or tap **Sync now**. Progress matches.
+5. Grade a card on device A and keep the app open until it says **Backed up**. Open device B, wait for sync or tap **Sync now**. Progress matches. Switching apps does not perform a background upload.
 6. Disconnect removes the token from that browser only; the GitHub file stays.
 
-The PWA on iPhone still needs HTTPS (GitHub Pages for the *app*, or `npm run preview` via a tunnel). Keep the *data* repo private.
+The iPhone app is served over HTTPS at <https://licensedsaucer9-web.github.io/german-flashcards-site/>. Keep the *data* repo private. The [README](README.md#move-an-older-iphone-home-screen-installation) explains migration from an older Home Screen icon.
 
 ## 6. Mobile layout
 
