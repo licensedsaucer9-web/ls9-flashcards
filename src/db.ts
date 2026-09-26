@@ -1,6 +1,15 @@
-import type { Card, Settings } from './types.ts'
+import type { Card, Settings, Snapshot } from './types.ts'
+import { mergeSnapshots } from './merge.ts'
+
+const DB_NAME = 'german-flashcards'
+const DB_VERSION = 1
+
+function revision(value: unknown): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
+}
 
 export function normalizeSettings(s?: Partial<Settings> | null): Settings {
+  const localRevision = revision(s?.localRevision)
   return {
     id: 'settings',
     direction: s?.direction === 'en-de' ? 'en-de' : 'de-en',
@@ -9,23 +18,19 @@ export function normalizeSettings(s?: Partial<Settings> | null): Settings {
         ? Math.max(0, Math.floor(s.sessionSize))
         : 20,
     deletedIds: s?.deletedIds && typeof s.deletedIds === 'object' ? { ...s.deletedIds } : {},
+    localRevision,
+    acknowledgedRevision: Math.min(localRevision, revision(s?.acknowledgedRevision)),
+    settingsUpdatedAt: revision(s?.settingsUpdatedAt),
   }
 }
-
-const DB_NAME = 'german-flashcards'
-const DB_VERSION = 1
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = () => {
       const db = req.result
-      if (!db.objectStoreNames.contains('cards')) {
-        db.createObjectStore('cards', { keyPath: 'id' })
-      }
-      if (!db.objectStoreNames.contains('settings')) {
-        db.createObjectStore('settings', { keyPath: 'id' })
-      }
+      if (!db.objectStoreNames.contains('cards')) db.createObjectStore('cards', { keyPath: 'id' })
+      if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'id' })
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
@@ -40,89 +45,261 @@ function txDone(tx: IDBTransaction): Promise<void> {
   })
 }
 
+function value<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+/** Newest card/tombstone time — used as a stand-in when a legacy settings row has no clock. */
+function legacySettingsClock(cards: Card[], deletedIds: Record<string, number>): number {
+  let t = 0
+  for (const card of cards) t = Math.max(t, card.updated_at || card.created_at || 0)
+  for (const time of Object.values(deletedIds)) t = Math.max(t, Number(time) || 0)
+  return t
+}
+
+function hasRealSettingsClock(stored?: Partial<Settings> | null): boolean {
+  return typeof stored?.settingsUpdatedAt === 'number' && stored.settingsUpdatedAt > 0
+}
+
+function localSnapshot(cards: Card[], settings: Settings): Snapshot {
+  let updatedAt = settings.settingsUpdatedAt
+  for (const card of cards) updatedAt = Math.max(updatedAt, card.updated_at || card.created_at || 0)
+  for (const time of Object.values(settings.deletedIds)) updatedAt = Math.max(updatedAt, Number(time) || 0)
+  return {
+    version: 1,
+    updated_at: updatedAt,
+    // 0 means "legacy unknown" — omit so merge can fall back to updated_at.
+    settings_updated_at: settings.settingsUpdatedAt > 0 ? settings.settingsUpdatedAt : undefined,
+    settings: { direction: settings.direction, sessionSize: settings.sessionSize },
+    cards,
+    deleted_ids: settings.deletedIds,
+  }
+}
+
+/** A legacy DB may contain an unsynced grade, so its first sync must upload it. */
+export async function readLocalState(): Promise<{ snapshot: Snapshot; settings: Settings }> {
+  const db = await openDb()
+  try {
+    const tx = db.transaction(['cards', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const cardsRequest = tx.objectStore('cards').getAll()
+    const settingsRequest = tx.objectStore('settings').get('settings')
+    const [cards, stored] = await Promise.all([
+      value(cardsRequest) as Promise<Card[]>,
+      value(settingsRequest) as Promise<Settings | undefined>,
+    ])
+    const settings = normalizeSettings(stored)
+    let dirty = false
+    if (stored?.localRevision === undefined && cards.length) {
+      settings.localRevision = 1
+      dirty = true
+    }
+    // Legacy rows lack settingsUpdatedAt; 0 is not a real clock. Derive from local data
+    // so the first merge/upload keeps IndexedDB direction and session size.
+    if (stored !== undefined && !hasRealSettingsClock(stored)) {
+      settings.settingsUpdatedAt = legacySettingsClock(cards, settings.deletedIds)
+      dirty = true
+    }
+    if (dirty) tx.objectStore('settings').put(settings)
+    await done
+    return { snapshot: localSnapshot(cards, settings), settings }
+  } finally {
+    db.close()
+  }
+}
+
+async function changeLocal(change: (tx: IDBTransaction, settings: Settings) => void): Promise<void> {
+  const db = await openDb()
+  try {
+    const tx = db.transaction(['cards', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const request = tx.objectStore('settings').get('settings')
+    request.onsuccess = () => {
+      const settings = normalizeSettings(request.result as Settings | undefined)
+      change(tx, settings)
+      settings.localRevision += 1
+      tx.objectStore('settings').put(settings)
+    }
+    await done
+  } finally {
+    db.close()
+  }
+}
+
 export async function getAllCards(): Promise<Card[]> {
   const db = await openDb()
-  return new Promise((resolve, reject) => {
+  try {
     const tx = db.transaction('cards', 'readonly')
-    const req = tx.objectStore('cards').getAll()
-    req.onsuccess = () => resolve(req.result as Card[])
-    req.onerror = () => reject(req.error)
-  })
+    return await value(tx.objectStore('cards').getAll()) as Card[]
+  } finally {
+    db.close()
+  }
 }
 
 export async function getCard(id: string): Promise<Card | undefined> {
   const db = await openDb()
-  return new Promise((resolve, reject) => {
+  try {
     const tx = db.transaction('cards', 'readonly')
-    const req = tx.objectStore('cards').get(id)
-    req.onsuccess = () => resolve(req.result as Card | undefined)
-    req.onerror = () => reject(req.error)
-  })
+    return await value(tx.objectStore('cards').get(id)) as Card | undefined
+  } finally {
+    db.close()
+  }
 }
 
 export async function putCard(card: Card): Promise<void> {
-  const db = await openDb()
-  const tx = db.transaction('cards', 'readwrite')
-  tx.objectStore('cards').put(card)
-  await txDone(tx)
+  await changeLocal((tx) => tx.objectStore('cards').put(card))
 }
 
 export async function putCards(cards: Card[]): Promise<void> {
-  if (cards.length === 0) return
-  const db = await openDb()
-  const tx = db.transaction('cards', 'readwrite')
-  const store = tx.objectStore('cards')
-  for (const card of cards) store.put(card)
-  await txDone(tx)
+  if (!cards.length) return
+  await changeLocal((tx) => {
+    const store = tx.objectStore('cards')
+    for (const card of cards) store.put(card)
+  })
 }
 
-export async function deleteCard(id: string): Promise<void> {
+/** Seed against current cards and tombstones in one transaction. */
+export async function insertMissingSeeds(seeds: Card[]): Promise<number> {
   const db = await openDb()
-  const tx = db.transaction('cards', 'readwrite')
-  tx.objectStore('cards').delete(id)
-  await txDone(tx)
+  try {
+    const tx = db.transaction(['cards', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const cardsRequest = tx.objectStore('cards').getAll()
+    const settingsRequest = tx.objectStore('settings').get('settings')
+    const [cards, stored] = await Promise.all([
+      value(cardsRequest) as Promise<Card[]>,
+      value(settingsRequest) as Promise<Settings | undefined>,
+    ])
+    const settings = normalizeSettings(stored)
+    const byId = new Set(cards.map((card) => card.id))
+    const key = (card: Card) => `${card.de.trim().toLowerCase()}|${card.en.trim().toLowerCase()}`
+    const byKey = new Set(cards.map(key))
+    const store = tx.objectStore('cards')
+    let added = 0
+    for (const seed of seeds) {
+      const pair = key(seed)
+      if (settings.deletedIds[seed.id] || byId.has(seed.id) || byKey.has(pair)) continue
+      store.put(seed)
+      byId.add(seed.id)
+      byKey.add(pair)
+      added += 1
+    }
+    if (added) {
+      settings.localRevision += 1
+      tx.objectStore('settings').put(settings)
+    }
+    await done
+    return added
+  } finally {
+    db.close()
+  }
 }
 
-export async function replaceAllCards(cards: Card[]): Promise<void> {
-  const db = await openDb()
-  const tx = db.transaction('cards', 'readwrite')
-  const store = tx.objectStore('cards')
-  store.clear()
-  for (const card of cards) store.put(card)
-  await txDone(tx)
+export async function deleteCard(id: string, deletedAt = Date.now()): Promise<void> {
+  await changeLocal((tx, settings) => {
+    tx.objectStore('cards').delete(id)
+    settings.deletedIds[id] = Math.max(settings.deletedIds[id] || 0, deletedAt)
+  })
 }
 
 export async function countCards(): Promise<number> {
   const db = await openDb()
-  return new Promise((resolve, reject) => {
+  try {
     const tx = db.transaction('cards', 'readonly')
-    const req = tx.objectStore('cards').count()
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
-  })
+    return await value(tx.objectStore('cards').count())
+  } finally {
+    db.close()
+  }
 }
 
 export async function getDueCards(now = Date.now()): Promise<Card[]> {
   const cards = await getAllCards()
   return cards
-    .filter((c) => c.srs.due <= now)
+    .filter((card) => card.srs.due <= now)
     .sort((a, b) => a.srs.due - b.srs.due || a.de.localeCompare(b.de, 'de'))
 }
 
 export async function getSettings(): Promise<Settings> {
   const db = await openDb()
-  const stored = await new Promise<Settings | undefined>((resolve, reject) => {
+  try {
     const tx = db.transaction('settings', 'readonly')
-    const req = tx.objectStore('settings').get('settings')
-    req.onsuccess = () => resolve(req.result as Settings | undefined)
-    req.onerror = () => reject(req.error)
-  })
-  return normalizeSettings(stored)
+    return normalizeSettings(await value(tx.objectStore('settings').get('settings')) as Settings | undefined)
+  } finally {
+    db.close()
+  }
 }
 
-export async function putSettings(settings: Settings): Promise<void> {
+export async function putSettings(next: Partial<Pick<Settings, 'direction' | 'sessionSize'>>): Promise<void> {
+  await changeLocal((_tx, settings) => {
+    const direction = next.direction ?? settings.direction
+    const sessionSize = next.sessionSize ?? settings.sessionSize
+    if (settings.direction !== direction || settings.sessionSize !== sessionSize) {
+      settings.settingsUpdatedAt = Math.max(Date.now(), settings.settingsUpdatedAt + 1)
+    }
+    settings.direction = direction
+    settings.sessionSize = sessionSize
+  })
+}
+
+/** Merge in a single write transaction, using the latest local edits at apply time. */
+export async function mergeRemoteIntoDb(remote: Snapshot): Promise<{ snapshot: Snapshot; revision: number; pending: boolean }> {
   const db = await openDb()
-  const tx = db.transaction('settings', 'readwrite')
-  tx.objectStore('settings').put(normalizeSettings(settings))
-  await txDone(tx)
+  try {
+    const tx = db.transaction(['cards', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const cardsRequest = tx.objectStore('cards').getAll()
+    const settingsRequest = tx.objectStore('settings').get('settings')
+    const [cards, stored] = await Promise.all([
+      value(cardsRequest) as Promise<Card[]>,
+      value(settingsRequest) as Promise<Settings | undefined>,
+    ])
+    const settings = normalizeSettings(stored)
+    if (stored?.localRevision === undefined && cards.length) settings.localRevision = 1
+    if (stored !== undefined && !hasRealSettingsClock(stored)) {
+      settings.settingsUpdatedAt = legacySettingsClock(cards, settings.deletedIds)
+    }
+    const merged = mergeSnapshots(localSnapshot(cards, settings), remote)
+    const cardStore = tx.objectStore('cards')
+    cardStore.clear()
+    for (const card of merged.cards) cardStore.put(card)
+    settings.direction = merged.settings.direction
+    settings.sessionSize = merged.settings.sessionSize
+    settings.settingsUpdatedAt = merged.settings_updated_at || 0
+    settings.deletedIds = merged.deleted_ids
+    tx.objectStore('settings').put(settings)
+    await done
+    return {
+      snapshot: merged,
+      revision: settings.localRevision,
+      pending: settings.localRevision > settings.acknowledgedRevision,
+    }
+  } finally {
+    db.close()
+  }
+}
+
+export async function acknowledgeRevision(includedRevision: number): Promise<boolean> {
+  const db = await openDb()
+  try {
+    const tx = db.transaction('settings', 'readwrite')
+    const done = txDone(tx)
+    const request = tx.objectStore('settings').get('settings')
+    let pending = false
+    request.onsuccess = () => {
+      const settings = normalizeSettings(request.result as Settings | undefined)
+      settings.acknowledgedRevision = Math.max(
+        settings.acknowledgedRevision,
+        Math.min(includedRevision, settings.localRevision),
+      )
+      pending = settings.localRevision > settings.acknowledgedRevision
+      tx.objectStore('settings').put(settings)
+    }
+    await done
+    return pending
+  } finally {
+    db.close()
+  }
 }

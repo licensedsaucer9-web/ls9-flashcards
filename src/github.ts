@@ -119,10 +119,9 @@ export async function putRemote(
   cfg: GithubConfig,
   snapshot: Snapshot,
   sha: string | null,
-  opts?: { keepalive?: boolean },
 ): Promise<string> {
   const body = JSON.stringify({
-    message: `flashcards ${new Date(snapshot.updated_at).toISOString()}`,
+    message: `flashcards ${new Date().toISOString()}`,
     content: encodeUtf8Base64(`${JSON.stringify(snapshot)}\n`),
     branch: cfg.branch,
     ...(sha ? { sha } : {}),
@@ -132,7 +131,6 @@ export async function putRemote(
     method: 'PUT',
     headers: { ...headers(cfg.token), 'Content-Type': 'application/json' },
     body,
-    keepalive: opts?.keepalive ?? false,
     credentials: 'omit',
   })
   if (res.status === 409 || res.status === 422) {

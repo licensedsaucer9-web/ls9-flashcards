@@ -94,6 +94,11 @@ const eL = emptySnapshot(now)
 eL.cards = [card('e', 'keep', 'me', { updated_at: now + 20 })]
 eL.deleted_ids = { e: now + 10 }
 assert(mergeSnapshots(eL, emptySnapshot(now)).cards.length === 1, 'newer edit beats older delete')
+const deletedSeed = emptySnapshot(now)
+deletedSeed.deleted_ids = { 'seed-01': now }
+const laterSeed = emptySnapshot(now)
+laterSeed.cards = [card('seed-01', 'Mann', 'man', { updated_at: now + 50 })]
+assert(mergeSnapshots(deletedSeed, laterSeed).cards.length === 0, 'offline seed edit cannot revive a deleted built-in card')
 
 // deleted_ids take the max timestamp across snapshots
 const del1 = emptySnapshot(now); del1.deleted_ids = { z: 100 }
@@ -119,5 +124,42 @@ const input = { deletedIds: { a: 1 } }
 normalizeSettings(input)
 assert(!('id' in input), 'input not mutated by normalize')
 assert(normalizeSettings(input).deletedIds !== input.deletedIds, 'deletedIds is a copy')
+
+
+// --- settings merge: legacy clock 0 must fall back to updated_at ---
+
+const legacyLocal = emptySnapshot(now + 50)
+legacyLocal.settings = { direction: 'en-de', sessionSize: 50 }
+legacyLocal.settings_updated_at = 0
+legacyLocal.updated_at = now + 50
+legacyLocal.cards = [card('s', 'a', 'b', { updated_at: now + 50 })]
+const legacyRemote = emptySnapshot(now + 10)
+legacyRemote.settings = { direction: 'de-en', sessionSize: 20 }
+delete legacyRemote.settings_updated_at
+legacyRemote.updated_at = now + 10
+const legacyMerged = mergeSnapshots(legacyLocal, legacyRemote)
+assert(legacyMerged.settings.direction === 'en-de', 'legacy local settings_updated_at 0 falls back to updated_at')
+assert(legacyMerged.settings.sessionSize === 50, 'legacy local sessionSize preserved')
+assert(legacyMerged.settings_updated_at === now + 50, 'winning settings clock is local updated_at')
+
+const missingLocal = emptySnapshot(now + 50)
+missingLocal.settings = { direction: 'en-de', sessionSize: 50 }
+delete missingLocal.settings_updated_at
+missingLocal.updated_at = now + 50
+const missingMerged = mergeSnapshots(missingLocal, legacyRemote)
+assert(missingMerged.settings.direction === 'en-de', 'missing settings_updated_at falls back to updated_at')
+
+// Explicit real clocks still compare normally
+const realLocal = emptySnapshot(now)
+realLocal.settings = { direction: 'en-de', sessionSize: 50 }
+realLocal.settings_updated_at = now + 5
+realLocal.updated_at = now + 100
+const realRemote = emptySnapshot(now)
+realRemote.settings = { direction: 'de-en', sessionSize: 20 }
+realRemote.settings_updated_at = now + 20
+realRemote.updated_at = now
+const realMerged = mergeSnapshots(realLocal, realRemote)
+assert(realMerged.settings.direction === 'de-en', 'real remote settings_updated_at wins over older local clock')
+assert(realMerged.settings.sessionSize === 20, 'real remote sessionSize wins')
 
 console.log('edge-cases-test: ok')

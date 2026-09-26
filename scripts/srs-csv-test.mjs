@@ -34,6 +34,8 @@ assert(seed.every((c) => ['der', 'die', 'das', 'none'].includes(c.article)), 'ar
 assert(seed.filter((c) => c.tags.includes('noun')).length >= 300, 'enough nouns')
 assert(seed[0].id === 'seed-01' && seed[49].id === 'seed-50', 'original seed ids kept')
 assert(seed[50].id === 'seed-51', 'new seed ids continue at 51')
+assert(new Set(seed.map((c) => c.id)).size === seed.length, 'seed ids are unique')
+assert(seed.every((c) => c.created_at === 0 && c.updated_at === 0 && c.srs.due === now), 'seed edit time is stable while initial due time is current')
 
 const wg = review(fresh, 'wrong_gender', now)
 assert(wg.reps === 0 && wg.interval === 0 && wg.due === now, 'wrong gender requeues now')
