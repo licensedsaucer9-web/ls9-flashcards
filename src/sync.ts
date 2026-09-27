@@ -1,12 +1,19 @@
-import type { Snapshot } from './types.ts'
-import { acknowledgeRevision, mergeRemoteIntoDb, readLocalState } from './db.ts'
+import type { DeckFile, UserFile } from './types.ts'
+import { acknowledgeRevision, mergeDeckIntoDb, mergeProgressIntoDb, readLocalState } from './db.ts'
+import type { MergeResult } from './db.ts'
+import { legacyToFiles, mergeProgress } from './merge.ts'
+import { activeUserSlug, listUsers, registerRemoteUsers } from './user.ts'
 import {
-  fetchRemote,
+  fetchDeck,
+  fetchUserFile,
   GithubError,
   isGithubConfigured,
+  listRemoteUsers,
   loadGithubConfig,
-  putRemote,
+  putDeck,
+  putUserFile,
   saveKnownSha,
+  userPath,
 } from './github.ts'
 
 export type SyncStatus = {
@@ -36,8 +43,76 @@ function setStatus(patch: Partial<SyncStatus>) {
   for (const fn of listeners) fn()
 }
 
-export async function snapshotFromDb(): Promise<Snapshot> {
-  return (await readLocalState()).snapshot
+/** Object keys in a fixed order, so a payload compare is not fooled by key order. */
+function stableJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null'
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableJson(v)}`).join(',')}}`
+}
+
+function samePayload(a: unknown, b: unknown): boolean {
+  return stableJson(a) === stableJson(b)
+}
+
+type Effective = {
+  /** The deck as it should exist remotely, or null when there is nothing to merge. */
+  deck: DeckFile | null
+  deckSha: string | null
+  /** True when the remote deck was a pre-multi-user snapshot that still has to be rewritten. */
+  deckNeedsPush: boolean
+  user: UserFile | null
+  userSha: string | null
+}
+
+async function readRemote(slug: string): Promise<Effective> {
+  const cfg = loadGithubConfig()
+  const deckRemote = await fetchDeck(cfg)
+  const userRemote = await fetchUserFile(cfg, slug)
+
+  let deck: DeckFile | null = null
+  let deckSha: string | null = null
+  let deckNeedsPush = false
+  let legacy: ReturnType<typeof legacyToFiles> | null = null
+
+  if (deckRemote.kind === 'file') {
+    deckSha = deckRemote.sha
+    saveKnownSha(cfg.path, deckRemote.sha)
+    if (deckRemote.value.kind === 'legacy') {
+      // The one and only copy of this progress is in the v1 file, so it is
+      // credited to whoever opens it and written out under their name.
+      legacy = legacyToFiles(deckRemote.value.snapshot, slug)
+      deck = legacy.deck
+      deckNeedsPush = true
+    } else {
+      deck = deckRemote.value.file
+    }
+  }
+
+  let user: UserFile | null = null
+  let userSha: string | null = null
+  if (userRemote.kind === 'file') {
+    userSha = userRemote.sha
+    saveKnownSha(userPath(cfg, slug), userRemote.sha)
+    user = userRemote.value
+    if (legacy) {
+      // The per-user file is newer; keep progress that only the snapshot has.
+      user = { ...user, progress: mergeProgress(legacy.user.progress, user.progress) }
+    }
+  } else if (legacy) {
+    user = legacy.user
+  }
+
+  return { deck, deckSha, deckNeedsPush, user, userSha }
+}
+
+async function applyRemote(effective: Effective): Promise<MergeResult | null> {
+  let applied: MergeResult | null = null
+  if (effective.deck) applied = await mergeDeckIntoDb(effective.deck)
+  if (effective.user) applied = await mergeProgressIntoDb(effective.user)
+  return applied
 }
 
 async function syncPass(): Promise<void> {
@@ -46,47 +121,50 @@ async function syncPass(): Promise<void> {
     setStatus({ state: 'off', message: '', at: null })
     return
   }
+  const slug = activeUserSlug()
   setStatus({ state: 'syncing', message: 'Checking GitHub…' })
   try {
     for (let attempt = 0; attempt < 4; attempt++) {
-      const remote = await fetchRemote(cfg)
-      let snapshot: Snapshot
-      let includedRevision: number
-      let pending: boolean
-      let sha: string | null
-      if (remote.kind === 'file') {
-        const applied = await mergeRemoteIntoDb(remote.snapshot)
-        snapshot = applied.snapshot
-        includedRevision = applied.revision
-        pending = applied.pending
-        sha = remote.sha
-        saveKnownSha(sha)
-      } else {
-        const local = await readLocalState()
-        snapshot = local.snapshot
-        includedRevision = local.settings.localRevision
-        pending = includedRevision > local.settings.acknowledgedRevision
-        sha = null
-      }
+      const effective = await readRemote(slug)
+      const applied = await applyRemote(effective)
+      const local = await readLocalState()
+      const desiredDeck = local.snapshot.deck
+      const desiredUser = local.snapshot.user
 
-      if (remote.kind === 'missing' && snapshot.cards.length === 0) {
+      if (effective.deck === null && desiredDeck.cards.length === 0) {
         setStatus({ state: 'idle', message: 'Saved on this device · no cards to back up', at: null })
         return
       }
-      if (!pending && remote.kind === 'file') {
+
+      const pushDeck = effective.deckNeedsPush || effective.deck === null || !samePayload(desiredDeck, effective.deck)
+      const pushUser = effective.user === null || !samePayload(desiredUser, effective.user)
+      if (!pushDeck && !pushUser) {
+        const revision = applied?.revision ?? local.settings.localRevision
+        if (revision > local.settings.acknowledgedRevision) {
+          // Nothing to write, but a local edit is still unaccounted for.
+          await acknowledgeRevision(revision)
+        }
         setStatus({ state: 'ok', message: 'Backed up on GitHub', at: Date.now() })
         return
       }
 
       setStatus({ state: 'syncing', message: 'Backing up to GitHub…' })
+      let deckSha = effective.deckSha
+      let userSha = effective.userSha
       try {
-        const nextSha = await putRemote(cfg, snapshot, sha)
-        saveKnownSha(nextSha)
+        if (pushDeck) {
+          deckSha = await putDeck(cfg, desiredDeck, deckSha)
+          saveKnownSha(cfg.path, deckSha)
+        }
+        if (pushUser) {
+          userSha = await putUserFile(cfg, slug, desiredUser, userSha)
+          saveKnownSha(userPath(cfg, slug), userSha)
+        }
       } catch (error) {
         if (error instanceof GithubError && error.message === 'conflict' && attempt < 3) continue
         throw error
       }
-      if (await acknowledgeRevision(includedRevision)) {
+      if (await acknowledgeRevision(local.settings.localRevision)) {
         syncAgain = true
         setStatus({ state: 'waiting', message: 'Saved on this device · waiting to back up newer changes', at: null })
       } else {
@@ -140,6 +218,21 @@ export function schedulePush(): void {
 
 export function pauseSync(): void {
   window.clearTimeout(timer)
+}
+
+/** Pull the list of profiles that have a progress file so switching works on a new device. */
+export async function discoverRemoteUsers(): Promise<number> {
+  const cfg = loadGithubConfig()
+  if (!isGithubConfigured(cfg)) return 0
+  try {
+    const before = listUsers().length
+    const found = await listRemoteUsers(cfg)
+    if (found.length) registerRemoteUsers(found)
+    return Math.max(0, listUsers().length - before)
+  } catch {
+    /* Discovery is a convenience; a failure must not break syncing. */
+    return 0
+  }
 }
 
 export async function bootSync(): Promise<void> {

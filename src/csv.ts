@@ -136,7 +136,7 @@ export function importCsv(text: string, existing: Card[], now = Date.now()): Csv
       tags: ['imported'],
       created_at: now,
       updated_at: now,
-      srs: newSrs(now),
+      srs: { ...newSrs(now), updated_at: now },
     })
   }
 

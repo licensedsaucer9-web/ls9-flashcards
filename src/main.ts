@@ -1,13 +1,15 @@
 import './style.css'
 import { registerSW } from 'virtual:pwa-register'
-import type { Article, Card, Direction, GithubConfig, Grade, Settings } from './types.ts'
+import type { Article, Card, Direction, GithubConfig, Grade, PublicSettings, Tier } from './types.ts'
 import { ARTICLES } from './types.ts'
 import {
   deleteCard,
   getAllCards,
   getCard,
+  getDueByTier,
   getDueCards,
   getSettings,
+  importLegacyData,
   insertMissingSeeds,
   putCard,
   putCards,
@@ -18,8 +20,11 @@ import { newSrs, review } from './srs.ts'
 import { importCsv } from './csv.ts'
 import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
 import { sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
+import { tierCounts, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
+import { activeUser, createUser, listUsers, setActiveUser } from './user.ts'
 import {
   bootSync,
+  discoverRemoteUsers,
   getSyncStatus,
   onSyncStatus,
   pauseSync,
@@ -84,10 +89,31 @@ async function ensureSeed(): Promise<number> {
   return added
 }
 
-async function patchSettings(patch: Partial<Settings>): Promise<Settings> {
+async function patchSettings(patch: Partial<PublicSettings>): Promise<void> {
   await putSettings(patch)
   schedulePush()
-  return getSettings()
+}
+
+/** A shared chip row for choosing the highest tier to include. */
+function tierChips(selected: Tier, dueByTier: Record<Tier, { due: number; total: number }>): string {
+  // Both numbers run cumulatively up to each tier, so a chip matches the queue you
+  // would actually review: tier 2 is 250 words and up to 250 due, not 150. The totals
+  // are computed per chip because the Deck screen can show a tier that is not the
+  // saved setting.
+  let words = 0
+  let due = 0
+  return TIERS.map((tier) => {
+    words += dueByTier[tier].total
+    due += dueByTier[tier].due
+    const on = selected === tier ? ' is-on' : ''
+    return `<button type="button" class="chip tier-chip${on}" data-tier="${tier}" title="${esc(TIER_NOTES[tier])}">Tier ${tier}<small>${words} · ${due} due</small></button>`
+  }).join('')
+}
+
+function bindTierChips(onPick: (tier: Tier) => void): void {
+  document.querySelectorAll<HTMLButtonElement>('[data-tier]').forEach((btn) => {
+    btn.addEventListener('click', () => onPick(Number(btn.dataset.tier) as Tier))
+  })
 }
 
 function touch(card: Card): Card {
@@ -140,12 +166,15 @@ tabbar.innerHTML = `
 
 async function renderHome() {
   setTabbar('home')
-  const due = await getDueCards()
-  const all = await getAllCards()
   const settings = await getSettings()
+  const dueByTier = await getDueByTier()
+  const due = await getDueCards(settings.tier)
+  const all = await getAllCards()
   const suggested = suggestSessionSize(due.length)
   const n = sessionCount(due.length, settings.sessionSize)
-  const next = all
+  const user = activeUser()
+  const inTier = all.filter((c) => tierOf(c) <= settings.tier)
+  const next = inTier
     .filter((c) => c.srs.due > Date.now())
     .sort((a, b) => a.srs.due - b.srs.due)[0]
   const ready = due.length > 0
@@ -167,7 +196,7 @@ async function renderHome() {
         <span class="badge" id="sync-line">${esc(syncLineText())}</span>
       </header>
       <div class="due-hero">
-        <p class="kicker">Due now</p>
+        <p class="kicker">Due now · ${esc(tierLabel(settings.tier))}</p>
         <div class="due-count ${ready ? '' : 'caught-up'}" data-due-count>${due.length}</div>
         <p class="due-label">${
           ready
@@ -179,6 +208,11 @@ async function renderHome() {
               : 'No cards yet'
         }</p>
         <div class="session-box">
+          <p class="kicker" style="margin:0">Deck tier</p>
+          <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
+          <p class="note" style="margin:0">${esc(TIER_NOTES[settings.tier])}</p>
+        </div>
+        <div class="session-box">
           <p class="kicker" style="margin:0">This session</p>
           <div class="chips" id="session-chips">${presets}</div>
           <label class="inline-num">Custom
@@ -188,11 +222,16 @@ async function renderHome() {
           </label>
         </div>
         <button class="primary" id="start" data-session-count="${n}" ${ready ? '' : 'disabled'}>${esc(startLabel)}</button>
+        <p class="note" id="who">${esc(user.name)} · <a href="#/settings">switch profile</a></p>
       </div>
     </section>
   `
   $('#start').addEventListener('click', () => {
     if (due.length) go('/review')
+  })
+  bindTierChips(async (tier) => {
+    await patchSettings({ tier })
+    await renderHome()
   })
   $('#session-chips').querySelectorAll<HTMLButtonElement>('[data-session]').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -214,7 +253,7 @@ let unbindKeys: (() => void) | null = null
 async function renderReview() {
   setTabbar('none')
   const settings = await getSettings()
-  const due = await getDueCards()
+  const due = await getDueCards(settings.tier)
   const queue = shuffle(due).slice(0, sessionCount(due.length, settings.sessionSize))
   if (queue.length === 0) {
     go('/')
@@ -273,7 +312,7 @@ async function renderReview() {
       <section class="screen review">
         <header class="topbar">
           <button class="ghost" id="back">Close</button>
-          <div class="review-meta"><span data-remaining>${remaining}</span> left</div>
+          <div class="review-meta"><span data-remaining>${remaining}</span> left · ${esc(tierLabel(settings.tier))}</div>
           <span></span>
         </header>
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -335,7 +374,10 @@ async function renderReview() {
       paint()
       return
     }
-    const saved = touch({ ...current, srs: review(current.srs, g) })
+    // A review changes scheduling, not vocabulary, so only the scheduling clock
+    // moves. Bumping the card's own updated_at would rewrite the shared deck
+    // file on every single grade.
+    const saved = { ...current, srs: { ...review(current.srs, g), updated_at: Date.now() } }
     await putCard(saved)
     schedulePush()
     if (g === 'again' || g === 'wrong_gender') queue.push(saved)
@@ -374,26 +416,35 @@ async function renderReview() {
 
 async function renderDeck() {
   setTabbar('deck')
-  const cards = (await getAllCards()).sort((a, b) => a.de.localeCompare(b.de, 'de'))
+  const all = await getAllCards()
+  const settings = await getSettings()
+  const dueByTier = await getDueByTier()
   const now = Date.now()
+  // The deck list is a browser, not a review queue, so it starts on the chosen
+  // tier and can be widened with the filter.
+  let maxTier: Tier = settings.tier
   const list = (filter: string) => {
     const q = filter.trim().toLowerCase()
-    return cards.filter((c) => {
-      if (!q) return true
-      return (
-        c.de.toLowerCase().includes(q) ||
-        c.en.toLowerCase().includes(q) ||
-        c.tags.some((t) => t.toLowerCase().includes(q)) ||
-        c.article.includes(q)
-      )
-    })
+    return all
+      .filter((c) => tierOf(c) <= maxTier)
+      .filter((c) => {
+        if (!q) return true
+        return (
+          c.de.toLowerCase().includes(q) ||
+          c.en.toLowerCase().includes(q) ||
+          c.tags.some((t) => t.toLowerCase().includes(q)) ||
+          c.article.includes(q)
+        )
+      })
+      .sort((a, b) => a.de.localeCompare(b.de, 'de'))
   }
 
   const paint = (filter = '') => {
     const shown = list(filter)
     main.innerHTML = `
       <section class="screen scroll">
-        <header class="topbar"><h1>Deck</h1><span class="badge">${cards.length}</span></header>
+        <header class="topbar"><h1>Deck</h1><span class="badge">${shown.length} of ${all.length}</span></header>
+        <div class="chips" id="tier-chips">${tierChips(maxTier, dueByTier)}</div>
         <div class="fab-row">
           <a class="secondary" href="#/card/new" style="display:flex;align-items:center;justify-content:center">Add card</a>
           <a class="secondary" href="#/import" style="display:flex;align-items:center;justify-content:center">CSV import</a>
@@ -411,7 +462,10 @@ async function renderDeck() {
                         <div class="de ${genderClass(c.article)}">${esc(germanHead(c.article, c.de))}</div>
                         <div class="en">${esc(c.en)}</div>
                       </div>
-                      <span class="badge ${due ? 'due' : ''}">${due ? 'due' : formatDue(c.srs.due, now)}</span>
+                      <span class="row-badges">
+                        <span class="badge tier t${tierOf(c)}">T${tierOf(c)}</span>
+                        <span class="badge ${due ? 'due' : ''}">${due ? 'due' : formatDue(c.srs.due, now)}</span>
+                      </span>
                     </a>
                   </li>`
                 })
@@ -419,6 +473,10 @@ async function renderDeck() {
         }
       </section>
     `
+    bindTierChips((tier) => {
+      maxTier = tier
+      paint(search.value)
+    })
     const search = $('#search') as HTMLInputElement
     search.addEventListener('input', () => paint(search.value))
     if (filter) {
@@ -433,6 +491,11 @@ function articleOptions(selected: Article): string {
   return ARTICLES.map(
     (a) => `<option value="${a}" ${a === selected ? 'selected' : ''}>${a}</option>`,
   ).join('')
+}
+
+function tierOptions(card: Card | undefined): string {
+  const current = card ? tierOf(card) : 3
+  return TIERS.map((t) => `<option value="${t}" ${t === current ? 'selected' : ''}>Tier ${t}</option>`).join('')
 }
 
 async function renderEdit(id: string | null) {
@@ -470,6 +533,14 @@ async function renderEdit(id: string | null) {
         <label>Tags (comma separated)
           <input name="tags" type="text" value="${esc((c?.tags ?? []).join(', '))}" />
         </label>
+        <label>Tier
+          <select name="tier">${tierOptions(c)}</select>
+        </label>
+        <p class="note">${
+          typeof c?.rank === 'number'
+            ? `Corpus rank ${c.rank} of 50,000, so this card sits in tier ${tierOf(c)} by default. The tier box overrides that.`
+            : 'A card of your own has no corpus rank, so it lives in the tier you pick here.'
+        }</p>
         <button class="primary" type="submit">Save</button>
         ${c ? `<button class="danger" type="button" id="delete">Delete</button>` : ''}
       </form>
@@ -488,6 +559,7 @@ async function renderEdit(id: string | null) {
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean)
+    const tier = Math.min(3, Math.max(1, Number(fd.get('tier')) || 3)) as Tier
     if (!de || !en) {
       toast('German and English are required')
       return
@@ -509,6 +581,7 @@ async function renderEdit(id: string | null) {
         example_de,
         example_en,
         tags,
+        tier,
       })
       await putCard(card)
       schedulePush()
@@ -524,9 +597,10 @@ async function renderEdit(id: string | null) {
       example_de,
       example_en,
       tags,
+      tier,
       created_at: now,
       updated_at: now,
-      srs: newSrs(now),
+      srs: { ...newSrs(now), updated_at: now },
     }
     await putCard(card)
     schedulePush()
@@ -624,10 +698,40 @@ async function renderSettings() {
   const settings = await getSettings()
   const gh = loadGithubConfig()
   const connected = isGithubConfigured(gh)
-  const suggested = suggestSessionSize((await getDueCards()).length)
+  const dueByTier = await getDueByTier()
+  const cards = await getAllCards()
+  const counts = tierCounts(cards)
+  const suggested = suggestSessionSize((await getDueCards(settings.tier)).length)
+  const user = activeUser()
+  const users = listUsers()
   main.innerHTML = `
     <section class="screen scroll">
-      <header class="topbar"><h1>Settings</h1></header>
+      <header class="topbar"><h1>Settings</h1><span class="badge">${esc(user.name)}</span></header>
+      <div class="setting">
+        <p class="kicker" style="margin:0">Profile</p>
+        <p class="note">Each profile keeps its own review schedule, session settings and tier on this device, in <code>users/${esc(user.slug)}.json</code> in the repo. The word list is shared by everyone.</p>
+        <div class="user-list" id="user-list">
+          ${users
+            .map(
+              (u) => `<button type="button" class="user-row${u.slug === user.slug ? ' is-on' : ''}" data-user="${esc(u.slug)}">
+                <span class="name">${esc(u.name)}</span>
+                <span class="badge">${u.slug === user.slug ? 'current' : 'switch'}</span>
+              </button>`,
+            )
+            .join('')}
+        </div>
+        <form class="form" id="user-form" style="padding:0" autocomplete="off">
+          <label>Add a profile
+            <input name="name" type="text" placeholder="Name" autocomplete="off" enterkeyhint="done" />
+          </label>
+          <button class="secondary" type="submit">Add and switch</button>
+        </form>
+      </div>
+      <div class="setting">
+        <p class="kicker" style="margin:0">Deck tier</p>
+        <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
+        <p class="note">${esc(TIER_NOTES[settings.tier])} Higher tiers include the lower ones, so tier 2 reviews everything in tier 1 too. ${counts[1]} / ${counts[1] + counts[2]} / ${cards.length} words.</p>
+      </div>
       <div class="setting">
         <p class="kicker" style="margin:0">Review direction</p>
         <div class="seg" id="dir">
@@ -645,7 +749,7 @@ async function renderSettings() {
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">GitHub sync</p>
-        <p class="note">Single-user backup: a private repo file holds the deck and SRS so every browser (including iPhone Safari) shares progress. Paste a <strong>personal access token</strong> (<code>github_pat_</code> or <code>ghp_</code>), not your GitHub password. Fine-grained PAT: Contents read/write on <code>german-flashcards-data</code> only. Token stays in this browser.</p>
+        <p class="note">Backup: the repo holds the shared word list in <code>${esc(gh.path)}</code> and one file per profile in <code>users/</code>, so every browser (including iPhone Safari) shares progress without two profiles overwriting each other. Paste a <strong>personal access token</strong> (<code>github_pat_</code> or <code>ghp_</code>), not your GitHub password. Fine-grained PAT: Contents read/write on <code>german-flashcards-data</code> only. Token stays in this browser.</p>
         <form class="form" id="gh-form" style="padding:0" autocomplete="off">
           <label>Owner
             <input name="owner" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(gh.owner)}" />
@@ -681,6 +785,49 @@ async function renderSettings() {
       </div>
     </section>
   `
+  bindTierChips(async (tier) => {
+    await patchSettings({ tier })
+    await renderSettings()
+  })
+  $('#user-list').querySelectorAll<HTMLButtonElement>('[data-user]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const slug = btn.dataset.user
+      if (!slug || slug === user.slug) return
+      setActiveUser(slug)
+      toast(`Switched to ${slug}`)
+      // A different profile means a different schedule, so pull theirs before painting.
+      try {
+        await syncNow()
+      } catch {
+        /* status already set */
+      }
+      await renderSettings()
+    })
+  })
+  const userForm = $('#user-form') as HTMLFormElement
+  userForm.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const name = String(new FormData(userForm).get('name') ?? '').trim()
+    if (!name) {
+      toast('Type a name first')
+      return
+    }
+    try {
+      const created = createUser(name)
+      toast(created.slug === user.slug ? `Already on ${created.name}` : `Now on ${created.name}`)
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not add that profile')
+      return
+    }
+    void (async () => {
+      try {
+        await syncNow()
+      } catch {
+        /* status already set */
+      }
+      await renderSettings()
+    })()
+  })
   $('#dir').querySelectorAll<HTMLButtonElement>('button').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const direction = btn.dataset.dir as Direction
@@ -745,6 +892,7 @@ async function renderSettings() {
   })
   document.getElementById('sync-now')?.addEventListener('click', async () => {
     try {
+      await discoverRemoteUsers()
       await syncNow()
       toast('GitHub synced')
     } catch (err) {
@@ -776,6 +924,9 @@ async function render() {
 }
 
 async function boot() {
+  // The pre-multi-user database holds the only copy of this profile's schedule,
+  // so it moves into the active user's own database before anything reads it.
+  const imported = await importLegacyData()
   let added = 0
   if (isGithubConfigured()) {
     await bootSync()
@@ -784,7 +935,8 @@ async function boot() {
     added = await ensureSeed()
   }
   await render()
-  if (added > 0) toast(`Added ${added} new cards`)
+  if (imported > 0) toast(`Moved ${imported} cards into ${activeUser().name}'s profile`)
+  else if (added > 0) toast(`Added ${added} new cards`)
   window.addEventListener('hashchange', () => {
     void render()
   })

@@ -63,18 +63,41 @@ assert(suggestSessionSize(35) === 20, 'suggest 35 -> 20')
 assert(suggestSessionSize(12) === 10, 'suggest 12 -> 10')
 assert(suggestSessionSize(5) === 5, 'suggest 5 -> 5')
 
-const { mergeSnapshots, emptySnapshot } = await import('../src/merge.ts')
-const a = emptySnapshot(now)
-const b = emptySnapshot(now + 1000)
-b.settings.sessionSize = 10
-b.cards = [{ ...seed[0], id: 'x', updated_at: now + 50, de: 'neu' }]
-a.cards = [{ ...seed[0], id: 'x', updated_at: now, de: 'alt' }, seed[1]]
-const m = mergeSnapshots(a, b)
-assert(m.cards.find((c) => c.id === 'x')?.de === 'neu', 'later card wins')
-assert(m.cards.some((c) => c.id === seed[1].id), 'union keeps unique cards')
-assert(m.settings.sessionSize === 10, 'later snapshot settings win')
+const { mergeDeck, emptyDeck, mergeProgress, emptyUser } = await import('../src/merge.ts')
+
+const content = (id, de, updatedAt) => ({
+  id,
+  de,
+  en: de,
+  article: 'none',
+  example_de: '',
+  example_en: '',
+  tags: [],
+  created_at: updatedAt,
+  updated_at: updatedAt,
+})
+const srsAt = (t) => ({ ease: 2.5, interval: 1, reps: 1, due: t, updated_at: t })
+
+const a = emptyDeck(now)
+const b = emptyDeck(now + 1000)
+b.cards = [content('x', 'neu', now + 50)]
+a.cards = [content('x', 'alt', now), content('seed-02', 'Frau', now)]
+const m = mergeDeck(a, b)
+assert(m.cards.find((c) => c.id === 'x')?.de === 'neu', 'later card content wins')
+assert(m.cards.some((c) => c.id === 'seed-02'), 'union keeps unique cards')
+assert(m.updated_at === now + 1000, 'deck clock is the newest of both')
 a.deleted_ids = { x: now + 100 }
-const m2 = mergeSnapshots(a, b)
+const m2 = mergeDeck(a, b)
 assert(!m2.cards.some((c) => c.id === 'x'), 'newer delete drops card')
+
+// A deck file carries no scheduling state, so progress merges separately and
+// two profiles grading the same card never touch each other.
+const mine = { x: srsAt(now + 10) }
+const theirs = { x: srsAt(now + 20), y: srsAt(now + 20) }
+const p = mergeProgress(mine, theirs)
+assert(p.x.updated_at === now + 20, 'newer remote progress wins')
+assert(p.y.updated_at === now + 20, 'remote-only progress is kept')
+assert(mergeProgress(theirs, mine).x.updated_at === now + 20, 'older local progress loses')
+assert(mergeProgress({}, emptyUser('joakim', now).progress).x === undefined, 'empty remote adds nothing')
 
 console.log('srs-csv-test: ok')
