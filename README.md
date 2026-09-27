@@ -4,6 +4,68 @@
 
 German flashcards as a local-first PWA (Vite + TypeScript). Current card progress and settings are backed up to a separate private repo, [german-flashcards-data](https://github.com/licensedsaucer9-web/german-flashcards-data). The app does not store a review event history.
 
+## Deck tiers
+
+The 514 built-in words are split into three tiers by how common they are, and you pick the
+tier you want to study. Higher tiers include the lower ones.
+
+| Tier | Words | Cumulative |
+| --- | --- | --- |
+| 1 | 100 | 100 |
+| 2 | 150 | 250 |
+| 3 | 264 | 514 |
+
+The split is not hand-picked. Each word carries a `rank`: its position in a 50,000-word
+German frequency list, and the tiers are the deck's own first 100, next 150, and the rest.
+The rank is *not* used as a tier boundary directly, because the corpus list is dominated by
+function words (`ich`, `sie`, `das`, `und`) that this deck deliberately leaves out — so the
+deck's 100th word sits at corpus rank 455, not 100. Tier 1 therefore opens with
+`haben`, `gut`, `sein`, `werden`, `können`, `sagen`, `machen`, `Mann`, `gehen`, `sehen`, and
+ends at `groß` and `Hand`.
+
+The list is [hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords)
+(OpenSubtitles 2018, German). To rebuild it after editing the vocabulary:
+
+```bash
+curl -O https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/de/de_50k.txt
+node scripts/rank-words.mjs de_50k.txt src/seed.ts > ranks.tsv
+node scripts/apply-ranks.mjs ranks.tsv src/seed.ts
+```
+
+`scripts/tiers-test.mjs` then checks the boundaries against the real seed, including that
+every tier 1 word is more common than every tier 2 word.
+
+The tier is a per-profile choice and is part of your settings, so two people sharing a
+repository can study different sizes. Cards you add yourself have no rank and start in
+tier 3; the card editor has a tier box to move one.
+
+## Profiles
+
+Several people can use the same app and the same repository. Each profile keeps its own
+review schedule, tier and session settings, and nothing else.
+
+- **On a device**, each profile gets its own IndexedDB database (`german-flashcards:<name>`),
+  so switching profiles on one device cannot mix their progress up.
+- **In the repository**, the word list is shared and lives in one file, while each profile's
+  schedule lives in its own file under `users/`:
+
+  ```
+  data.json          shared vocabulary: every card, no review state
+  users/joakim.json  Joakim's schedule, tier and session settings
+  users/anna.json    Anna's
+  ```
+
+  A review only rewrites that profile's file, and a vocabulary edit only rewrites
+  `data.json`, so two people studying at the same time never overwrite each other.
+- Profiles that already have a file are discovered from the repository, so a new device can
+  switch to an existing profile after **Sync now**.
+
+Add and switch profiles in **Settings → Profile**. On the first launch after the upgrade,
+the existing single-profile data is claimed by a `joakim` profile automatically, both on
+the device and in the repository: the old `data.json` is rewritten as a v2 deck file and the
+schedule it held is moved to `users/joakim.json`. There is no separate migration step, and
+nothing is discarded.
+
 ## Develop
 
 ```bash
@@ -14,8 +76,9 @@ npm run preview  # serve the build on 127.0.0.1:4173
 npm test         # unit and Chromium sync tests
 ```
 
-`npm test` includes Chromium tests of IndexedDB persistence and mocked GitHub
-sync; it never needs a live token. Install Chromium with
+`npm test` runs four suites: SRS and CSV, merge edge cases, tier and profile logic, and a
+Chromium test of IndexedDB persistence and mocked GitHub sync across the split deck and
+per-profile files; it never needs a live token. Install Chromium with
 `node node_modules/playwright-core/cli.js install chromium` if needed, or set
 `CHROME=/path/to/chromium`.
 
@@ -82,8 +145,8 @@ To check a new release on an iPhone:
    Reopen Flashcards. The changed review must still be there and show that backup
    is pending.
 3. Turn Airplane Mode off and return to Flashcards. Wait for **Backed up**, then
-   inspect `data.json` in the private repo or open a second device and confirm
-   that the review arrived. Use **Sync now** in Settings to retry manually.
+   inspect `users/<profile>.json` in the private repo or open a second device and
+   confirm that the review arrived. Use **Sync now** in Settings to retry manually.
 4. To check deletion sync without losing a real card, create a disposable card,
    wait for **Backed up**, then delete it. After reopening and syncing a second
    device, the test card should remain absent. Built-in-card deletion and

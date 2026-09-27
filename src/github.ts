@@ -1,8 +1,12 @@
-import type { GithubConfig, Snapshot } from './types.ts'
-import { parseSnapshot } from './merge.ts'
+import type { GithubConfig } from './types.ts'
+import type { UserProfile } from './user.ts'
+import { parseRemoteDeck, parseUserFile } from './merge.ts'
+import type { RemoteDeck } from './merge.ts'
+import type { UserFile } from './types.ts'
 
 const STORAGE_KEY = 'german-flashcards.github'
-const SHA_KEY = 'german-flashcards.github.sha'
+const SHA_KEY = 'german-flashcards.github.shas'
+const USERS_DIR = 'users'
 
 export const DEFAULT_OWNER = 'licensedsaucer9-web'
 export const DEFAULT_REPO = 'german-flashcards-data'
@@ -14,7 +18,7 @@ export function defaultGithubConfig(): GithubConfig {
 export function sanitizeToken(raw: string): string {
   return raw
     .replace(/^(Bearer|token)\s+/i, '')
-    .replace(/[\s\u00a0\u200b\u200c\u200d]/g, '')
+    .replace(/[\s ‌‍]/g, '')
 }
 
 export function loadGithubConfig(): GithubConfig {
@@ -42,13 +46,40 @@ export function isGithubConfigured(cfg = loadGithubConfig()): boolean {
   return Boolean(cfg.token && cfg.owner && cfg.repo && cfg.path)
 }
 
-export function loadKnownSha(): string | null {
-  return localStorage.getItem(SHA_KEY)
+/** Where a user's progress lives, next to the shared deck file. */
+export function userPath(cfg: GithubConfig, slug: string): string {
+  const path = cfg.path.replace(/^\/+/, '')
+  const slash = path.lastIndexOf('/')
+  const dir = slash === -1 ? '' : `${path.slice(0, slash)}/`
+  return `${dir}${USERS_DIR}/${slug}.json`
 }
 
-export function saveKnownSha(sha: string | null): void {
-  if (sha) localStorage.setItem(SHA_KEY, sha)
-  else localStorage.removeItem(SHA_KEY)
+// --- known shas -----------------------------------------------------------
+// One sha per path: the deck and each user file move independently.
+
+function readShas(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(SHA_KEY)
+    const o = raw ? JSON.parse(raw) : null
+    return o && typeof o === 'object' && !Array.isArray(o) ? (o as Record<string, string>) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function loadKnownSha(path: string): string | null {
+  return readShas()[path] ?? null
+}
+
+export function saveKnownSha(path: string, sha: string | null): void {
+  const shas = readShas()
+  if (sha) shas[path] = sha
+  else delete shas[path]
+  try {
+    localStorage.setItem(SHA_KEY, JSON.stringify(shas))
+  } catch {
+    /* a full quota must not break syncing */
+  }
 }
 
 function encodeUtf8Base64(text: string): string {
@@ -60,6 +91,8 @@ function encodeUtf8Base64(text: string): string {
 
 function decodeUtf8Base64(b64: string): string {
   const bin = atob(b64.replace(/\s/g, ''))
+  // A byte view, not an int view: TextDecoder reads view.byteLength bytes, so a
+  // Uint32Array would decode four times the data and interleave NUL bytes.
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
   return new TextDecoder().decode(bytes)
@@ -73,10 +106,9 @@ function headers(token: string): HeadersInit {
   }
 }
 
-function contentsUrl(cfg: GithubConfig): string {
-  const path = cfg.path.replace(/^\/+/, '')
+function contentsUrl(cfg: GithubConfig, path: string): string {
   const url = new URL(
-    `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${path}`,
+    `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${path.replace(/^\/+/, '')}`,
   )
   url.searchParams.set('ref', cfg.branch)
   return url.toString()
@@ -90,60 +122,95 @@ export class GithubError extends Error {
   }
 }
 
-export type RemoteFile =
-  | { kind: 'missing' }
-  | { kind: 'file'; sha: string; snapshot: Snapshot }
-
-export async function fetchRemote(cfg: GithubConfig): Promise<RemoteFile> {
-  const res = await fetch(contentsUrl(cfg), { headers: headers(cfg.token), credentials: 'omit' })
-  if (res.status === 404) return { kind: 'missing' }
+async function getJson(cfg: GithubConfig, path: string): Promise<{ status: number; json: unknown }> {
+  const res = await fetch(contentsUrl(cfg, path), { headers: headers(cfg.token), credentials: 'omit' })
+  if (res.status === 404) return { status: 404, json: null }
   if (!res.ok) {
     const body = await res.text()
     throw new GithubError(res.status, githubMessage(res.status, body))
   }
-  const json = (await res.json()) as { sha: string; content?: string; encoding?: string }
-  if (!json.content) throw new GithubError(500, 'GitHub file had no content')
-  const text = decodeUtf8Base64(json.content)
+  return { status: res.status, json: await res.json() }
+}
+
+export type RemoteFile<T> = { kind: 'missing' } | { kind: 'file'; sha: string; value: T }
+
+/** The shared vocabulary, which may still be a v1 snapshot on first run after the upgrade. */
+export async function fetchDeck(cfg: GithubConfig): Promise<RemoteFile<RemoteDeck>> {
+  const { status, json } = await getJson(cfg, cfg.path)
+  if (status === 404) return { kind: 'missing' }
+  const j = json as { sha?: string; content?: string }
+  if (!j.sha) throw new GithubError(500, 'GitHub file had no sha')
+  if (!j.content) throw new GithubError(500, 'GitHub file had no content')
   let parsed: unknown
   try {
-    parsed = JSON.parse(text)
+    parsed = JSON.parse(decodeUtf8Base64(j.content))
   } catch {
     throw new GithubError(500, 'GitHub file is not valid JSON')
   }
-  const snapshot = parseSnapshot(parsed)
-  if (!snapshot) throw new GithubError(500, 'GitHub file is not a flashcard snapshot')
-  return { kind: 'file', sha: json.sha, snapshot }
+  const value = parseRemoteDeck(parsed)
+  if (!value) throw new GithubError(500, 'GitHub file is not a flashcard deck')
+  return { kind: 'file', sha: j.sha, value }
 }
 
-export async function putRemote(
-  cfg: GithubConfig,
-  snapshot: Snapshot,
-  sha: string | null,
-): Promise<string> {
+export async function fetchUserFile(cfg: GithubConfig, slug: string): Promise<RemoteFile<UserFile>> {
+  const { status, json } = await getJson(cfg, userPath(cfg, slug))
+  if (status === 404) return { kind: 'missing' }
+  const j = json as { sha?: string; content?: string }
+  if (!j.sha) throw new GithubError(500, 'GitHub file had no sha')
+  if (!j.content) throw new GithubError(500, 'GitHub file had no content')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(decodeUtf8Base64(j.content))
+  } catch {
+    throw new GithubError(500, 'GitHub user file is not valid JSON')
+  }
+  const value = parseUserFile(parsed)
+  if (!value) throw new GithubError(500, 'GitHub user file is not a flashcard profile')
+  return { kind: 'file', sha: j.sha, value }
+}
+
+async function putFile(cfg: GithubConfig, path: string, payload: unknown, sha: string | null, message: string): Promise<string> {
   const body = JSON.stringify({
-    message: `flashcards ${new Date().toISOString()}`,
-    content: encodeUtf8Base64(`${JSON.stringify(snapshot)}\n`),
+    message,
+    content: encodeUtf8Base64(`${JSON.stringify(payload)}\n`),
     branch: cfg.branch,
     ...(sha ? { sha } : {}),
   })
-  const url = contentsUrl(cfg).split('?')[0]
+  const url = contentsUrl(cfg, path).split('?')[0]
   const res = await fetch(url, {
     method: 'PUT',
     headers: { ...headers(cfg.token), 'Content-Type': 'application/json' },
     body,
     credentials: 'omit',
   })
-  if (res.status === 409 || res.status === 422) {
-    throw new GithubError(res.status, 'conflict')
-  }
-  if (!res.ok) {
-    const text = await res.text()
-    throw new GithubError(res.status, githubMessage(res.status, text))
-  }
+  if (res.status === 409 || res.status === 422) throw new GithubError(res.status, 'conflict')
+  if (!res.ok) throw new GithubError(res.status, githubMessage(res.status, await res.text()))
   const json = (await res.json()) as { content?: { sha?: string } }
   const next = json.content?.sha
   if (!next) throw new GithubError(500, 'GitHub did not return a file sha')
   return next
+}
+
+export function putDeck(cfg: GithubConfig, payload: unknown, sha: string | null): Promise<string> {
+  return putFile(cfg, cfg.path, payload, sha, `deck ${new Date().toISOString()}`)
+}
+
+export function putUserFile(cfg: GithubConfig, slug: string, payload: unknown, sha: string | null): Promise<string> {
+  return putFile(cfg, userPath(cfg, slug), payload, sha, `${slug} progress ${new Date().toISOString()}`)
+}
+
+/** Profiles that already have a progress file, so a new device can switch to them. */
+export async function listRemoteUsers(cfg: GithubConfig): Promise<UserProfile[]> {
+  const { status, json } = await getJson(cfg, USERS_DIR)
+  if (status === 404) return []
+  if (!Array.isArray(json)) return []
+  return json
+    .filter((e): e is { name: string; type: string } => Boolean(e) && typeof (e as { name?: unknown }).name === 'string')
+    .filter((e) => e.type === 'file' && e.name.endsWith('.json'))
+    .map((e) => {
+      const slug = e.name.slice(0, -'.json'.length)
+      return { slug, name: slug, createdAt: 0 }
+    })
 }
 
 function githubMessage(status: number, body: string): string {
