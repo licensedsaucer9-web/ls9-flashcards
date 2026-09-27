@@ -795,12 +795,14 @@ async function renderSettings() {
       if (!slug || slug === user.slug) return
       setActiveUser(slug)
       toast(`Switched to ${slug}`)
-      // A different profile means a different schedule, so pull theirs before painting.
+      // Pull this profile's schedule, then populate any built-in cards that are
+      // missing locally. The latter also gives a new profile a deck while offline.
       try {
         await syncNow()
       } catch {
         /* status already set */
       }
+      await ensureSeed()
       await renderSettings()
     })
   })
@@ -825,6 +827,7 @@ async function renderSettings() {
       } catch {
         /* status already set */
       }
+      await ensureSeed()
       await renderSettings()
     })()
   })

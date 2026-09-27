@@ -108,10 +108,10 @@ async function readRemote(slug: string): Promise<Effective> {
   return { deck, deckSha, deckNeedsPush, user, userSha }
 }
 
-async function applyRemote(effective: Effective): Promise<MergeResult | null> {
+async function applyRemote(effective: Effective, slug: string): Promise<MergeResult | null> {
   let applied: MergeResult | null = null
-  if (effective.deck) applied = await mergeDeckIntoDb(effective.deck)
-  if (effective.user) applied = await mergeProgressIntoDb(effective.user)
+  if (effective.deck) applied = await mergeDeckIntoDb(effective.deck, slug)
+  if (effective.user) applied = await mergeProgressIntoDb(effective.user, slug)
   return applied
 }
 
@@ -126,8 +126,8 @@ async function syncPass(): Promise<void> {
   try {
     for (let attempt = 0; attempt < 4; attempt++) {
       const effective = await readRemote(slug)
-      const applied = await applyRemote(effective)
-      const local = await readLocalState()
+      const applied = await applyRemote(effective, slug)
+      const local = await readLocalState(slug)
       const desiredDeck = local.snapshot.deck
       const desiredUser = local.snapshot.user
 
@@ -142,7 +142,7 @@ async function syncPass(): Promise<void> {
         const revision = applied?.revision ?? local.settings.localRevision
         if (revision > local.settings.acknowledgedRevision) {
           // Nothing to write, but a local edit is still unaccounted for.
-          await acknowledgeRevision(revision)
+          await acknowledgeRevision(revision, slug)
         }
         setStatus({ state: 'ok', message: 'Backed up on GitHub', at: Date.now() })
         return
@@ -164,7 +164,7 @@ async function syncPass(): Promise<void> {
         if (error instanceof GithubError && error.message === 'conflict' && attempt < 3) continue
         throw error
       }
-      if (await acknowledgeRevision(local.settings.localRevision)) {
+      if (await acknowledgeRevision(local.settings.localRevision, slug)) {
         syncAgain = true
         setStatus({ state: 'waiting', message: 'Saved on this device · waiting to back up newer changes', at: null })
       } else {
@@ -173,7 +173,7 @@ async function syncPass(): Promise<void> {
       return
     }
   } catch (error) {
-    const local = await readLocalState()
+    const local = await readLocalState(slug)
     const pending = local.settings.localRevision > local.settings.acknowledgedRevision
     const detail = error instanceof Error ? error.message : 'Sync failed'
     setStatus({

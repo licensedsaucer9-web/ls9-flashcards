@@ -393,6 +393,56 @@ try {
   assert.equal((await state(page)).settings.direction, 'en-de')
   assert.equal((await state(page)).settings.tier, 2)
 
+  // Switching profiles while a GET is in flight must keep that sync pass on
+  // the original database and progress file.
+  const joakimRemote = progress().content.progress['seed-01']
+  progress().content.progress['seed-01'] = { ...joakimRemote, reps: 88, updated_at: Date.now() + 10000 }
+  let releaseProfileGet
+  const profileGetGate = new Promise((resolve) => { releaseProfileGet = resolve })
+  let profileGetHeld
+  const profileGetReached = new Promise((resolve) => { profileGetHeld = resolve })
+  await page.route('**/contents/users/joakim.json*', async (route) => {
+    if (route.request().method() === 'GET') {
+      profileGetHeld()
+      await profileGetGate
+    }
+    await route.fallback()
+  })
+  await page.evaluate(() => {
+    window.profileSwitchSync = import('/src/sync.ts').then((s) => s.syncNow())
+  })
+  await profileGetReached
+  await page.evaluate(() => {
+    const switched = import('/src/user.ts').then((u) => u.setActiveUser('anna'))
+    window.profileSwitchFollowup = switched.then(() => import('/src/sync.ts')).then((s) => s.syncNow())
+  })
+  releaseProfileGet()
+  await page.evaluate(() => Promise.all([window.profileSwitchSync, window.profileSwitchFollowup]))
+  const switchedState = await page.evaluate(async () => {
+    const db = await import('/src/db.ts')
+    return { active: (await db.getCard('seed-01')).srs.reps, anna: await db.readLocalState('anna'), joakim: await db.readLocalState('joakim') }
+  })
+  assert.equal(switchedState.active, 5, 'Anna keeps her own schedule after Joakim syncs')
+  assert.equal(switchedState.anna.snapshot.user.progress['seed-01'].reps, 5, 'Joakim progress never reaches Anna database')
+  assert.equal(switchedState.joakim.snapshot.user.progress['seed-01'].reps, 88, 'the original sync reached Joakim database')
+  assert.equal(progress('anna').content.progress['seed-01'].reps, 5, 'Anna remote file stays separate')
+  assert.equal(progress().content.progress['seed-01'].reps, 88, 'Joakim remote file keeps his progress')
+  await page.unroute('**/contents/users/joakim.json*')
+  await page.evaluate(() => import('/src/user.ts').then((u) => u.setActiveUser('joakim')))
+
+  // Adding a profile with no GitHub connection must populate its deck before
+  // showing the new profile; otherwise it stays empty until a page reload.
+  const offlineProfiles = await browser.newContext({ serviceWorkers: 'block' })
+  const offlineProfile = await offlineProfiles.newPage()
+  await offlineProfile.goto(`${base}#/settings`)
+  await offlineProfile.waitForSelector('#user-form')
+  await offlineProfile.fill('#user-form input[name="name"]', 'Offline Anna')
+  await offlineProfile.click('#user-form button[type="submit"]')
+  await offlineProfile.waitForFunction(() => document.querySelector('.topbar .badge')?.textContent === 'Offline Anna')
+  const offlineCards = await offlineProfile.evaluate(async () => (await (await import('/src/db.ts')).getAllCards()).length)
+  assert.equal(offlineCards, 514, 'a new offline profile immediately gets the built-in deck')
+  await offlineProfiles.close()
+
   // --- a new browser can discover and switch to another profile ---
   const third = await browser.newContext({ serviceWorkers: 'block' })
   await third.route('https://api.github.com/**', mockGithub)
@@ -569,6 +619,42 @@ try {
   assert.equal(imported.card.srs.reps, 7, 'the legacy schedule was carried over')
   assert.equal(imported.settings.sessionSize, 50, 'legacy session size kept')
   assert.equal(imported.settings.direction, 'en-de', 'legacy direction kept')
+
+  // A failed destination write must leave migration retryable. Opening a v2
+  // destination makes the app's v1 open fail with VersionError on purpose.
+  const migrationRetry = await legacyLocal.evaluate(async () => {
+    const dbModule = await import('/src/db.ts')
+    const removeDb = (name) => new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(name)
+      request.onsuccess = resolve
+      request.onerror = () => reject(request.error)
+    })
+    const target = 'german-flashcards:joakim'
+    localStorage.removeItem('german-flashcards.migrated')
+    await removeDb(target)
+    const tooNew = await new Promise((resolve, reject) => {
+      const request = indexedDB.open(target, 2)
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore('cards', { keyPath: 'id' })
+        request.result.createObjectStore('settings', { keyPath: 'id' })
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    tooNew.close()
+    let failed = false
+    try { await dbModule.importLegacyData() } catch { failed = true }
+    const markedAfterFailure = localStorage.getItem('german-flashcards.migrated')
+    await removeDb(target)
+    const added = await dbModule.importLegacyData()
+    const restored = await dbModule.getCard('seed-01')
+    return { failed, markedAfterFailure, added, reps: restored?.srs.reps, markedAfterRetry: localStorage.getItem('german-flashcards.migrated') }
+  })
+  assert.equal(migrationRetry.failed, true, 'the forced migration failure was observed')
+  assert.equal(migrationRetry.markedAfterFailure, null, 'failed migration is not marked complete')
+  assert.equal(migrationRetry.added, 1, 'retry copies the legacy card')
+  assert.equal(migrationRetry.reps, 7, 'retry preserves its review schedule')
+  assert.equal(migrationRetry.markedAfterRetry, '1', 'successful retry marks migration complete')
 
   // --- an edit save must not overwrite fresher remote progress ---
   const editId = deck().content.cards[3].id

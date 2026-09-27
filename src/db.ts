@@ -124,6 +124,7 @@ function publicSettings(settings: Settings): PublicSettings {
  */
 export async function importLegacyData(): Promise<number> {
   if (hasMigrated()) return 0
+  const user = activeUserSlug()
   const legacy = await openDb(LEGACY_DB_NAME)
   let cards: Card[] = []
   let settings: Settings | undefined
@@ -138,10 +139,12 @@ export async function importLegacyData(): Promise<number> {
   } finally {
     legacy.close()
   }
-  markMigrated()
-  if (!cards.length && !settings) return 0
+  if (!cards.length && !settings) {
+    markMigrated()
+    return 0
+  }
 
-  const db = await openDb()
+  const db = await openDb(dbNameForUser(user))
   try {
     const tx = db.transaction(['cards', 'settings'], 'readwrite')
     const current = await load(tx)
@@ -159,6 +162,7 @@ export async function importLegacyData(): Promise<number> {
     next.deletedIds = { ...next.deletedIds, ...current.settings.deletedIds }
     tx.objectStore('settings').put(next)
     await current.done
+    markMigrated()
     return added
   } finally {
     db.close()
@@ -219,12 +223,12 @@ function stripSrs(card: Card): CardContent {
   }
 }
 
-export async function readLocalState(): Promise<{ snapshot: { deck: DeckFile; user: UserFile }; settings: Settings }> {
-  const db = await openDb()
+export async function readLocalState(user = activeUserSlug()): Promise<{ snapshot: { deck: DeckFile; user: UserFile }; settings: Settings }> {
+  const db = await openDb(dbNameForUser(user))
   try {
     const { cards, settings, done } = await load(db.transaction(['cards', 'settings'], 'readwrite'))
     await done
-    return { snapshot: { deck: localDeckFile(cards, settings), user: localUserFile(cards, settings) }, settings }
+    return { snapshot: { deck: localDeckFile(cards, settings), user: localUserFile(cards, settings, user) }, settings }
   } finally {
     db.close()
   }
@@ -396,8 +400,8 @@ export async function putSettings(next: Partial<PublicSettings>): Promise<void> 
 export type MergeResult = { deck: DeckFile; user: UserFile; revision: number; pending: boolean }
 
 /** Apply a shared deck file. Card content merges; this user's progress is never touched. */
-export async function mergeDeckIntoDb(remote: DeckFile): Promise<{ deck: DeckFile; user: UserFile; revision: number; pending: boolean }> {
-  const db = await openDb()
+export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug()): Promise<MergeResult> {
+  const db = await openDb(dbNameForUser(user))
   try {
     const tx = db.transaction(['cards', 'settings'], 'readwrite')
     const current = await load(tx)
@@ -425,7 +429,7 @@ export async function mergeDeckIntoDb(remote: DeckFile): Promise<{ deck: DeckFil
     const cards = [...next.values()]
     return {
       deck: merged,
-      user: localUserFile(cards, current.settings),
+      user: localUserFile(cards, current.settings, user),
       revision: current.settings.localRevision,
       pending: current.settings.localRevision > current.settings.acknowledgedRevision,
     }
@@ -435,8 +439,8 @@ export async function mergeDeckIntoDb(remote: DeckFile): Promise<{ deck: DeckFil
 }
 
 /** Apply one user's scheduling file. Ignores progress for cards this deck does not have. */
-export async function mergeProgressIntoDb(remote: UserFile): Promise<MergeResult> {
-  const db = await openDb()
+export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlug()): Promise<MergeResult> {
+  const db = await openDb(dbNameForUser(user))
   try {
     const tx = db.transaction(['cards', 'settings'], 'readwrite')
     const current = await load(tx)
@@ -471,7 +475,7 @@ export async function mergeProgressIntoDb(remote: UserFile): Promise<MergeResult
     const cards = [...next.values()]
     return {
       deck: localDeckFile(cards, current.settings),
-      user: localUserFile(cards, current.settings),
+      user: localUserFile(cards, current.settings, user),
       revision: current.settings.localRevision,
       pending: current.settings.localRevision > current.settings.acknowledgedRevision,
     }
@@ -480,8 +484,8 @@ export async function mergeProgressIntoDb(remote: UserFile): Promise<MergeResult
   }
 }
 
-export async function acknowledgeRevision(includedRevision: number): Promise<boolean> {
-  const db = await openDb()
+export async function acknowledgeRevision(includedRevision: number, user = activeUserSlug()): Promise<boolean> {
+  const db = await openDb(dbNameForUser(user))
   try {
     const tx = db.transaction('settings', 'readwrite')
     const done = txDone(tx)
