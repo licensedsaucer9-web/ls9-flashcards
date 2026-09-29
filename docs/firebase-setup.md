@@ -1,8 +1,9 @@
 # Firebase setup for issue #10
 
-Status: **desktop Brave sign-in passed; phone test pending**. This guide prepares the
-temporary Google sign-in spike. It does not enable Firebase in the published
-flashcard app, migrate data, or create Firestore user/deck documents.
+Status: **desktop Brave sign-in passed in both projects; phone test pending**.
+This guide prepares the temporary Google sign-in spike. It does not enable
+Firebase in the published flashcard app, migrate data, or create Firestore
+user/deck documents.
 
 The unlinked OAuth test preview is live at
 <https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike/>.
@@ -17,8 +18,9 @@ The separate production UID preview is live at
 <https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike-prod/>.
 It uses only `flashcards-ls9-prod` and displays the project ID beside the UID
 so the two projects cannot be confused. Its popup opened in headless Chromium;
-closing it left the page usable. A real production sign-in is still needed to
-record the UID for later migration mapping. Neither preview accesses Firestore.
+closing it left the page usable. Joakim signed in on desktop Brave and
+confirmed the same production UID after refreshing. That UID is recorded on
+issue #10 for later migration mapping. Neither preview accesses Firestore.
 
 ## Project record
 
@@ -55,8 +57,9 @@ coding environment, so the project owner must complete these remaining steps:
 1. At [Firebase Console](https://console.firebase.google.com/), open each
    project listed above and verify that the billing plan is **Spark**. Do not
    link a billing account for this issue. Analytics is not required.
-2. Google sign-in has been enabled in both projects. The spike uses only the
-   test project; production account creation is reserved for later mapping.
+2. Google sign-in has been enabled in both projects. The test spike uses the
+   test project; the separate production preview was used only to record the
+   production UID for later mapping.
 3. `licensedsaucer9-web.github.io` has been added to both projects' authorized
    domains. If testing from a local Vite server, also add that local hostname
    to the test project (`127.0.0.1` if accepted, otherwise `localhost`). Only
@@ -117,9 +120,9 @@ Use the **OAuth test project**. On each platform, note browser/iOS version,
 result, Firebase error code where applicable, and the UID (keep account email
 out of the issue). Do not post ID tokens or configuration files.
 The test project's UID proves that OAuth completed, but it cannot be used to
-map an account in the separate production Firebase project. Record a
-production UID later, after signing in to that project, before migrating
-existing progress.
+map an account in the separate production Firebase project. The production
+sign-in and refresh checks have passed on desktop Brave, and its UID is
+recorded separately on issue #10 for migration mapping.
 
 | Check | Desktop Chrome | iPhone Safari | iPhone Home Screen preview |
 | --- | --- | --- | --- |
