@@ -1,16 +1,17 @@
 # Firebase setup for issue #10
 
-Status: **projects, databases, and web apps created; phone test pending**. This guide prepares the
+Status: **desktop Brave sign-in passed; phone test pending**. This guide prepares the
 temporary Google sign-in spike. It does not enable Firebase in the published
 flashcard app, migrate data, or create Firestore user/deck documents.
 
 The unlinked OAuth test preview is live at
 <https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike/>.
-It uses only the OAuth test project. A clean desktop browser loads the page
-and shows an enabled Google sign-in button; an actual OAuth sign-in has not
-yet been confirmed. In headless Chromium, a button click opened the Firebase
-auth popup and closing it returned `auth/popup-closed-by-user`; the preview
-remained usable.
+It uses only the OAuth test project. Joakim signed in on desktop Brave and
+confirmed the same UID after refreshing; the UID is recorded in issue #10 as
+a **test-project** identifier. In headless Chromium, a button click opened
+the Firebase auth popup and closing it returned
+`auth/popup-closed-by-user`; the preview remained usable. Desktop Chrome
+sign-in and all iPhone checks remain pending.
 
 ## Project record
 
