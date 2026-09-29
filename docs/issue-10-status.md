@@ -20,4 +20,6 @@ In iPhone Safari, a completed Google sign-in showed the same test UID.
 
 Safari → Block Pop-ups did nothing on the installed Auth Check app. Firebase does not call `window.open` there. For an installed iPhone app it creates an anchor and dispatches a click, then keeps no window handle. The blocked-popup code was already recorded in headless Chromium as `auth/popup-blocked`.
 
-**Next:** desktop Chrome. Open the test preview, complete one sign-in, then dismiss one window. Record the UID and the dismiss error code. Only start the vibe-handoff review once that check is recorded. Remove the temporary preview directories after testing. Turn iOS Block Pop-ups off if it is still on.
+Desktop Chrome, Preview revision 3: a sign-in completed and showed a UID. Closing a second sign-in window reported `auth/popup-closed-by-user`. The UID string was not copied into the note.
+
+Sign-in and cancel are now recorded for the installed iPhone app, iPhone Safari, and desktop Chrome. Leave-and-reopen and airplane mode were exercised on the installed app. A headed Chrome blocked-popup check was not run; headless Chromium already reported `auth/popup-blocked`. The draft PR stays a draft. Do not start the vibe-handoff review until that is requested. Remove the temporary preview directories after the spike is accepted. Turn iOS Block Pop-ups off if it is still on.

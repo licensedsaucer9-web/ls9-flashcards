@@ -1,7 +1,7 @@
 # Firebase setup for issue #10
 
-Status: **Spark confirmed; iPhone sign-in and cancel passed. Installed
-blocked-popup check does not apply. Desktop Chrome remains.**
+Status: **Spark confirmed. iPhone and desktop Chrome sign-in and cancel
+passed on Preview revision 3. Installed blocked-popup check does not apply.**
 This guide prepares the temporary Google sign-in spike. It does not enable
 Firebase in the published flashcard app, migrate data, or create Firestore
 user/deck documents.
@@ -155,8 +155,8 @@ recorded separately on issue #10 for migration mapping.
 
 | Check | Desktop Chrome | iPhone Safari | iPhone Home Screen preview |
 | --- | --- | --- | --- |
-| User-initiated popup succeeds | Pending | Passed; same test UID | Passed; returned to installed preview with test UID |
-| Closing/cancelling popup leaves app usable | Pending | Passed. Back button, `auth/popup-closed-by-user`, same UID | Passed on revision 3. Did not hang. `auth/network-request-failed` (helper iframe). Same UID. Connection stayed online |
+| User-initiated popup succeeds | Passed on Preview revision 3. Signed in and a UID was shown | Passed; same test UID | Passed; returned to installed preview with test UID |
+| Closing/cancelling popup leaves app usable | Passed. Second attempt closed, `auth/popup-closed-by-user` | Passed. Back button, `auth/popup-closed-by-user`, same UID | Passed on revision 3. Did not hang. `auth/network-request-failed` (helper iframe). Same UID. Connection stayed online |
 | Blocked popup is reported without changing existing session | Headless Chromium: `auth/popup-blocked`, signed-out UID unchanged. Desktop Chrome pending | Pending | Not applicable. The installed app opens Google with a synthetic link click, not `window.open`, so Safari → Block Pop-ups does not intercept it |
 | Leave and reopen; same UID restored | Pending | Pending | Passed |
 | Airplane mode; prior session/local UI remains readable | Pending | Pending | Passed; offline indicator, same UID, sign-in error without losing session |
