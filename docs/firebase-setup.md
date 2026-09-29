@@ -23,7 +23,7 @@ are public identifiers; keep the Admin SDK service account JSON private.
 | Firebase project ID | `flashcards-ls9-prod` | `flashcards-ls9-auth-test` |
 | Billing plan | Spark expected; verify in console | Spark expected; verify in console |
 | Firestore location | `europe-west1`, Standard, empty, free tier | `europe-west1`, Standard, empty, free tier |
-| Google sign-in | Pending | Enabled, confirmed by Joakim in console |
+| Google sign-in | Enabled, confirmed by Joakim in console | Enabled, confirmed by Joakim in console |
 | Authorized domains | `licensedsaucer9-web.github.io` pending | `licensedsaucer9-web.github.io` and local hostname pending |
 | Web app ID | `1:447756082894:web:6b39de4d88f7638a817a9f` | `1:523307197531:web:171d03e6369727b4208b7e` |
 | Auth domain | `flashcards-ls9-prod.firebaseapp.com` | `flashcards-ls9-auth-test.firebaseapp.com` |
@@ -48,11 +48,8 @@ coding environment, so the project owner must complete these remaining steps:
 1. At [Firebase Console](https://console.firebase.google.com/), open each
    project listed above and verify that the billing plan is **Spark**. Do not
    link a billing account for this issue. Analytics is not required.
-2. Google sign-in has been enabled on the **OAuth test** project. In the
-   production project, open **Build → Authentication → Get started → Sign-in
-   method** and enable **Google**, choosing the required project support email.
-   This can wait until production integration; the spike uses only the test
-   project.
+2. Google sign-in has been enabled in both projects. The spike uses only the
+   test project; production account creation is reserved for later mapping.
 3. In **Authentication → Settings → Authorized domains**, add
    `licensedsaucer9-web.github.io` to both projects. In the test project also
    add the local hostname used for browser testing (`127.0.0.1` if accepted,
