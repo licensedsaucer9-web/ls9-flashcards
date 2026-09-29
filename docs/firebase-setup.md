@@ -110,6 +110,16 @@ temporary directory from the public site. The normal publish job uses
 `rsync --delete`, so a later `master` publish will also remove the preview
 directory; republish it if the phone test is still pending.
 
+The main app's navigation service worker originally captured the preview
+paths and returned the flashcard app. Its fallback now excludes
+`auth-spike/` and `auth-spike-prod/`, allowing each preview to load and
+register its own service worker. This exclusion must be deployed with any
+main-app rebuild while the previews remain live. On an iPhone that installed
+the old main worker, revisit the main app in Safari to trigger its update,
+then open the exact preview URL and confirm the heading says **Firebase
+Google sign-in check** before adding it to the Home Screen. Do not clear
+Safari website data, which could remove local flashcard progress.
+
 Because the spike is an independently installed preview PWA, record this
 distinction in the phone result. If it behaves differently from the installed
 main app, the issue's gate is still unproven; do not infer the main PWA works.
