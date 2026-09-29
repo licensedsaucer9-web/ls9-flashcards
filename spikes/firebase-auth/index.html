@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0e1116" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Firebase sign-in spike</title>
+    <style>
+      body { max-width: 36rem; margin: 2rem auto; padding: 0 1rem; font: 1rem/1.5 system-ui, sans-serif; background: #0e1116; color: #f5f5f5; }
+      button { font: inherit; padding: .7rem 1rem; margin: .25rem .5rem .25rem 0; }
+      button:disabled { opacity: .55; }
+      code, pre { overflow-wrap: anywhere; }
+      pre { white-space: pre-wrap; background: #242a31; padding: 1rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Firebase Google sign-in check</h1>
+      <p>Temporary preview for issue #10. It does not read or change flashcards or Firestore.</p>
+      <button id="sign-in" type="button" disabled>Continue with Google</button>
+      <button id="sign-out" type="button" disabled>Sign out</button>
+      <p id="status" role="status" aria-live="polite">Loading…</p>
+      <p>Firebase project: <code id="project">—</code></p>
+      <p>Firebase UID: <code id="uid">—</code></p>
+      <p>Browser connection: <span id="connection">—</span></p>
+      <pre id="error" role="alert" hidden></pre>
+      <p id="revision">Preview revision 3. Closing the Google window should leave this screen within a second. If it still says Opening Google sign-in, tap Continue with Google once.</p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

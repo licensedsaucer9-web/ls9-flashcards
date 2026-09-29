@@ -32,6 +32,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        // The temporary auth PWAs live under this Pages path. Let their own
+        // service workers handle navigation instead of serving the main app.
+        navigateFallbackDenylist: [/\/auth-spike(?:-prod)?\//],
       },
     }),
   ],
