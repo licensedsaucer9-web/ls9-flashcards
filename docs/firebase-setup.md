@@ -1,7 +1,7 @@
 # Firebase setup for issue #10
 
-Status: **desktop Brave and installed iPhone Home Screen sign-in passed;
-remaining browser checks pending**.
+Status: **Spark confirmed; desktop Brave and installed iPhone Home Screen
+sign-in passed; cancellation retest and two browser checks pending**.
 This guide prepares the temporary Google sign-in spike. It does not enable
 Firebase in the published flashcard app, migrate data, or create Firestore
 user/deck documents.
@@ -17,8 +17,10 @@ iPhone Home Screen preview, the Google popup returned to the app with the
 same test UID, which survived reopening and Airplane Mode. Dismissing a later
 popup left that signed-in UID unchanged, though Firebase reported
 `auth/cancelled-popup-request`; a clean cancellation retest is pending.
-Desktop Chrome, iPhone Safari, and the installed preview's blocked-popup
-check remain pending.
+Headless Chromium on the live test preview reported `auth/popup-blocked`
+for a forced-blocked popup, left the signed-out UID unchanged, and enabled
+the sign-in button again. Desktop Chrome, iPhone Safari, and the installed
+preview's blocked-popup check remain pending.
 
 The separate production UID preview is live at
 <https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike-prod/>.
@@ -36,7 +38,7 @@ SDK service account JSON private.
 | Setting | Production | OAuth test |
 | --- | --- | --- |
 | Firebase project ID | `flashcards-ls9-prod` | `flashcards-ls9-auth-test` |
-| Billing plan | Spark expected; verify in console | Spark expected; verify in console |
+| Billing plan | Spark. Cloud Billing reports billing disabled and no linked account (2026-09-29) | Spark. Cloud Billing reports billing disabled and no linked account (2026-09-29) |
 | Firestore location | `europe-west1`, Standard, empty, free tier | `europe-west1`, Standard, empty, free tier |
 | Google sign-in | Enabled, confirmed by Joakim in console | Enabled, confirmed by Joakim in console |
 | Authorized domains | `licensedsaucer9-web.github.io` confirmed by Joakim | `licensedsaucer9-web.github.io` confirmed by Joakim; local hostname pending |
@@ -57,12 +59,13 @@ project.
 
 Both projects, their empty Firestore databases, and their web apps were
 created through the Firebase CLI on 2026-09-29. The CLI reported
-`freeTier: true` for both databases. Console access is not available in the
-coding environment, so the project owner must complete these remaining steps:
+`freeTier: true` for both databases. The setup used by this spike:
 
-1. At [Firebase Console](https://console.firebase.google.com/), open each
-   project listed above and verify that the billing plan is **Spark**. Do not
-   link a billing account for this issue. Analytics is not required.
+1. Both projects are on the **Spark** plan. The Cloud Billing API reports
+   `billingEnabled: false` and no linked billing account for each project
+   (checked 2026-09-29). Do not link a billing account for this issue.
+   Each `(default)` Firestore database is in `europe-west1` and has no
+   collections. Analytics is not required.
 2. Google sign-in has been enabled in both projects. The test spike uses the
    test project; the separate production preview was used only to record the
    production UID for later mapping.
@@ -144,7 +147,7 @@ recorded separately on issue #10 for migration mapping.
 | --- | --- | --- | --- |
 | User-initiated popup succeeds | Pending | Pending | Passed; returned to installed preview with test UID |
 | Closing/cancelling popup leaves app usable | Pending | Pending | Existing UID unchanged; `auth/cancelled-popup-request`, retest pending |
-| Blocked popup is reported without changing existing session | Pending | Pending | Pending |
+| Blocked popup is reported without changing existing session | Headless Chromium: `auth/popup-blocked`, signed-out UID unchanged. Desktop Chrome pending | Pending | Pending |
 | Leave and reopen; same UID restored | Pending | Pending | Passed |
 | Airplane mode; prior session/local UI remains readable | Pending | Pending | Passed; offline indicator, same UID, sign-in error without losing session |
 
