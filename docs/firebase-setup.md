@@ -1,7 +1,7 @@
 # Firebase setup for issue #10
 
-Status: **Spark confirmed; installed iPhone cancel passed. Safari back-button
-cancel passed. Safari sign-in, blocked popup, and desktop Chrome remain.**
+Status: **Spark confirmed; iPhone Safari sign-in and cancel passed.
+Installed blocked popup and desktop Chrome remain.**
 This guide prepares the temporary Google sign-in spike. It does not enable
 Firebase in the published flashcard app, migrate data, or create Firestore
 user/deck documents.
@@ -155,7 +155,7 @@ recorded separately on issue #10 for migration mapping.
 
 | Check | Desktop Chrome | iPhone Safari | iPhone Home Screen preview |
 | --- | --- | --- | --- |
-| User-initiated popup succeeds | Pending | Pending | Passed; returned to installed preview with test UID |
+| User-initiated popup succeeds | Pending | Passed; same test UID | Passed; returned to installed preview with test UID |
 | Closing/cancelling popup leaves app usable | Pending | Passed. Back button, `auth/popup-closed-by-user`, same UID | Passed on revision 3. Did not hang. `auth/network-request-failed` (helper iframe). Same UID. Connection stayed online |
 | Blocked popup is reported without changing existing session | Headless Chromium: `auth/popup-blocked`, signed-out UID unchanged. Desktop Chrome pending | Pending | Pending |
 | Leave and reopen; same UID restored | Pending | Pending | Passed |

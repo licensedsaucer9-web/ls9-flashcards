@@ -16,4 +16,6 @@ On Preview revision 3, Joakim dismissed one Google window on the installed Auth 
 
 In iPhone Safari, Joakim cancelled with the back button. The code was `auth/popup-closed-by-user` and the UID was unchanged.
 
-**Next:** in iPhone Safari, complete one Google sign-in rather than cancelling. Record whether the same test UID is shown. After that, the installed-preview blocked popup and desktop Chrome remain. Only start the vibe-handoff review once the issue's required checks are addressed. Remove the temporary preview directories after testing.
+In iPhone Safari, a completed Google sign-in showed the same test UID.
+
+**Next:** installed Auth Check blocked popup. In iOS Settings, turn on Safari → Block Pop-ups, open the installed app, tap Continue with Google once, and record the error code and whether the UID stays the same. Turn Block Pop-ups off again afterward. Desktop Chrome remains after that. Only start the vibe-handoff review once the issue's required checks are addressed. Remove the temporary preview directories after testing.
