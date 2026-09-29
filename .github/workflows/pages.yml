@@ -27,6 +27,13 @@ jobs:
       - run: npm ci
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
       - run: npm test
+      - name: Set up Java for the Firestore emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Test Firestore rules
+        run: npm run test:rules
       - name: Build public site
         run: npm run build
         env:
