@@ -48,12 +48,16 @@ if (Object.values(config).some((value) => !value)) {
   const app = initializeApp(config)
   const auth = getAuth(app)
   const provider = new GoogleAuthProvider()
+  let initialAuthState = true
 
   void setPersistence(auth, browserLocalPersistence)
     .then(() => {
       onAuthStateChanged(auth, (user) => {
         uid.textContent = user?.uid ?? '—'
-        status.textContent = user ? 'Signed in; session restored.' : 'Signed out.'
+        status.textContent = user
+          ? initialAuthState ? 'Signed in; session restored after reopening.' : 'Signed in.'
+          : 'Signed out.'
+        initialAuthState = false
         signInButton.disabled = false
         signOutButton.disabled = !user
       }, showError)
