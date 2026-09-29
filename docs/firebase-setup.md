@@ -15,8 +15,10 @@ the Firebase auth popup and closing it returned
 `auth/popup-closed-by-user`; the preview remained usable. On the installed
 iPhone Home Screen preview, the Google popup returned to the app with the
 same test UID, which survived reopening and Airplane Mode. Dismissing a later
-popup left that signed-in UID unchanged. Desktop Chrome, iPhone Safari, and
-the installed preview's blocked-popup check remain pending.
+popup left that signed-in UID unchanged, though Firebase reported
+`auth/cancelled-popup-request`; a clean cancellation retest is pending.
+Desktop Chrome, iPhone Safari, and the installed preview's blocked-popup
+check remain pending.
 
 The separate production UID preview is live at
 <https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike-prod/>.
@@ -141,7 +143,7 @@ recorded separately on issue #10 for migration mapping.
 | Check | Desktop Chrome | iPhone Safari | iPhone Home Screen preview |
 | --- | --- | --- | --- |
 | User-initiated popup succeeds | Pending | Pending | Passed; returned to installed preview with test UID |
-| Closing/cancelling popup leaves app usable | Pending | Pending | Passed; existing UID unchanged |
+| Closing/cancelling popup leaves app usable | Pending | Pending | Existing UID unchanged; `auth/cancelled-popup-request`, retest pending |
 | Blocked popup is reported without changing existing session | Pending | Pending | Pending |
 | Leave and reopen; same UID restored | Pending | Pending | Passed |
 | Airplane mode; prior session/local UI remains readable | Pending | Pending | Passed; offline indicator, same UID, sign-in error without losing session |

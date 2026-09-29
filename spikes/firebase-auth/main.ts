@@ -51,6 +51,7 @@ if (Object.values(config).some((value) => !value)) {
   const auth = getAuth(app)
   const provider = new GoogleAuthProvider()
   let initialAuthState = true
+  let popupPending = false
 
   void setPersistence(auth, browserLocalPersistence)
     .then(() => {
@@ -60,17 +61,31 @@ if (Object.values(config).some((value) => !value)) {
           ? initialAuthState ? 'Signed in; session restored after reopening.' : 'Signed in.'
           : 'Signed out.'
         initialAuthState = false
-        signInButton.disabled = false
-        signOutButton.disabled = !user
+        signInButton.disabled = popupPending
+        signOutButton.disabled = popupPending || !user
       }, showError)
     })
     .catch(showError)
 
   signInButton.addEventListener('click', () => {
     // Invoke popup directly from the user gesture. Do not await other work here.
+    if (popupPending) return
+    popupPending = true
+    signInButton.disabled = true
+    signOutButton.disabled = true
     errorBox.hidden = true
     status.textContent = 'Opening Google sign-in…'
-    void signInWithPopup(auth, provider).catch(showError)
+    void signInWithPopup(auth, provider)
+      .then(({ user }) => {
+        uid.textContent = user.uid
+        status.textContent = 'Signed in.'
+      })
+      .catch(showError)
+      .finally(() => {
+        popupPending = false
+        signInButton.disabled = false
+        signOutButton.disabled = !auth.currentUser
+      })
   })
 
   signOutButton.addEventListener('click', () => {
