@@ -14,4 +14,6 @@ When the dismiss does not hang, the preview reports `auth/network-request-failed
 
 On Preview revision 3, Joakim dismissed one Google window on the installed Auth Check app. The screen did not stay on Opening Google sign-in. The code was `auth/network-request-failed`, with the helper explanation, and the connection line could stay online. The UID was unchanged.
 
-**Next:** iPhone Safari, not the Home Screen icon. Open the test preview, sign in, then dismiss one Google window. Record the error code and whether the UID stays the same. After that, the installed-preview blocked popup and desktop Chrome remain. Only start the vibe-handoff review once the issue's required checks are addressed. Remove the temporary preview directories after testing.
+In iPhone Safari, Joakim cancelled with the back button. The code was `auth/popup-closed-by-user` and the UID was unchanged.
+
+**Next:** in iPhone Safari, complete one Google sign-in rather than cancelling. Record whether the same test UID is shown. After that, the installed-preview blocked popup and desktop Chrome remain. Only start the vibe-handoff review once the issue's required checks are addressed. Remove the temporary preview directories after testing.
