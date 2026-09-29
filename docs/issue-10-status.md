@@ -12,6 +12,6 @@ Closing the Google window on the installed iPhone PWA often left the screen on O
 
 When the dismiss does not hang, the preview reports `auth/network-request-failed`. That is Firebase's helper iframe on `firebaseapp.com` failing while iOS has the page in the background. The connection indicator can still say online. Preview revision 3 says so on the screen next to the code.
 
-**Next:** with the iPhone online, close and reopen the installed Auth Check app until the page says Preview revision 3. Tap Continue with Google once, dismiss the window, and record whether the screen leaves Opening Google sign-in, the exact error code, and whether the same UID remains.
+On Preview revision 3, Joakim dismissed one Google window on the installed Auth Check app. The screen did not stay on Opening Google sign-in. The code was `auth/network-request-failed`, with the helper explanation, and the connection line could stay online. The UID was unchanged.
 
-After that, complete the remaining issue #10 checks: iPhone Safari sign-in/cancellation, installed-preview blocked popup, and desktop Chrome. Update the issue record and PR. Only start the vibe-handoff review once the issue's required checks are addressed. Remove the temporary preview directories after testing.
+**Next:** iPhone Safari, not the Home Screen icon. Open the test preview, sign in, then dismiss one Google window. Record the error code and whether the UID stays the same. After that, the installed-preview blocked popup and desktop Chrome remain. Only start the vibe-handoff review once the issue's required checks are addressed. Remove the temporary preview directories after testing.
