@@ -8,6 +8,8 @@ The [test preview](https://licensedsaucer9-web.github.io/german-flashcards-site/
 
 Joakim dismissed a Google window after one tap while already signed in. The existing UID remained, but the preview reported `auth/cancelled-popup-request`, so a clean cancellation result is still unverified. The preview was updated to guard against overlapping popup requests and published to Pages. The live test bundle contains that guard. Headless Chromium now reports `auth/popup-closed-by-user` for one dismissed popup, and a forced-blocked popup reports `auth/popup-blocked` without changing the signed-out UID. Both Firebase projects are Spark: Cloud Billing reports billing disabled and no linked account, and both `europe-west1` databases have no collections.
 
-**Next:** with the iPhone online, close and reopen the installed Auth Check app twice to load the update; tap Continue with Google once, dismiss the popup, and record the exact error code and whether the same UID remains.
+Closing the Google window on the installed iPhone PWA often left the screen on Opening Google sign-in. Firebase keeps no window handle in that mode, so `signInWithPopup` never rejects. Preview revision 2 recovers when the page is back in front, and a later tap on Continue with Google clears a stuck attempt instead of opening a second popup.
+
+**Next:** with the iPhone online, close and reopen the installed Auth Check app until the page says Preview revision 2. Tap Continue with Google once, dismiss the window, and record whether the screen leaves Opening Google sign-in, the exact error code, and whether the same UID remains.
 
 After that, complete the remaining issue #10 checks: iPhone Safari sign-in/cancellation, installed-preview blocked popup, and desktop Chrome. Update the issue record and PR. Only start the vibe-handoff review once the issue's required checks are addressed. Remove the temporary preview directories after testing.

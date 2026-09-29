@@ -52,39 +52,102 @@ if (Object.values(config).some((value) => !value)) {
   const provider = new GoogleAuthProvider()
   let initialAuthState = true
   let popupPending = false
+  let attempt = 0
+  let startedAt = 0
+  let recoverPending: (() => void) | null = null
+
+  function showSignedOutOrIn(user: { uid: string } | null): void {
+    status.textContent = user
+      ? initialAuthState ? 'Signed in; session restored after reopening.' : 'Signed in.'
+      : 'Signed out.'
+    initialAuthState = false
+  }
+
+  function releasePopupControls(): void {
+    popupPending = false
+    recoverPending = null
+    signInButton.disabled = false
+    signInButton.textContent = 'Continue with Google'
+    signOutButton.disabled = !auth.currentUser
+  }
 
   void setPersistence(auth, browserLocalPersistence)
     .then(() => {
       onAuthStateChanged(auth, (user) => {
         uid.textContent = user?.uid ?? '—'
-        status.textContent = user
-          ? initialAuthState ? 'Signed in; session restored after reopening.' : 'Signed in.'
-          : 'Signed out.'
-        initialAuthState = false
-        signInButton.disabled = popupPending
+        if (user) errorBox.hidden = true
+        signInButton.disabled = false
         signOutButton.disabled = popupPending || !user
+        // Keep the "Opening Google sign-in…" line until this attempt settles.
+        // A later auth event still updates the UID above.
+        if (popupPending) return
+        showSignedOutOrIn(user)
       }, showError)
     })
     .catch(showError)
 
   signInButton.addEventListener('click', () => {
     // Invoke popup directly from the user gesture. Do not await other work here.
-    if (popupPending) return
+    if (popupPending) {
+      // A quick second tap is the same gesture. A later tap means the Google
+      // window was dismissed and Firebase never settled.
+      if (Date.now() - startedAt < 800) return
+      recoverPending?.()
+      return
+    }
+    const mine = ++attempt
+    startedAt = Date.now()
     popupPending = true
-    signInButton.disabled = true
     signOutButton.disabled = true
     errorBox.hidden = true
     status.textContent = 'Opening Google sign-in…'
+    const watcher = new AbortController()
+    let backgroundAt = 0
+    let grace = 0
+    const recover = () => {
+      if (mine !== attempt) return
+      window.clearTimeout(grace)
+      watcher.abort()
+      attempt += 1
+      showError({ code: 'auth/popup-closed-by-user' })
+      releasePopupControls()
+    }
+    recoverPending = recover
+    // On an installed iPhone PWA, Firebase opens the handler with a synthetic
+    // link click and keeps no window handle, so closing that window never
+    // rejects signInWithPopup. Recover once this page is back in front.
+    const markBackground = () => {
+      if (!backgroundAt) backgroundAt = Date.now()
+    }
+    const markForeground = () => {
+      if (mine !== attempt || !backgroundAt || document.visibilityState === 'hidden') return
+      if (Date.now() - backgroundAt < 400) return
+      window.clearTimeout(grace)
+      grace = window.setTimeout(recover, 1200)
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') markBackground()
+      else markForeground()
+    }, { signal: watcher.signal })
+    window.addEventListener('blur', markBackground, { signal: watcher.signal })
+    window.addEventListener('focus', markForeground, { signal: watcher.signal })
+    window.addEventListener('pageshow', markForeground, { signal: watcher.signal })
     void signInWithPopup(auth, provider)
       .then(({ user }) => {
         uid.textContent = user.uid
+        if (mine !== attempt) return
+        errorBox.hidden = true
         status.textContent = 'Signed in.'
       })
-      .catch(showError)
+      .catch((error: unknown) => {
+        if (mine !== attempt) return
+        showError(error)
+      })
       .finally(() => {
-        popupPending = false
-        signInButton.disabled = false
-        signOutButton.disabled = !auth.currentUser
+        window.clearTimeout(grace)
+        watcher.abort()
+        if (mine !== attempt) return
+        releasePopupControls()
       })
   })
 

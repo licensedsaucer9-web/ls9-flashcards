@@ -16,7 +16,11 @@ the Firebase auth popup and closing it returned
 iPhone Home Screen preview, the Google popup returned to the app with the
 same test UID, which survived reopening and Airplane Mode. Dismissing a later
 popup left that signed-in UID unchanged, though Firebase reported
-`auth/cancelled-popup-request`; a clean cancellation retest is pending.
+`auth/cancelled-popup-request`. On the installed iPhone PWA, Firebase opens
+Google with a synthetic link and keeps no window handle, so dismissing that
+window often never rejects `signInWithPopup` and the screen stays on Opening
+Google sign-in. Preview revision 2 recovers when the page returns, or when
+Continue with Google is tapped again. A retest on revision 2 is pending.
 Headless Chromium on the live test preview reported `auth/popup-blocked`
 for a forced-blocked popup, left the signed-out UID unchanged, and enabled
 the sign-in button again. Desktop Chrome, iPhone Safari, and the installed
@@ -146,7 +150,7 @@ recorded separately on issue #10 for migration mapping.
 | Check | Desktop Chrome | iPhone Safari | iPhone Home Screen preview |
 | --- | --- | --- | --- |
 | User-initiated popup succeeds | Pending | Pending | Passed; returned to installed preview with test UID |
-| Closing/cancelling popup leaves app usable | Pending | Pending | Existing UID unchanged; `auth/cancelled-popup-request`, retest pending |
+| Closing/cancelling popup leaves app usable | Pending | Pending | UID unchanged, but the screen often stayed on Opening Google sign-in. Revision 2 retest pending |
 | Blocked popup is reported without changing existing session | Headless Chromium: `auth/popup-blocked`, signed-out UID unchanged. Desktop Chrome pending | Pending | Pending |
 | Leave and reopen; same UID restored | Pending | Pending | Passed |
 | Airplane mode; prior session/local UI remains readable | Pending | Pending | Passed; offline indicator, same UID, sign-in error without losing session |
