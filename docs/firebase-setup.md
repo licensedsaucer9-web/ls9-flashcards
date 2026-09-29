@@ -4,6 +4,12 @@ Status: **projects, databases, and web apps created; phone test pending**. This 
 temporary Google sign-in spike. It does not enable Firebase in the published
 flashcard app, migrate data, or create Firestore user/deck documents.
 
+The unlinked OAuth test preview is live at
+<https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike/>.
+It uses only the OAuth test project. A clean desktop browser loads the page
+and shows an enabled Google sign-in button; an actual OAuth sign-in has not
+yet been confirmed.
+
 ## Project record
 
 Fill this in after creating the projects. Project IDs and the web config below
@@ -104,6 +110,10 @@ main app, the issue's gate is still unproven; do not infer the main PWA works.
 Use the **OAuth test project**. On each platform, note browser/iOS version,
 result, Firebase error code where applicable, and the UID (keep account email
 out of the issue). Do not post ID tokens or configuration files.
+The test project's UID proves that OAuth completed, but it cannot be used to
+map an account in the separate production Firebase project. Record a
+production UID later, after signing in to that project, before migrating
+existing progress.
 
 | Check | Desktop Chrome | iPhone Safari | iPhone Home Screen preview |
 | --- | --- | --- | --- |
