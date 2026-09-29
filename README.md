@@ -157,6 +157,7 @@ For a read-only backup verification or recovery drill, see the private
 
 ## Other documentation
 
+- [Firebase migration plan](docs/firebase-migration-plan.md) describes the proposed move to Google sign-in and private cloud sync, including onboarding, existing-data migration, and rollout checks.
 - [TEST.md](TEST.md) is the manual click path for review, import, installability, and sync.
 - [REVIEW.md](REVIEW.md) records the current project state and known limitations.
 - [plan.md](plan.md) and [plans_review.md](plans_review.md) document completed reliability work; [proposed_plan.md](proposed_plan.md) and [proposed_plan_review.md](proposed_plan_review.md) preserve feature proposals. Their historical observations are labeled at the top of each file.
