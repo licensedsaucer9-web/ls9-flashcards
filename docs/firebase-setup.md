@@ -1,6 +1,6 @@
 # Firebase setup for issue #10
 
-Status: **project setup and phone test pending**. This guide prepares the
+Status: **projects created; provider, database, and phone test pending**. This guide prepares the
 temporary Google sign-in spike. It does not enable Firebase in the published
 flashcard app, migrate data, or create Firestore user/deck documents.
 
@@ -11,9 +11,9 @@ are public identifiers; keep the Admin SDK service account JSON private.
 
 | Setting | Production | OAuth test |
 | --- | --- | --- |
-| Firebase project ID | Pending | Pending |
-| Billing plan | Spark | Spark |
-| Firestore location | `europe-west1` | `europe-west1` |
+| Firebase project ID | `flashcards-ls9-prod` | `flashcards-ls9-auth-test` |
+| Billing plan | Spark expected; verify in console | Spark expected; verify in console |
+| Firestore location | `europe-west1` planned; database not created | `europe-west1` planned; database not created |
 | Google sign-in | Enabled after setup | Enabled after setup |
 | Authorized domains | `licensedsaucer9-web.github.io` | `licensedsaucer9-web.github.io`, plus local hostnames used for testing |
 | Web app ID | Pending | Pending |
@@ -31,13 +31,13 @@ The Firebase CLI is installed in this repo as a development dependency. After
 no global CLI installation is needed. This command does not log in or create a
 project.
 
-Firebase Console access is not available in the coding environment, so the
-project owner must complete these console steps:
+Both projects were created through the Firebase CLI on 2026-09-29. Console
+access is not available in the coding environment, so the project owner must
+complete the remaining console steps:
 
-1. At [Firebase Console](https://console.firebase.google.com/), create two
-   projects with distinct IDs: one production and one OAuth test. Choose the
-   **Spark** plan. Record their exact project IDs above. Analytics is optional
-   and not required for this task.
+1. At [Firebase Console](https://console.firebase.google.com/), open each
+   project listed above and verify that the billing plan is **Spark**. Do not
+   link a billing account for this issue. Analytics is not required.
 2. In each project, open **Build → Authentication → Get started → Sign-in
    method** and enable **Google**. Configure the required project support
    email in the provider form.
