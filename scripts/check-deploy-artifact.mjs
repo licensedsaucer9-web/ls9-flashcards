@@ -26,6 +26,10 @@ async function checkFiles(directory) {
     }
     const name = relative(root, path)
     assert(!/(^|\/)(data\.json|\.env[^/]*|[^/]+\.(map|pem|key))$/i.test(name), `private file in site: ${name}`)
+    if (name.endsWith('.js')) {
+      const source = await readFile(path, 'utf8')
+      assert(!source.includes('firebase'), `public bundle includes Firebase: ${name}`)
+    }
   }
 }
 

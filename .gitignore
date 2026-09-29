@@ -14,3 +14,10 @@ lh-report*
 *.pem
 *.key
 .env*
+
+# emulator logs — never commit
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-debug.log
+.firebase/
