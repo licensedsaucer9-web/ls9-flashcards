@@ -8,7 +8,9 @@ The unlinked OAuth test preview is live at
 <https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike/>.
 It uses only the OAuth test project. A clean desktop browser loads the page
 and shows an enabled Google sign-in button; an actual OAuth sign-in has not
-yet been confirmed.
+yet been confirmed. In headless Chromium, a button click opened the Firebase
+auth popup and closing it returned `auth/popup-closed-by-user`; the preview
+remained usable.
 
 ## Project record
 
