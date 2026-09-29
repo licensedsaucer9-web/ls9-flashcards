@@ -26,6 +26,11 @@ personal deck, `users/{uid}`, or `decks/{uid}`. The spike imports only
 
 ## One-time console setup
 
+The Firebase CLI is installed in this repo as a development dependency. After
+`npm ci`, run `npm exec -- firebase --version` from the repo root to check it;
+no global CLI installation is needed. This command does not log in or create a
+project.
+
 Firebase Console access is not available in the coding environment, so the
 project owner must complete these console steps:
 
