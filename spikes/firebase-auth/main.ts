@@ -12,6 +12,7 @@ import {
 const signInButton = document.querySelector<HTMLButtonElement>('#sign-in')!
 const signOutButton = document.querySelector<HTMLButtonElement>('#sign-out')!
 const status = document.querySelector<HTMLElement>('#status')!
+const project = document.querySelector<HTMLElement>('#project')!
 const uid = document.querySelector<HTMLElement>('#uid')!
 const connection = document.querySelector<HTMLElement>('#connection')!
 const errorBox = document.querySelector<HTMLElement>('#error')!
@@ -45,6 +46,7 @@ const config = {
 if (Object.values(config).some((value) => !value)) {
   status.textContent = 'Firebase configuration is missing. See docs/firebase-setup.md.'
 } else {
+  project.textContent = config.projectId
   const app = initializeApp(config)
   const auth = getAuth(app)
   const provider = new GoogleAuthProvider()

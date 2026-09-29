@@ -13,10 +13,17 @@ the Firebase auth popup and closing it returned
 `auth/popup-closed-by-user`; the preview remained usable. Desktop Chrome
 sign-in and all iPhone checks remain pending.
 
+The separate production UID preview is live at
+<https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike-prod/>.
+It uses only `flashcards-ls9-prod` and displays the project ID beside the UID
+so the two projects cannot be confused. Its popup opened in headless Chromium;
+closing it left the page usable. A real production sign-in is still needed to
+record the UID for later migration mapping. Neither preview accesses Firestore.
+
 ## Project record
 
-Fill this in after creating the projects. Project IDs and the web config below
-are public identifiers; keep the Admin SDK service account JSON private.
+Project IDs and the web config below are public identifiers; keep the Admin
+SDK service account JSON private.
 
 | Setting | Production | OAuth test |
 | --- | --- | --- |
@@ -24,14 +31,14 @@ are public identifiers; keep the Admin SDK service account JSON private.
 | Billing plan | Spark expected; verify in console | Spark expected; verify in console |
 | Firestore location | `europe-west1`, Standard, empty, free tier | `europe-west1`, Standard, empty, free tier |
 | Google sign-in | Enabled, confirmed by Joakim in console | Enabled, confirmed by Joakim in console |
-| Authorized domains | `licensedsaucer9-web.github.io` pending | `licensedsaucer9-web.github.io` and local hostname pending |
+| Authorized domains | `licensedsaucer9-web.github.io` confirmed by Joakim | `licensedsaucer9-web.github.io` confirmed by Joakim; local hostname pending |
 | Web app ID | `1:447756082894:web:6b39de4d88f7638a817a9f` | `1:523307197531:web:171d03e6369727b4208b7e` |
 | Auth domain | `flashcards-ls9-prod.firebaseapp.com` | `flashcards-ls9-auth-test.firebaseapp.com` |
 
-The production project is reserved for the eventual migration. Use the **OAuth
-test project only** for this issue's spike and phone test. Do not create a
-personal deck, `users/{uid}`, or `decks/{uid}`. The spike imports only
-`firebase/app` and `firebase/auth`.
+Use the **OAuth test project** for the issue's browser and phone experiment.
+The production preview only captures the authenticated UID needed for later
+migration mapping. Do not create a personal deck, `users/{uid}`, or
+`decks/{uid}`. The spike imports only `firebase/app` and `firebase/auth`.
 
 ## One-time console setup
 
@@ -50,11 +57,10 @@ coding environment, so the project owner must complete these remaining steps:
    link a billing account for this issue. Analytics is not required.
 2. Google sign-in has been enabled in both projects. The spike uses only the
    test project; production account creation is reserved for later mapping.
-3. In **Authentication → Settings → Authorized domains**, add
-   `licensedsaucer9-web.github.io` to both projects. In the test project also
-   add the local hostname used for browser testing (`127.0.0.1` if accepted,
-   otherwise `localhost`). Only use a local origin over HTTP; the Pages origin
-   uses HTTPS. Record the final list above.
+3. `licensedsaucer9-web.github.io` has been added to both projects' authorized
+   domains. If testing from a local Vite server, also add that local hostname
+   to the test project (`127.0.0.1` if accepted, otherwise `localhost`). Only
+   use a local origin over HTTP; the Pages origin uses HTTPS.
 
 The OAuth test web config is already in an ignored `.env.local` in the issue
 #10 checkout on Joakim's machine. On another checkout, copy
