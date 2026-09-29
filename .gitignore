@@ -1,5 +1,6 @@
 node_modules
 dist
+dist-auth-spike
 *.local
 .DS_Store
 playwright-report
