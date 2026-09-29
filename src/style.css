@@ -187,6 +187,32 @@ a {
   transform: none;
 }
 
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.stack .secondary,
+.stack .danger {
+  width: 100%;
+}
+
+.db-block {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(12px + var(--safe-t));
+  width: min(480px, calc(100% - 24px));
+  z-index: 40;
+  background: var(--surface);
+  border: 1px solid var(--hard);
+  border-radius: 14px;
+  padding: 12px 14px;
+  line-height: 1.4;
+}
+
 .caught-up {
   color: var(--good);
 }

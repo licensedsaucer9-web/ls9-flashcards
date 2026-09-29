@@ -1,10 +1,53 @@
 import type { Card, CardContent, DeckFile, PublicSettings, Settings, Srs, Tier, UserFile } from './types.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
 import { newSrs } from './srs.ts'
+import { captureStudyLock, hasStudyBinding, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { inSelectedTier, tierOf } from './tiers.ts'
 import { activeUserSlug, dbNameForUser, hasMigrated, LEGACY_DB_NAME, markMigrated } from './user.ts'
 
 const DB_VERSION = 1
+
+export class DatabaseBlockedError extends Error {
+  constructor() {
+    super('Another tab is blocking a database upgrade. Close other German Flashcards tabs and reload.')
+    this.name = 'DatabaseBlockedError'
+  }
+}
+
+export type DatabaseEvent = 'versionchange' | 'blocked'
+
+const databaseListeners = new Set<(event: DatabaseEvent) => void>()
+const upgradeClosed = new WeakSet<IDBDatabase>()
+
+export function onDatabaseEvent(fn: (event: DatabaseEvent) => void): () => void {
+  databaseListeners.add(fn)
+  return () => databaseListeners.delete(fn)
+}
+
+function reportDatabaseEvent(event: DatabaseEvent): void {
+  for (const fn of databaseListeners) fn(event)
+}
+
+export function attachDatabaseGuards(db: IDBDatabase): void {
+  db.onversionchange = () => {
+    upgradeClosed.add(db)
+    db.close()
+    reportDatabaseEvent('versionchange')
+  }
+}
+
+function namesFor(explicitUser?: string): { lock: StudyLock; name: string } {
+  const lock = captureStudyLock()
+  const name = hasStudyBinding() ? lock.dbName : dbNameForUser(explicitUser ?? activeUserSlug())
+  return { lock: { ...lock, dbName: name }, name }
+}
+
+function upgradeAbort(db: IDBDatabase, error: unknown): boolean {
+  if (!upgradeClosed.has(db)) return false
+  if (!error || typeof error !== 'object') return true
+  const name = 'name' in error ? String(error.name) : ''
+  return name === 'AbortError' || name === 'InvalidStateError' || name === ''
+}
 
 function revision(value: unknown): number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
@@ -31,16 +74,43 @@ export function normalizeSettings(s?: Partial<Settings> | null): Settings {
   }
 }
 
-function openDb(name = dbNameForUser(activeUserSlug())): Promise<IDBDatabase> {
+function openDb(name: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(name, DB_VERSION)
+    let settled = false
+    let blockedTimer = 0
+    const fail = (error: unknown) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(blockedTimer)
+      reject(error ?? new Error('Could not open the database'))
+    }
+    const succeed = (db: IDBDatabase) => {
+      if (settled) {
+        db.close()
+        return
+      }
+      settled = true
+      window.clearTimeout(blockedTimer)
+      attachDatabaseGuards(db)
+      resolve(db)
+    }
     req.onupgradeneeded = () => {
       const db = req.result
       if (!db.objectStoreNames.contains('cards')) db.createObjectStore('cards', { keyPath: 'id' })
       if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'id' })
     }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
+    req.onblocked = () => {
+      reportDatabaseEvent('blocked')
+      window.clearTimeout(blockedTimer)
+      blockedTimer = window.setTimeout(() => fail(new DatabaseBlockedError()), 1500)
+    }
+    req.onsuccess = () => succeed(req.result)
+    req.onerror = () => {
+      const error = req.error
+      if (error?.name === 'VersionError') reportDatabaseEvent('blocked')
+      fail(error)
+    }
   })
 }
 
@@ -122,9 +192,10 @@ function publicSettings(settings: Settings): PublicSettings {
  * Copy the single-user database the pre-multi-user builds used into the active
  * user's own database. Runs once; the old database is left in place.
  */
-export async function importLegacyData(): Promise<number> {
+export async function importLegacyData(destination?: string): Promise<number> {
   if (hasMigrated()) return 0
-  const user = activeUserSlug()
+  const target = destination ?? dbNameForUser(activeUserSlug())
+  if (target === LEGACY_DB_NAME) return 0
   const legacy = await openDb(LEGACY_DB_NAME)
   let cards: Card[] = []
   let settings: Settings | undefined
@@ -144,7 +215,7 @@ export async function importLegacyData(): Promise<number> {
     return 0
   }
 
-  const db = await openDb(dbNameForUser(user))
+  const db = await openDb(target)
   try {
     const tx = db.transaction(['cards', 'settings'], 'readwrite')
     const current = await load(tx)
@@ -224,10 +295,19 @@ function stripSrs(card: Card): CardContent {
 }
 
 export async function readLocalState(user = activeUserSlug()): Promise<{ snapshot: { deck: DeckFile; user: UserFile }; settings: Settings }> {
-  const db = await openDb(dbNameForUser(user))
+  const { lock, name } = namesFor(user)
+  const db = await openDb(name)
   try {
+    if (!studyLockCurrent(lock)) {
+      const settings = normalizeSettings(null)
+      return { snapshot: { deck: localDeckFile([], settings), user: localUserFile([], settings, user) }, settings }
+    }
     const { cards, settings, done } = await load(db.transaction(['cards', 'settings'], 'readwrite'))
     await done
+    if (!studyLockCurrent(lock)) {
+      const empty = normalizeSettings(null)
+      return { snapshot: { deck: localDeckFile([], empty), user: localUserFile([], empty, user) }, settings: empty }
+    }
     return { snapshot: { deck: localDeckFile(cards, settings), user: localUserFile(cards, settings, user) }, settings }
   } finally {
     db.close()
@@ -235,18 +315,29 @@ export async function readLocalState(user = activeUserSlug()): Promise<{ snapsho
 }
 
 async function changeLocal(change: (tx: IDBTransaction, settings: Settings) => void): Promise<void> {
-  const db = await openDb()
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
   try {
+    if (!studyLockCurrent(lock)) return
     const tx = db.transaction(['cards', 'settings'], 'readwrite')
     const done = txDone(tx)
+    let aborted = false
     const request = tx.objectStore('settings').get('settings')
     request.onsuccess = () => {
+      if (!studyLockCurrent(lock)) {
+        aborted = true
+        tx.abort()
+        return
+      }
       const settings = normalizeSettings(request.result as Settings | undefined)
       change(tx, settings)
       settings.localRevision += 1
       tx.objectStore('settings').put(settings)
     }
-    await done
+    await done.catch((error) => {
+      if (aborted || !studyLockCurrent(lock) || upgradeAbort(db, error)) return
+      throw error
+    })
   } finally {
     db.close()
   }
@@ -255,20 +346,26 @@ async function changeLocal(change: (tx: IDBTransaction, settings: Settings) => v
 // --- card reads and writes ------------------------------------------------
 
 export async function getAllCards(): Promise<Card[]> {
-  const db = await openDb()
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
   try {
+    if (!studyLockCurrent(lock)) return []
     const tx = db.transaction('cards', 'readonly')
-    return (await value(tx.objectStore('cards').getAll())) as Card[]
+    const cards = (await value(tx.objectStore('cards').getAll())) as Card[]
+    return studyLockCurrent(lock) ? cards : []
   } finally {
     db.close()
   }
 }
 
 export async function getCard(id: string): Promise<Card | undefined> {
-  const db = await openDb()
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
   try {
+    if (!studyLockCurrent(lock)) return undefined
     const tx = db.transaction('cards', 'readonly')
-    return (await value(tx.objectStore('cards').get(id))) as Card | undefined
+    const card = (await value(tx.objectStore('cards').get(id))) as Card | undefined
+    return studyLockCurrent(lock) ? card : undefined
   } finally {
     db.close()
   }
@@ -288,10 +385,17 @@ export async function putCards(cards: Card[]): Promise<void> {
 
 /** Seed against current cards and tombstones in one transaction. */
 export async function insertMissingSeeds(seeds: Card[]): Promise<number> {
-  const db = await openDb()
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
   try {
+    if (!studyLockCurrent(lock)) return 0
     const tx = db.transaction(['cards', 'settings'], 'readwrite')
     const current = await load(tx)
+    if (!studyLockCurrent(lock)) {
+      tx.abort()
+      await current.done.catch(() => {})
+      return 0
+    }
     const byId = new Map(current.cards.map((card) => [card.id, card]))
     const key = (card: Card) => `${card.de.trim().toLowerCase()}|${card.en.trim().toLowerCase()}`
     const byKey = new Set(current.cards.map(key))
@@ -339,10 +443,13 @@ export async function deleteCard(id: string, deletedAt = Date.now()): Promise<vo
 }
 
 export async function countCards(): Promise<number> {
-  const db = await openDb()
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
   try {
+    if (!studyLockCurrent(lock)) return 0
     const tx = db.transaction('cards', 'readonly')
-    return await value(tx.objectStore('cards').count())
+    const count = await value(tx.objectStore('cards').count())
+    return studyLockCurrent(lock) ? count : 0
   } finally {
     db.close()
   }
@@ -372,10 +479,13 @@ export async function getDueCards(selected?: Tier, now = Date.now()): Promise<Ca
 }
 
 export async function getSettings(): Promise<Settings> {
-  const db = await openDb()
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
   try {
+    if (!studyLockCurrent(lock)) return normalizeSettings(null)
     const tx = db.transaction('settings', 'readonly')
-    return normalizeSettings((await value(tx.objectStore('settings').get('settings'))) as Settings | undefined)
+    const settings = normalizeSettings((await value(tx.objectStore('settings').get('settings'))) as Settings | undefined)
+    return studyLockCurrent(lock) ? settings : normalizeSettings(null)
   } finally {
     db.close()
   }
@@ -399,12 +509,29 @@ export async function putSettings(next: Partial<PublicSettings>): Promise<void> 
 
 export type MergeResult = { deck: DeckFile; user: UserFile; revision: number; pending: boolean }
 
+function untouchedMerge(user: string): MergeResult {
+  const settings = normalizeSettings(null)
+  return {
+    deck: localDeckFile([], settings),
+    user: localUserFile([], settings, user),
+    revision: 0,
+    pending: false,
+  }
+}
+
 /** Apply a shared deck file. Card content merges; this user's progress is never touched. */
 export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug()): Promise<MergeResult> {
-  const db = await openDb(dbNameForUser(user))
+  const { lock, name } = namesFor(user)
+  const db = await openDb(name)
   try {
+    if (!studyLockCurrent(lock)) return untouchedMerge(user)
     const tx = db.transaction(['cards', 'settings'], 'readwrite')
     const current = await load(tx)
+    if (!studyLockCurrent(lock)) {
+      tx.abort()
+      await current.done.catch(() => {})
+      return untouchedMerge(user)
+    }
     const store = tx.objectStore('cards')
     const local = localDeckFile(current.cards, current.settings)
     const merged = mergeDeck(local, remote)
@@ -440,10 +567,17 @@ export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug())
 
 /** Apply one user's scheduling file. Ignores progress for cards this deck does not have. */
 export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlug()): Promise<MergeResult> {
-  const db = await openDb(dbNameForUser(user))
+  const { lock, name } = namesFor(user)
+  const db = await openDb(name)
   try {
+    if (!studyLockCurrent(lock)) return untouchedMerge(user)
     const tx = db.transaction(['cards', 'settings'], 'readwrite')
     const current = await load(tx)
+    if (!studyLockCurrent(lock)) {
+      tx.abort()
+      await current.done.catch(() => {})
+      return untouchedMerge(user)
+    }
     const store = tx.objectStore('cards')
     const next = new Map(current.cards.map((card) => [card.id, card]))
     const merged = mergeProgress(Object.fromEntries(current.cards.map((c) => [c.id, c.srs])), remote.progress)
@@ -485,13 +619,21 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
 }
 
 export async function acknowledgeRevision(includedRevision: number, user = activeUserSlug()): Promise<boolean> {
-  const db = await openDb(dbNameForUser(user))
+  const { lock, name } = namesFor(user)
+  const db = await openDb(name)
   try {
+    if (!studyLockCurrent(lock)) return false
     const tx = db.transaction('settings', 'readwrite')
     const done = txDone(tx)
     const request = tx.objectStore('settings').get('settings')
     let pending = false
+    let aborted = false
     request.onsuccess = () => {
+      if (!studyLockCurrent(lock)) {
+        aborted = true
+        tx.abort()
+        return
+      }
       const settings = normalizeSettings(request.result as Settings | undefined)
       settings.acknowledgedRevision = Math.max(
         settings.acknowledgedRevision,
@@ -500,8 +642,104 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
       pending = settings.localRevision > settings.acknowledgedRevision
       tx.objectStore('settings').put(settings)
     }
-    await done
+    await done.catch((error) => {
+      if (aborted || !studyLockCurrent(lock)) return
+      throw error
+    })
+    if (aborted || !studyLockCurrent(lock)) return false
     return pending
+  } finally {
+    db.close()
+  }
+}
+
+export async function localDatabaseHasWork(name: string): Promise<boolean> {
+  const db = await openDb(name)
+  try {
+    const tx = db.transaction(['cards', 'settings'], 'readonly')
+    const cardsRequest = tx.objectStore('cards').count()
+    const settingsRequest = tx.objectStore('settings').count()
+    const [cards, settings] = await Promise.all([value(cardsRequest), value(settingsRequest)])
+    return cards > 0 || settings > 0
+  } finally {
+    db.close()
+  }
+}
+
+export type GuestCopyMode = 'progress' | 'vocabulary'
+
+/**
+ * Copy a signed-out database into the database the current study lock names.
+ * Progress copies schedules and settings only. Vocabulary also copies cards and deletions.
+ * The source database is left in place. A lock that changed mid-copy writes nothing.
+ */
+export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode): Promise<boolean> {
+  const lock = captureStudyLock()
+  if (!lock.dbName || sourceName === lock.dbName) return false
+  const source = await openDb(sourceName)
+  let cards: Card[] = []
+  let stored: Settings | undefined
+  try {
+    const tx = source.transaction(['cards', 'settings'], 'readonly')
+    const cardsRequest = tx.objectStore('cards').getAll()
+    const settingsRequest = tx.objectStore('settings').get('settings')
+    ;[cards, stored] = await Promise.all([
+      value(cardsRequest) as Promise<Card[]>,
+      value(settingsRequest) as Promise<Settings | undefined>,
+    ])
+  } finally {
+    source.close()
+  }
+  if (!studyLockCurrent(lock)) return false
+  const db = await openDb(lock.dbName)
+  try {
+    if (!studyLockCurrent(lock)) return false
+    const tx = db.transaction(['cards', 'settings'], 'readwrite')
+    const current = await load(tx)
+    if (!studyLockCurrent(lock)) {
+      tx.abort()
+      await current.done.catch(() => {})
+      return false
+    }
+    const sourceSettings = stored ? normalizeSettings(stored) : null
+    const store = tx.objectStore('cards')
+    if (mode === 'vocabulary') {
+      for (const card of cards) store.put(card)
+      if (sourceSettings) {
+        for (const [id, time] of Object.entries(sourceSettings.deletedIds)) {
+          const stamp = Number(time) || 0
+          if (stamp <= 0) continue
+          current.settings.deletedIds[id] = Math.max(current.settings.deletedIds[id] || 0, stamp)
+          store.delete(id)
+        }
+      }
+    } else {
+      const byId = new Map(current.cards.map((card) => [card.id, card]))
+      for (const card of cards) {
+        const mine = byId.get(card.id)
+        if (!mine || !card.srs || sameSrs(card.srs, mine.srs)) continue
+        store.put({ ...mine, srs: card.srs })
+      }
+    }
+    if (sourceSettings) {
+      current.settings.direction = sourceSettings.direction
+      current.settings.sessionSize = sourceSettings.sessionSize
+      current.settings.tier = sourceSettings.tier
+      if (sourceSettings.settingsUpdatedAt > current.settings.settingsUpdatedAt) {
+        current.settings.settingsUpdatedAt = sourceSettings.settingsUpdatedAt
+      }
+    }
+    current.settings.localRevision += 1
+    tx.objectStore('settings').put(current.settings)
+    let wrote = true
+    await current.done.catch((error) => {
+      if (!studyLockCurrent(lock) || upgradeAbort(db, error)) {
+        wrote = false
+        return
+      }
+      throw error
+    })
+    return wrote && studyLockCurrent(lock)
   } finally {
     db.close()
   }

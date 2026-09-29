@@ -3,6 +3,20 @@ import { registerSW } from 'virtual:pwa-register'
 import type { Article, Card, Direction, GithubConfig, Grade, PublicSettings, Tier } from './types.ts'
 import { ARTICLES } from './types.ts'
 import {
+  accountBadge,
+  accountHomeNote,
+  accountPanelHtml,
+  accountSignIn,
+  accountSyncText,
+  bindAccountPanel,
+  markAccountBooted,
+  noteLocalChange,
+  onAccountSync,
+  prepareAccount,
+} from './account.ts'
+import type { AccountHooks } from './account-hooks.ts'
+import {
+  DatabaseBlockedError,
   deleteCard,
   getAllCards,
   getCard,
@@ -11,6 +25,7 @@ import {
   getSettings,
   importLegacyData,
   insertMissingSeeds,
+  onDatabaseEvent,
   putCard,
   putCards,
   putSettings,
@@ -21,7 +36,8 @@ import { importCsv } from './csv.ts'
 import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
 import { sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
 import { tierCounts, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
-import { activeUser, createUser, listUsers, setActiveUser } from './user.ts'
+import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
+import { activeUser, createUser, currentLocalDatabaseName, listUsers, setActiveUser } from './user.ts'
 import {
   bootSync,
   discoverRemoteUsers,
@@ -83,15 +99,47 @@ function toast(msg: string) {
   toastTimer = window.setTimeout(() => el.remove(), 2400)
 }
 
+function pushSoon(): void {
+  if (accountSignIn) {
+    noteLocalChange()
+    return
+  }
+  schedulePush()
+}
+
 async function ensureSeed(): Promise<number> {
   const added = await insertMissingSeeds(seedCards())
-  if (added) schedulePush()
+  if (added) pushSoon()
   return added
 }
 
 async function patchSettings(patch: Partial<PublicSettings>): Promise<void> {
   await putSettings(patch)
-  schedulePush()
+  pushSoon()
+}
+
+const accountHooks: AccountHooks = {
+  toast,
+  ensureSeed,
+  onIdentityChanged() {
+    scheduleRender()
+  },
+  setTabs(visible) {
+    setTabbar(visible ? 'home' : 'none')
+  },
+}
+
+function showDatabaseNotice(event: 'versionchange' | 'blocked'): void {
+  let banner = document.getElementById('db-block')
+  if (!banner) {
+    banner = document.createElement('div')
+    banner.id = 'db-block'
+    banner.className = 'db-block'
+    document.body.appendChild(banner)
+  }
+  banner.textContent = event === 'blocked'
+    ? 'A database upgrade is waiting on another tab. Close other German Flashcards tabs and reload.'
+    : 'This tab closed its database so another tab can upgrade. Reload to continue.'
 }
 
 /** A shared chip row for choosing the highest tier to include. */
@@ -121,6 +169,7 @@ function touch(card: Card): Card {
 }
 
 function syncLineText(): string {
+  if (accountSignIn) return accountSyncText()
   const st = getSyncStatus()
   if (st.state === 'off') return 'This device only · connect GitHub in Settings'
   if (st.state === 'syncing') return st.message || 'Syncing…'
@@ -165,14 +214,15 @@ tabbar.innerHTML = `
 `
 
 async function renderHome() {
+  const lock = captureStudyLock()
   setTabbar('home')
   const settings = await getSettings()
   const dueByTier = await getDueByTier()
   const due = await getDueCards(settings.tier)
   const all = await getAllCards()
+  if (!studyLockCurrent(lock)) return
   const suggested = suggestSessionSize(due.length)
   const n = sessionCount(due.length, settings.sessionSize)
-  const user = activeUser()
   const inTier = all.filter((c) => tierOf(c) <= settings.tier)
   const next = inTier
     .filter((c) => c.srs.due > Date.now())
@@ -222,7 +272,9 @@ async function renderHome() {
           </label>
         </div>
         <button class="primary" id="start" data-session-count="${n}" ${ready ? '' : 'disabled'}>${esc(startLabel)}</button>
-        <p class="note" id="who">${esc(user.name)} · <a href="#/settings">switch profile</a></p>
+        <p class="note" id="who">${
+          accountSignIn ? accountHomeNote() : `${esc(activeUser().name)} · <a href="#/settings">switch profile</a>`
+        }</p>
       </div>
     </section>
   `
@@ -251,9 +303,12 @@ async function renderHome() {
 let unbindKeys: (() => void) | null = null
 
 async function renderReview() {
+  const lock = captureStudyLock()
   setTabbar('none')
   const settings = await getSettings()
+  if (!studyLockCurrent(lock)) return
   const due = await getDueCards(settings.tier)
+  if (!studyLockCurrent(lock)) return
   const queue = shuffle(due).slice(0, sessionCount(due.length, settings.sessionSize))
   if (queue.length === 0) {
     go('/')
@@ -265,6 +320,7 @@ async function renderReview() {
   let flipped = false
 
   const paint = () => {
+    if (!studyLockCurrent(lock)) return
     const card = queue[0]
     if (!card) {
       main.innerHTML = `
@@ -364,6 +420,7 @@ async function renderReview() {
   }
 
   const grade = async (g: Grade) => {
+    if (!studyLockCurrent(lock)) return
     const card = queue.shift()
     if (!card) return
     const current = await getCard(card.id)
@@ -379,7 +436,8 @@ async function renderReview() {
     // file on every single grade.
     const saved = { ...current, srs: { ...review(current.srs, g), updated_at: Date.now() } }
     await putCard(saved)
-    schedulePush()
+    if (!studyLockCurrent(lock)) return
+    pushSoon()
     if (g === 'again' || g === 'wrong_gender') queue.push(saved)
     flipped = false
     paint()
@@ -584,7 +642,7 @@ async function renderEdit(id: string | null) {
         tier,
       })
       await putCard(card)
-      schedulePush()
+      pushSoon()
       toast('Saved')
       go('/deck')
       return
@@ -603,7 +661,7 @@ async function renderEdit(id: string | null) {
       srs: { ...newSrs(now), updated_at: now },
     }
     await putCard(card)
-    schedulePush()
+    pushSoon()
     toast('Card added')
     go('/deck')
   })
@@ -612,7 +670,7 @@ async function renderEdit(id: string | null) {
     if (!c) return
     if (!confirm(`Delete ${germanHead(c.article, c.de)}?`)) return
     await deleteCard(c.id)
-    schedulePush()
+    pushSoon()
     toast('Deleted')
     go('/deck')
   })
@@ -680,7 +738,7 @@ async function renderImport() {
     const result = importCsv(text, existing)
     if (result.imported.length) {
       await putCards(result.imported)
-      schedulePush()
+      pushSoon()
     }
     const bits = [`Imported ${result.imported.length}`]
     if (result.skipped) bits.push(`skipped ${result.skipped}`)
@@ -693,7 +751,82 @@ async function renderImport() {
   })
 }
 
+async function renderCloudSettings() {
+  const lock = captureStudyLock()
+  setTabbar('settings')
+  const settings = await getSettings()
+  const dueByTier = await getDueByTier()
+  const cards = await getAllCards()
+  if (!studyLockCurrent(lock)) return
+  const counts = tierCounts(cards)
+  const suggested = suggestSessionSize((await getDueCards(settings.tier)).length)
+  if (!studyLockCurrent(lock)) return
+  main.innerHTML = `
+    <section class="screen scroll">
+      <header class="topbar"><h1>Settings</h1><span class="badge">${esc(accountBadge())}</span></header>
+      ${accountPanelHtml()}
+      <div class="setting">
+        <p class="kicker" style="margin:0">Deck tier</p>
+        <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
+        <p class="note">${esc(TIER_NOTES[settings.tier])} Higher tiers include the lower ones, so tier 2 reviews everything in tier 1 too. ${counts[1]} / ${counts[1] + counts[2]} / ${cards.length} words.</p>
+      </div>
+      <div class="setting">
+        <p class="kicker" style="margin:0">Review direction</p>
+        <div class="seg" id="dir">
+          <button type="button" data-dir="de-en" class="${settings.direction === 'de-en' ? 'is-on' : ''}">DE → EN</button>
+          <button type="button" data-dir="en-de" class="${settings.direction === 'en-de' ? 'is-on' : ''}">EN → DE</button>
+        </div>
+        <p class="note">DE → EN shows the German word first. EN → DE shows English first.</p>
+      </div>
+      <div class="setting">
+        <p class="kicker" style="margin:0">Session size</p>
+        <p class="note">Cap how many due cards a review starts with. Suggested now: ${suggested}. 0 / All means the whole due queue.</p>
+        <label>Cards per session
+          <input id="session-size" type="number" min="0" step="1" inputmode="numeric" value="${settings.sessionSize}" />
+        </label>
+      </div>
+      <div class="setting">
+        <p class="kicker" style="margin:0">Install</p>
+        <p class="note">PWA: Chrome/Edge install, iPhone Safari share → Add to Home Screen. The app itself must be served over HTTPS for iPhone. Progress stays in this browser when you are signed out, and with the account when you are signed in.</p>
+        <p class="note" id="sw-status"></p>
+      </div>
+      <div class="setting">
+        <p class="kicker" style="margin:0">SRS</p>
+        <p class="note">SM-2 with Again / Gender / Hard / Good / Easy. Gender is for nouns: you knew the word but missed der, die, or das. It requeues the card now with a smaller ease penalty than Again. Verbs and adjectives hide that button.</p>
+      </div>
+    </section>
+  `
+  bindAccountPanel(accountHooks)
+  bindTierChips(async (tier) => {
+    await patchSettings({ tier })
+    scheduleRender()
+  })
+  $('#dir').querySelectorAll<HTMLButtonElement>('button').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const direction = btn.dataset.dir as Direction
+      await patchSettings({ direction })
+      toast(direction === 'de-en' ? 'DE → EN' : 'EN → DE')
+      scheduleRender()
+    })
+  })
+  $('#session-size').addEventListener('change', async () => {
+    const v = Math.floor(Number(($('#session-size') as HTMLInputElement).value))
+    if (!Number.isFinite(v) || v < 0) return
+    await patchSettings({ sessionSize: v })
+    toast(v === 0 ? 'Session: all due' : `Session: ${v}`)
+  })
+  const sw = 'serviceWorker' in navigator
+  $('#sw-status').textContent = sw
+    ? 'Service worker APIs are available in this browser.'
+    : 'Service worker is not available in this browser.'
+}
+
 async function renderSettings() {
+  if (accountSignIn) return renderCloudSettings()
+  return renderGithubSettings()
+}
+
+async function renderGithubSettings() {
   setTabbar('settings')
   const settings = await getSettings()
   const gh = loadGithubConfig()
@@ -914,36 +1047,61 @@ async function renderSettings() {
     : 'Service worker is not available in this browser.'
 }
 
+let renderChain: Promise<void> = Promise.resolve()
+
+function scheduleRender(): void {
+  renderChain = renderChain.then(() => render()).catch((error: unknown) => {
+    if (error instanceof DatabaseBlockedError) return
+    console.error(error)
+  })
+}
+
 async function render() {
+  const lock: StudyLock = captureStudyLock()
   unbindKeys?.()
   unbindKeys = null
   const route = parseRoute()
-  if (route.name === 'home') return renderHome()
-  if (route.name === 'review') return renderReview()
-  if (route.name === 'deck') return renderDeck()
-  if (route.name === 'edit') return renderEdit(route.id)
-  if (route.name === 'import') return renderImport()
-  if (route.name === 'settings') return renderSettings()
+  if (route.name === 'home') await renderHome()
+  else if (route.name === 'review') await renderReview()
+  else if (route.name === 'deck') await renderDeck()
+  else if (route.name === 'edit') await renderEdit(route.id)
+  else if (route.name === 'import') await renderImport()
+  else await renderSettings()
+  if (!studyLockCurrent(lock)) return
+  document.getElementById('db-block')?.remove()
 }
 
 async function boot() {
+  onDatabaseEvent(showDatabaseNotice)
   // The pre-multi-user database holds the only copy of this profile's schedule,
   // so it moves into the active user's own database before anything reads it.
-  const imported = await importLegacyData()
+  await prepareAccount(accountHooks)
+  markAccountBooted()
+  let imported = 0
   let added = 0
-  if (isGithubConfigured()) {
+  if (accountSignIn) {
+    imported = await importLegacyData(currentLocalDatabaseName())
+    added = await ensureSeed()
+  } else if (isGithubConfigured()) {
+    imported = await importLegacyData()
     await bootSync()
     added = await ensureSeed()
   } else {
+    imported = await importLegacyData()
     added = await ensureSeed()
   }
-  await render()
-  if (imported > 0) toast(`Moved ${imported} cards into ${activeUser().name}'s profile`)
+  scheduleRender()
+  await renderChain
+  if (!accountSignIn && imported > 0) toast(`Moved ${imported} cards into ${activeUser().name}'s profile`)
   else if (added > 0) toast(`Added ${added} new cards`)
   window.addEventListener('hashchange', () => {
-    void render()
+    scheduleRender()
   })
   document.addEventListener('visibilitychange', () => {
+    if (accountSignIn) {
+      if (document.visibilityState === 'visible') scheduleRender()
+      return
+    }
     if (document.visibilityState !== 'visible') {
       pauseSync()
       return
@@ -951,17 +1109,21 @@ async function boot() {
     void syncNow()
       .then(() => {
         const now = parseRoute().name
-        if (now === 'home' || now === 'deck') void render()
+        if (now === 'home' || now === 'deck') scheduleRender()
       })
       .catch(() => {
         /* status already set */
       })
   })
-  window.addEventListener('pagehide', pauseSync)
-  onSyncStatus(() => {
+  window.addEventListener('pagehide', () => {
+    if (!accountSignIn) pauseSync()
+  })
+  const paintSyncLine = () => {
     const el = document.getElementById('sync-line')
     if (el) el.textContent = syncLineText()
-  })
+  }
+  onSyncStatus(paintSyncLine)
+  onAccountSync(paintSyncLine)
 }
 
 void boot()
