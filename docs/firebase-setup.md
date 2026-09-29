@@ -10,27 +10,20 @@ The unlinked OAuth test preview is live at
 <https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike/>.
 It uses only the OAuth test project. Joakim signed in on desktop Brave and
 confirmed the same UID after refreshing; the UID is recorded in issue #10 as
-a **test-project** identifier. In headless Chromium, a button click opened
-the Firebase auth popup and closing it returned
-`auth/popup-closed-by-user`; the preview remained usable. On the installed
-iPhone Home Screen preview, the Google popup returned to the app with the
-same test UID, which survived reopening and Airplane Mode. Dismissing a later
-popup left that signed-in UID unchanged, though Firebase reported
-`auth/cancelled-popup-request`. On the installed iPhone PWA, Firebase opens
-Google with a synthetic link and keeps no window handle, so dismissing that
-window often never rejects `signInWithPopup` and the screen stays on Opening
-Google sign-in. Preview revision 2 recovers when the page returns, or when
-Continue with Google is tapped again. When that attempt does not stay on
-Opening Google sign-in, Firebase rejects it with `auth/network-request-failed`.
-That is the hidden helper at `https://<project>.firebaseapp.com/__/auth/iframe`
-(or `apis.google.com`) failing its ping, usually because iOS suspended the
-page while the Google window was open. It is not the connection indicator
-being offline, and GitHub Pages cannot host that helper on the app's own
-origin.
-Headless Chromium on the live test preview reported `auth/popup-blocked`
-for a forced-blocked popup, left the signed-out UID unchanged, and enabled
-the sign-in button again. Desktop Chrome, iPhone Safari, and the installed
-preview's blocked-popup check remain pending.
+a **test-project** identifier. In headless Chromium, closing the popup returned `auth/popup-closed-by-user`,
+and a forced-blocked popup returned `auth/popup-blocked` with the signed-out
+UID unchanged. On the installed iPhone Home Screen preview, sign-in returned
+the test UID, which survived reopening and Airplane Mode. Preview revision 3
+does not stay on Opening Google sign-in after a dismiss: that dismiss reports
+`auth/network-request-failed` because iOS suspends the helper iframe while the
+Google window is open, and the connection line can still say online. The UID
+stays the same. Safari → Block Pop-ups does not apply on that installed app,
+because Firebase opens Google with a synthetic link click rather than
+`window.open`. iPhone Safari sign-in returned the same test UID, and the
+Safari back button reported `auth/popup-closed-by-user`. Desktop Chrome signed
+in on Preview revision 3, and closing a second window reported
+`auth/popup-closed-by-user`. GitHub Pages cannot host the sign-in helper on
+the app's own origin.
 
 The separate production UID preview is live at
 <https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike-prod/>.
