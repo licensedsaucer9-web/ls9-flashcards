@@ -20,7 +20,13 @@ popup left that signed-in UID unchanged, though Firebase reported
 Google with a synthetic link and keeps no window handle, so dismissing that
 window often never rejects `signInWithPopup` and the screen stays on Opening
 Google sign-in. Preview revision 2 recovers when the page returns, or when
-Continue with Google is tapped again. A retest on revision 2 is pending.
+Continue with Google is tapped again. When that attempt does not stay on
+Opening Google sign-in, Firebase rejects it with `auth/network-request-failed`.
+That is the hidden helper at `https://<project>.firebaseapp.com/__/auth/iframe`
+(or `apis.google.com`) failing its ping, usually because iOS suspended the
+page while the Google window was open. It is not the connection indicator
+being offline, and GitHub Pages cannot host that helper on the app's own
+origin.
 Headless Chromium on the live test preview reported `auth/popup-blocked`
 for a forced-blocked popup, left the signed-out UID unchanged, and enabled
 the sign-in button again. Desktop Chrome, iPhone Safari, and the installed

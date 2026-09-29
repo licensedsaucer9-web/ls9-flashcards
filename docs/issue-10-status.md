@@ -10,6 +10,8 @@ Joakim dismissed a Google window after one tap while already signed in. The exis
 
 Closing the Google window on the installed iPhone PWA often left the screen on Opening Google sign-in. Firebase keeps no window handle in that mode, so `signInWithPopup` never rejects. Preview revision 2 recovers when the page is back in front, and a later tap on Continue with Google clears a stuck attempt instead of opening a second popup.
 
-**Next:** with the iPhone online, close and reopen the installed Auth Check app until the page says Preview revision 2. Tap Continue with Google once, dismiss the window, and record whether the screen leaves Opening Google sign-in, the exact error code, and whether the same UID remains.
+When the dismiss does not hang, the preview reports `auth/network-request-failed`. That is Firebase's helper iframe on `firebaseapp.com` failing while iOS has the page in the background. The connection indicator can still say online. Preview revision 3 says so on the screen next to the code.
+
+**Next:** with the iPhone online, close and reopen the installed Auth Check app until the page says Preview revision 3. Tap Continue with Google once, dismiss the window, and record whether the screen leaves Opening Google sign-in, the exact error code, and whether the same UID remains.
 
 After that, complete the remaining issue #10 checks: iPhone Safari sign-in/cancellation, installed-preview blocked popup, and desktop Chrome. Update the issue record and PR. Only start the vibe-handoff review once the issue's required checks are addressed. Remove the temporary preview directories after testing.

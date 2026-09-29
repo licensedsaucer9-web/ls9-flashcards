@@ -23,7 +23,13 @@ function showError(error: unknown): void {
     : 'unknown-error'
   // Error messages may contain account details. The code is enough to record
   // cancellation, blocked popups, or configuration failures for this check.
-  errorBox.textContent = `Sign-in failed: ${code}`
+  // The helper is a cross-origin iframe on *.firebaseapp.com. iOS often aborts
+  // that request while the Google window is open, then reports a network error
+  // even though the page itself is online.
+  const detail = code === 'auth/network-request-failed'
+    ? ' Firebase could not reach its sign-in helper. The connection line can still say online.'
+    : ''
+  errorBox.textContent = `Sign-in failed: ${code}.${detail}`
   errorBox.hidden = false
   status.textContent = 'Sign-in failed; existing session, if any, is unchanged.'
 }
