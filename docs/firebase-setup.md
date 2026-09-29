@@ -1,6 +1,6 @@
 # Firebase setup for issue #10
 
-Status: **projects created; provider, database, and phone test pending**. This guide prepares the
+Status: **projects, databases, and web apps created; phone test pending**. This guide prepares the
 temporary Google sign-in spike. It does not enable Firebase in the published
 flashcard app, migrate data, or create Firestore user/deck documents.
 
@@ -13,11 +13,11 @@ are public identifiers; keep the Admin SDK service account JSON private.
 | --- | --- | --- |
 | Firebase project ID | `flashcards-ls9-prod` | `flashcards-ls9-auth-test` |
 | Billing plan | Spark expected; verify in console | Spark expected; verify in console |
-| Firestore location | `europe-west1` planned; database not created | `europe-west1` planned; database not created |
-| Google sign-in | Enabled after setup | Enabled after setup |
-| Authorized domains | `licensedsaucer9-web.github.io` | `licensedsaucer9-web.github.io`, plus local hostnames used for testing |
-| Web app ID | Pending | Pending |
-| Auth domain | Pending | Pending |
+| Firestore location | `europe-west1`, Standard, empty, free tier | `europe-west1`, Standard, empty, free tier |
+| Google sign-in | Pending | Enabled, confirmed by Joakim in console |
+| Authorized domains | `licensedsaucer9-web.github.io` pending | `licensedsaucer9-web.github.io` and local hostname pending |
+| Web app ID | `1:447756082894:web:6b39de4d88f7638a817a9f` | `1:523307197531:web:171d03e6369727b4208b7e` |
+| Auth domain | `flashcards-ls9-prod.firebaseapp.com` | `flashcards-ls9-auth-test.firebaseapp.com` |
 
 The production project is reserved for the eventual migration. Use the **OAuth
 test project only** for this issue's spike and phone test. Do not create a
@@ -31,33 +31,31 @@ The Firebase CLI is installed in this repo as a development dependency. After
 no global CLI installation is needed. This command does not log in or create a
 project.
 
-Both projects were created through the Firebase CLI on 2026-09-29. Console
-access is not available in the coding environment, so the project owner must
-complete the remaining console steps:
+Both projects, their empty Firestore databases, and their web apps were
+created through the Firebase CLI on 2026-09-29. The CLI reported
+`freeTier: true` for both databases. Console access is not available in the
+coding environment, so the project owner must complete these remaining steps:
 
 1. At [Firebase Console](https://console.firebase.google.com/), open each
    project listed above and verify that the billing plan is **Spark**. Do not
    link a billing account for this issue. Analytics is not required.
-2. In each project, open **Build → Authentication → Get started → Sign-in
-   method** and enable **Google**. Configure the required project support
-   email in the provider form.
-3. In each project, open **Build → Firestore Database → Create database**.
-   Choose `europe-west1` before creation; the location cannot be changed for
-   that database later. Use production/locked rules, not open test rules. No
-   documents need to be created. Firestore may ask for an edition; choose the
-   standard/default edition unless the console or project requirements differ.
-4. In **Authentication → Settings → Authorized domains**, add
+2. Google sign-in has been enabled on the **OAuth test** project. In the
+   production project, open **Build → Authentication → Get started → Sign-in
+   method** and enable **Google**, choosing the required project support email.
+   This can wait until production integration; the spike uses only the test
+   project.
+3. In **Authentication → Settings → Authorized domains**, add
    `licensedsaucer9-web.github.io` to both projects. In the test project also
    add the local hostname used for browser testing (`127.0.0.1` if accepted,
    otherwise `localhost`). Only use a local origin over HTTP; the Pages origin
    uses HTTPS. Record the final list above.
-5. In the **OAuth test project**, open **Project settings → General → Your
-   apps → Add app → Web**. Register a web app and copy its `apiKey`,
-   `authDomain`, `projectId`, and `appId` into a local `.env.local` file as
-   described below. These are public web config values. Do not paste an Admin
-   SDK JSON or any token into this file.
-6. Register a production web app too, for the later migration, and record its
-   web app ID and auth domain above. Do not point the spike at production.
+
+The OAuth test web config is already in an ignored `.env.local` in the issue
+#10 checkout on Joakim's machine. On another checkout, copy
+`spikes/firebase-auth/config.example` to `.env.local` and fill its four
+variables from the **test** project's web app config. These are public web
+config values. Do not paste an Admin SDK JSON or any token into that file.
+Do not point the spike at production.
 
 If Google requires OAuth consent configuration, follow the Firebase Console's
 provider setup for the test project. Record any test-user restrictions here;
@@ -72,8 +70,7 @@ test project. Keep Firebase CLI credentials out of the repo as well.
 ## Build the isolated spike
 
 The Vite configuration reads the four public variables from the repository
-root `.env.local`. Copy `spikes/firebase-auth/config.example` to `.env.local`,
-replace all four values with the **test** project's web configuration, then:
+root `.env.local`. With that file in place, run:
 
 ```bash
 npm ci
