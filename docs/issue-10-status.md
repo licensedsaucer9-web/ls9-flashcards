@@ -18,4 +18,6 @@ In iPhone Safari, Joakim cancelled with the back button. The code was `auth/popu
 
 In iPhone Safari, a completed Google sign-in showed the same test UID.
 
-**Next:** installed Auth Check blocked popup. In iOS Settings, turn on Safari → Block Pop-ups, open the installed app, tap Continue with Google once, and record the error code and whether the UID stays the same. Turn Block Pop-ups off again afterward. Desktop Chrome remains after that. Only start the vibe-handoff review once the issue's required checks are addressed. Remove the temporary preview directories after testing.
+Safari → Block Pop-ups did nothing on the installed Auth Check app. Firebase does not call `window.open` there. For an installed iPhone app it creates an anchor and dispatches a click, then keeps no window handle. The blocked-popup code was already recorded in headless Chromium as `auth/popup-blocked`.
+
+**Next:** desktop Chrome. Open the test preview, complete one sign-in, then dismiss one window. Record the UID and the dismiss error code. Only start the vibe-handoff review once that check is recorded. Remove the temporary preview directories after testing. Turn iOS Block Pop-ups off if it is still on.
