@@ -1,6 +1,7 @@
 # Firebase setup for issue #10
 
-Status: **desktop Brave sign-in passed in both projects; phone test pending**.
+Status: **desktop Brave and installed iPhone Home Screen sign-in passed;
+remaining browser checks pending**.
 This guide prepares the temporary Google sign-in spike. It does not enable
 Firebase in the published flashcard app, migrate data, or create Firestore
 user/deck documents.
@@ -11,8 +12,11 @@ It uses only the OAuth test project. Joakim signed in on desktop Brave and
 confirmed the same UID after refreshing; the UID is recorded in issue #10 as
 a **test-project** identifier. In headless Chromium, a button click opened
 the Firebase auth popup and closing it returned
-`auth/popup-closed-by-user`; the preview remained usable. Desktop Chrome
-sign-in and all iPhone checks remain pending.
+`auth/popup-closed-by-user`; the preview remained usable. On the installed
+iPhone Home Screen preview, the Google popup returned to the app with the
+same test UID, which survived reopening and Airplane Mode. Dismissing a later
+popup left that signed-in UID unchanged. Desktop Chrome, iPhone Safari, and
+the installed preview's blocked-popup check remain pending.
 
 The separate production UID preview is live at
 <https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike-prod/>.
@@ -136,11 +140,11 @@ recorded separately on issue #10 for migration mapping.
 
 | Check | Desktop Chrome | iPhone Safari | iPhone Home Screen preview |
 | --- | --- | --- | --- |
-| User-initiated popup succeeds | Pending | Pending | Pending |
-| Closing/cancelling popup leaves app usable | Pending | Pending | Pending |
+| User-initiated popup succeeds | Pending | Pending | Passed; returned to installed preview with test UID |
+| Closing/cancelling popup leaves app usable | Pending | Pending | Passed; existing UID unchanged |
 | Blocked popup is reported without changing existing session | Pending | Pending | Pending |
-| Leave and reopen; same UID restored | Pending | Pending | Pending |
-| Airplane mode; prior session/local UI remains readable | Pending | Pending | Pending |
+| Leave and reopen; same UID restored | Pending | Pending | Passed |
+| Airplane mode; prior session/local UI remains readable | Pending | Pending | Passed; offline indicator, same UID, sign-in error without losing session |
 
 For the Home Screen check, open the preview URL in Safari, add it to the Home
 Screen, launch from its icon, tap Continue with Google, and check whether the
