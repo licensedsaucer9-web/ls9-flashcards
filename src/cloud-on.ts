@@ -18,8 +18,9 @@ import {
   type Firestore,
 } from 'firebase/firestore'
 import type { AccountHooks } from './account-hooks.ts'
+import { copyAlreadyDecided, rememberCopyDecision, sessionCopyMode, type CopyDecision } from './copy-choice.ts'
 import { includeGuestVocabulary } from './guest-copy.ts'
-import { copyGuestDatabase, getSettings, localDatabaseHasWork } from './db.ts'
+import { copyGuestDatabase, getSettings, importLegacyData, localDatabaseHasWork } from './db.ts'
 import { esc } from './dom.ts'
 import { provisionAccount } from './provision.ts'
 import { bindStudyDatabase, captureStudyLock, studyLockCurrent } from './study-lock.ts'
@@ -174,11 +175,15 @@ async function adoptUser(user: User): Promise<void> {
   label = user.displayName || user.email || 'Signed in'
   const dbName = accountDatabaseName(user.uid)
   const guestName = currentLocalDatabaseName()
-  let mode: 'skip' | 'progress' | 'vocabulary' = 'skip'
-  if (!prompted.has(user.uid)) {
-    prompted.add(user.uid)
+  // The answer is kept per account and device database. Reopening must reach
+  // study without asking again, and must not copy that database over the account.
+  const choiceId = `${user.uid}\0${guestName}`
+  const alreadyDecided = copyAlreadyDecided(localStorage, user.uid, guestName)
+  let chosen: CopyDecision | null = null
+  if (!alreadyDecided && !prompted.has(choiceId)) {
+    prompted.add(choiceId)
     try {
-      if (await localDatabaseHasWork(guestName)) mode = await askToCopy(personal)
+      if (await localDatabaseHasWork(guestName)) chosen = await askToCopy(personal)
     } catch (error) {
       if (ticket !== ticketId) return
       showAuthError(error)
@@ -186,9 +191,11 @@ async function adoptUser(user: User): Promise<void> {
     }
   }
   if (ticket !== ticketId) return
+  const mode = sessionCopyMode(alreadyDecided, chosen)
   bindStudyDatabase({ uid: user.uid, dbName })
   await applyCopy(guestName, mode, ticket)
   if (ticket !== ticketId) return
+  if (chosen) rememberCopyDecision(localStorage, user.uid, guestName, chosen)
   pendingError = ''
   setSync('Saved on this device')
   welcomeRelease?.()
@@ -379,6 +386,9 @@ async function confirmSignOut(): Promise<void> {
 
 export async function prepareAccount(next: AccountHooks): Promise<void> {
   hooks = next
+  // A profile list names german-flashcards:<slug> while the schedule still
+  // lives in the original database. Import before the sign-in offer looks.
+  await importLegacyData(currentLocalDatabaseName())
   bindStudyDatabase({ uid: null, dbName: currentLocalDatabaseName() })
   const config = readConfig()
   if (!config) {

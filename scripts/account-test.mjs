@@ -1,4 +1,5 @@
 import { planAccountProvision } from '../src/account-plan.ts'
+import { copyAlreadyDecided, rememberCopyDecision, sessionCopyMode } from '../src/copy-choice.ts'
 import { includeGuestVocabulary } from '../src/guest-copy.ts'
 import { bindStudyDatabase, captureStudyLock, clearStudyBinding, hasStudyBinding, studyLockCurrent } from '../src/study-lock.ts'
 import { accountDatabaseName, dbNameForUser, LEGACY_DB_NAME } from '../src/user.ts'
@@ -17,6 +18,30 @@ assert(!again.createPersonal && again.deckId === 'uid-a', 'an existing personal 
 assert(includeGuestVocabulary(true, false), 'a personal deck includes word-list edits without a second yes')
 assert(!includeGuestVocabulary(false, false), 'a shared deck omits word-list edits until they are confirmed')
 assert(includeGuestVocabulary(false, true), 'a shared deck includes word-list edits after the second yes')
+
+const memory = () => {
+  const data = new Map()
+  return {
+    getItem: (key) => (data.has(key) ? data.get(key) : null),
+    setItem: (key, value) => { data.set(key, value) },
+  }
+}
+const choices = memory()
+const profile = 'german-flashcards:joakim'
+assert(!copyAlreadyDecided(choices, 'uid-a', profile), 'a first sign-in has no stored answer')
+assert(sessionCopyMode(false, 'vocabulary') === 'vocabulary', 'the first yes copies the device database')
+assert(sessionCopyMode(false, 'progress') === 'progress', 'the first yes can copy progress only')
+assert(sessionCopyMode(false, 'skip') === 'skip', 'not now copies nothing')
+assert(sessionCopyMode(false, null) === 'skip', 'an empty device database copies nothing')
+rememberCopyDecision(choices, 'uid-a', profile, 'vocabulary')
+assert(copyAlreadyDecided(choices, 'uid-a', profile), 'the answer is stored for that account and database')
+assert(sessionCopyMode(true, 'vocabulary') === 'skip', 'a restored session does not copy the device database again')
+assert(!copyAlreadyDecided(choices, 'uid-b', profile), 'another account is still asked about this device')
+assert(!copyAlreadyDecided(choices, 'uid-a', 'german-flashcards'), 'another device database is still asked')
+rememberCopyDecision(choices, 'uid-a', 'german-flashcards', 'skip')
+assert(copyAlreadyDecided(choices, 'uid-a', profile), 'a second database keeps the first answer')
+const broken = { getItem: () => '{', setItem: () => {} }
+assert(copyAlreadyDecided(broken, 'uid-a', profile) === false, 'unreadable storage asks again')
 
 const account = accountDatabaseName('uid-a')
 assert(account === 'german-flashcards:account:uid-a', 'an account database is named by uid')
@@ -40,4 +65,4 @@ assert(!studyLockCurrent(guest), 'a second account drops the guest lock')
 assert(other.dbName !== signedIn.dbName, 'a second uid gets its own database')
 clearStudyBinding()
 
-console.log('account-test: provision plan, guest copy choice, database names, study lock: ok')
+console.log('account-test: provision plan, guest copy choice, stored copy answer, database names, study lock: ok')

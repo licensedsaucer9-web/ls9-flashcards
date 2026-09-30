@@ -37,7 +37,7 @@ import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
 import { sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
 import { tierCounts, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
-import { activeUser, createUser, currentLocalDatabaseName, listUsers, setActiveUser } from './user.ts'
+import { activeUser, createUser, listUsers, setActiveUser } from './user.ts'
 import {
   bootSync,
   discoverRemoteUsers,
@@ -1073,16 +1073,15 @@ async function render() {
 
 async function boot() {
   onDatabaseEvent(showDatabaseNotice)
-  // The pre-multi-user database holds the only copy of this profile's schedule,
-  // so it moves into the active user's own database before anything reads it.
   await prepareAccount(accountHooks)
   markAccountBooted()
   let imported = 0
   let added = 0
   if (accountSignIn) {
-    imported = await importLegacyData(currentLocalDatabaseName())
     added = await ensureSeed()
   } else if (isGithubConfigured()) {
+    // The pre-multi-user database holds the only copy of this profile's schedule,
+    // so it moves into the active user's own database before anything reads it.
     imported = await importLegacyData()
     await bootSync()
     added = await ensureSeed()
