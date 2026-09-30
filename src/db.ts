@@ -1,5 +1,14 @@
 import type { Card, CardContent, DeckFile, PublicSettings, Settings, Srs, Tier, UserFile } from './types.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
+import {
+  applyAck,
+  bumpMark,
+  contentChanged,
+  normalizePending,
+  progressChanged,
+  reconcileStagedProgress,
+  type PushItem,
+} from './record-sync.ts'
 import { newSrs } from './srs.ts'
 import { captureStudyLock, hasStudyBinding, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { inSelectedTier, tierOf } from './tiers.ts'
@@ -57,8 +66,29 @@ function tier(value: unknown): Tier {
   return value === 1 || value === 2 || value === 3 ? value : 1
 }
 
+function stagedProgress(value: unknown): Record<string, Srs> | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const out: Record<string, Srs> = {}
+  for (const [id, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!raw || typeof raw !== 'object') continue
+    const row = raw as Partial<Srs>
+    if (typeof row.ease !== 'number' || typeof row.interval !== 'number' || typeof row.reps !== 'number' || typeof row.due !== 'number') {
+      continue
+    }
+    out[id] = {
+      ease: row.ease,
+      interval: row.interval,
+      reps: row.reps,
+      due: row.due,
+      ...(typeof row.updated_at === 'number' ? { updated_at: row.updated_at } : {}),
+    }
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 export function normalizeSettings(s?: Partial<Settings> | null): Settings {
   const localRevision = revision(s?.localRevision)
+  const staged = stagedProgress(s?.stagedProgress)
   return {
     id: 'settings',
     direction: s?.direction === 'en-de' ? 'en-de' : 'de-en',
@@ -71,6 +101,8 @@ export function normalizeSettings(s?: Partial<Settings> | null): Settings {
     localRevision,
     acknowledgedRevision: Math.min(localRevision, revision(s?.acknowledgedRevision)),
     settingsUpdatedAt: revision(s?.settingsUpdatedAt),
+    pending: normalizePending(s?.pending),
+    ...(staged ? { stagedProgress: staged } : {}),
   }
 }
 
@@ -371,15 +403,81 @@ export async function getCard(id: string): Promise<Card | undefined> {
   }
 }
 
+function noteCardWrite(settings: Settings, previous: Card | undefined, next: Card, rev: number): void {
+  if (contentChanged(previous, next)) settings.pending.cards[next.id] = bumpMark(settings.pending.cards[next.id], rev)
+  if (progressChanged(previous, next)) settings.pending.progress[next.id] = bumpMark(settings.pending.progress[next.id], rev)
+}
+
+/**
+ * Settings are written from a nested request callback. The outer handler only
+ * starts those reads, so the transaction stays open until the markers are stored
+ * with the edit.
+ */
+async function editLocal(work: (tx: IDBTransaction, settings: Settings) => void): Promise<void> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return
+    const tx = db.transaction(['cards', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    let aborted = false
+    const request = tx.objectStore('settings').get('settings')
+    request.onsuccess = () => {
+      if (!studyLockCurrent(lock)) {
+        aborted = true
+        tx.abort()
+        return
+      }
+      work(tx, normalizeSettings(request.result as Settings | undefined))
+    }
+    await done.catch((error) => {
+      if (aborted || !studyLockCurrent(lock) || upgradeAbort(db, error)) return
+      throw error
+    })
+  } finally {
+    db.close()
+  }
+}
+
 export async function putCard(card: Card): Promise<void> {
-  await changeLocal((tx) => tx.objectStore('cards').put(card))
+  const seen = captureStudyLock()
+  await editLocal((tx, settings) => {
+    const store = tx.objectStore('cards')
+    const request = store.get(card.id)
+    request.onsuccess = () => {
+      if (!studyLockCurrent(seen)) {
+        tx.abort()
+        return
+      }
+      noteCardWrite(settings, request.result as Card | undefined, card, settings.localRevision + 1)
+      store.put(card)
+      settings.localRevision += 1
+      tx.objectStore('settings').put(settings)
+    }
+  })
 }
 
 export async function putCards(cards: Card[]): Promise<void> {
   if (!cards.length) return
-  await changeLocal((tx) => {
+  const seen = captureStudyLock()
+  await editLocal((tx, settings) => {
     const store = tx.objectStore('cards')
-    for (const card of cards) store.put(card)
+    const reads = cards.map((card) => ({ card, request: store.get(card.id) }))
+    let left = reads.length
+    for (const item of reads) {
+      item.request.onsuccess = () => {
+        if (!studyLockCurrent(seen)) {
+          tx.abort()
+          return
+        }
+        noteCardWrite(settings, item.request.result as Card | undefined, item.card, settings.localRevision + 1)
+        store.put(item.card)
+        left -= 1
+        if (left > 0) return
+        settings.localRevision += 1
+        tx.objectStore('settings').put(settings)
+      }
+    }
   })
 }
 
@@ -401,7 +499,8 @@ export async function insertMissingSeeds(seeds: Card[]): Promise<number> {
     const byKey = new Set(current.cards.map(key))
     const store = tx.objectStore('cards')
     let added = 0
-    let repaired = 0
+    const addedIds: string[] = []
+    const repairedIds: string[] = []
     for (const seed of seeds) {
       if (current.settings.deletedIds[seed.id]) continue
       const mine = byId.get(seed.id)
@@ -413,7 +512,7 @@ export async function insertMissingSeeds(seeds: Card[]): Promise<number> {
         // re-researched ranks are not worth churning every existing card for.
         if (mine.rank === undefined || mine.tier === undefined) {
           store.put({ ...mine, rank: mine.rank ?? seed.rank, tier: mine.tier ?? seed.tier })
-          repaired += 1
+          repairedIds.push(seed.id)
         }
         continue
       }
@@ -423,9 +522,16 @@ export async function insertMissingSeeds(seeds: Card[]): Promise<number> {
       byId.set(seed.id, seed)
       byKey.add(pair)
       added += 1
+      addedIds.push(seed.id)
     }
-    if (added || repaired) {
-      current.settings.localRevision += 1
+    if (added || repairedIds.length) {
+      const rev = current.settings.localRevision + 1
+      current.settings.localRevision = rev
+      for (const id of repairedIds) current.settings.pending.cards[id] = bumpMark(current.settings.pending.cards[id], rev)
+      for (const id of addedIds) {
+        current.settings.pending.cards[id] = bumpMark(current.settings.pending.cards[id], rev)
+        current.settings.pending.progress[id] = bumpMark(current.settings.pending.progress[id], rev)
+      }
       tx.objectStore('settings').put(current.settings)
     }
     await current.done
@@ -439,6 +545,7 @@ export async function deleteCard(id: string, deletedAt = Date.now()): Promise<vo
   await changeLocal((tx, settings) => {
     tx.objectStore('cards').delete(id)
     settings.deletedIds[id] = Math.max(settings.deletedIds[id] || 0, deletedAt)
+    settings.pending.tombstones[id] = bumpMark(settings.pending.tombstones[id], settings.localRevision + 1)
   })
 }
 
@@ -498,6 +605,7 @@ export async function putSettings(next: Partial<PublicSettings>): Promise<void> 
     const nextTier = tier(next.tier ?? settings.tier)
     if (settings.direction !== direction || settings.sessionSize !== sessionSize || settings.tier !== nextTier) {
       settings.settingsUpdatedAt = Math.max(Date.now(), settings.settingsUpdatedAt + 1)
+      settings.pending.settings = bumpMark(settings.pending.settings, settings.localRevision + 1)
     }
     settings.direction = direction
     settings.sessionSize = sessionSize
@@ -653,6 +761,115 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
   }
 }
 
+export type CloudSnapshot = { cards: Map<string, Card>; settings: Settings }
+
+/** Cards and pending markers for one cloud push. Null when the account changed mid-read. */
+export async function readCloudSnapshot(): Promise<CloudSnapshot | null> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return null
+    const { cards, settings, done } = await load(db.transaction(['cards', 'settings'], 'readwrite'))
+    await done
+    if (!studyLockCurrent(lock)) return null
+    return { cards: new Map(cards.map((card) => [card.id, card])), settings }
+  } finally {
+    db.close()
+  }
+}
+
+/**
+ * Record the revision a transaction committed. A lock that no longer names the
+ * same account writes nothing, so the acknowledgement cannot land on another uid.
+ */
+export async function acknowledgePending(
+  item: PushItem,
+  expect: { uid: string; generation: number },
+): Promise<boolean> {
+  const live = captureStudyLock()
+  if (live.uid !== expect.uid || live.generation !== expect.generation) return false
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock) || lock.uid !== expect.uid) return false
+    const tx = db.transaction('settings', 'readwrite')
+    const done = txDone(tx)
+    const request = tx.objectStore('settings').get('settings')
+    let applied = false
+    let aborted = false
+    request.onsuccess = () => {
+      if (!studyLockCurrent(lock) || captureStudyLock().uid !== expect.uid) {
+        aborted = true
+        tx.abort()
+        return
+      }
+      const settings = normalizeSettings(request.result as Settings | undefined)
+      if (item.kind === 'settings') {
+        if (settings.pending.settings) settings.pending.settings = applyAck(settings.pending.settings, item.revision)
+      } else if (item.kind === 'progress') {
+        const mark = settings.pending.progress[item.id]
+        if (mark) settings.pending.progress[item.id] = applyAck(mark, item.revision)
+      } else {
+        if (item.contentRevision > 0) {
+          const mark = settings.pending.cards[item.id]
+          if (mark) settings.pending.cards[item.id] = applyAck(mark, item.contentRevision)
+        }
+        if (item.tombstoneRevision > 0) {
+          const mark = settings.pending.tombstones[item.id]
+          if (mark) settings.pending.tombstones[item.id] = applyAck(mark, item.tombstoneRevision)
+        }
+      }
+      tx.objectStore('settings').put(settings)
+      applied = true
+    }
+    await done.catch((error) => {
+      if (aborted || !studyLockCurrent(lock)) return
+      throw error
+    })
+    return applied && studyLockCurrent(lock) && captureStudyLock().uid === expect.uid
+  } finally {
+    db.close()
+  }
+}
+
+/** Attach schedules that were copied before the matching cards existed. */
+export async function applyStagedProgress(): Promise<void> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return
+    const tx = db.transaction(['cards', 'settings'], 'readwrite')
+    const current = await load(tx)
+    const staged = current.settings.stagedProgress
+    if (!staged || !studyLockCurrent(lock)) {
+      if (!studyLockCurrent(lock)) tx.abort()
+      await current.done.catch(() => {})
+      return
+    }
+    const store = tx.objectStore('cards')
+    const byId = new Map(current.cards.map((card) => [card.id, card]))
+    let changed = false
+    const rev = current.settings.localRevision + 1
+    for (const [id, srs] of Object.entries(staged)) {
+      delete staged[id]
+      const mine = byId.get(id)
+      if (!mine) continue
+      const merged = reconcileStagedProgress(srs, mine.srs)
+      if (sameSrs(merged, mine.srs)) continue
+      store.put({ ...mine, srs: merged })
+      current.settings.pending.progress[id] = bumpMark(current.settings.pending.progress[id], rev)
+      changed = true
+    }
+    if (!Object.keys(staged).length) delete current.settings.stagedProgress
+    else current.settings.stagedProgress = staged
+    if (changed) current.settings.localRevision = rev
+    tx.objectStore('settings').put(current.settings)
+    await current.done
+  } finally {
+    db.close()
+  }
+}
+
 export async function localDatabaseHasWork(name: string): Promise<boolean> {
   const db = await openDb(name)
   try {
@@ -703,33 +920,57 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
     }
     const sourceSettings = stored ? normalizeSettings(stored) : null
     const store = tx.objectStore('cards')
+    const rev = current.settings.localRevision + 1
     if (mode === 'vocabulary') {
-      for (const card of cards) store.put(card)
+      const tombstoned = new Set<string>()
       if (sourceSettings) {
         for (const [id, time] of Object.entries(sourceSettings.deletedIds)) {
-          const stamp = Number(time) || 0
-          if (stamp <= 0) continue
-          current.settings.deletedIds[id] = Math.max(current.settings.deletedIds[id] || 0, stamp)
-          store.delete(id)
+          if ((Number(time) || 0) > 0) tombstoned.add(id)
         }
+      }
+      for (const card of cards) {
+        if (tombstoned.has(card.id)) continue
+        store.put(card)
+        current.settings.pending.cards[card.id] = bumpMark(current.settings.pending.cards[card.id], rev)
+        current.settings.pending.progress[card.id] = bumpMark(current.settings.pending.progress[card.id], rev)
+      }
+      for (const id of tombstoned) {
+        const stamp = Number(sourceSettings?.deletedIds[id]) || 0
+        current.settings.deletedIds[id] = Math.max(current.settings.deletedIds[id] || 0, stamp)
+        store.delete(id)
+        current.settings.pending.tombstones[id] = bumpMark(current.settings.pending.tombstones[id], rev)
       }
     } else {
       const byId = new Map(current.cards.map((card) => [card.id, card]))
+      const staged = { ...(current.settings.stagedProgress ?? {}) }
       for (const card of cards) {
+        if (!card.srs) continue
         const mine = byId.get(card.id)
-        if (!mine || !card.srs || sameSrs(card.srs, mine.srs)) continue
+        if (!mine) {
+          staged[card.id] = card.srs
+          continue
+        }
+        if (sameSrs(card.srs, mine.srs)) continue
         store.put({ ...mine, srs: card.srs })
+        current.settings.pending.progress[card.id] = bumpMark(current.settings.pending.progress[card.id], rev)
       }
+      if (Object.keys(staged).length) current.settings.stagedProgress = staged
+      else delete current.settings.stagedProgress
     }
     if (sourceSettings) {
+      const settingsChanged = current.settings.direction !== sourceSettings.direction
+        || current.settings.sessionSize !== sourceSettings.sessionSize
+        || current.settings.tier !== sourceSettings.tier
+        || sourceSettings.settingsUpdatedAt > current.settings.settingsUpdatedAt
       current.settings.direction = sourceSettings.direction
       current.settings.sessionSize = sourceSettings.sessionSize
       current.settings.tier = sourceSettings.tier
       if (sourceSettings.settingsUpdatedAt > current.settings.settingsUpdatedAt) {
         current.settings.settingsUpdatedAt = sourceSettings.settingsUpdatedAt
       }
+      if (settingsChanged) current.settings.pending.settings = bumpMark(current.settings.pending.settings, rev)
     }
-    current.settings.localRevision += 1
+    current.settings.localRevision = rev
     tx.objectStore('settings').put(current.settings)
     let wrote = true
     await current.done.catch((error) => {

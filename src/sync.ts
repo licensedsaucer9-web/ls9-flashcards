@@ -4,6 +4,7 @@ import type { MergeResult } from './db.ts'
 import { legacyToFiles, mergeProgress } from './merge.ts'
 import { captureStudyLock, hasStudyBinding, studyLockCurrent } from './study-lock.ts'
 import { activeUserSlug, listUsers, registerRemoteUsers } from './user.ts'
+import { cloudSyncPass, cloudTransport } from './sync-backend.ts'
 import {
   fetchDeck,
   fetchUserFile,
@@ -30,7 +31,7 @@ let syncAgain = false
 const listeners = new Set<() => void>()
 
 export function getSyncStatus(): SyncStatus {
-  if (!isGithubConfigured()) return { state: 'off', message: '', at: null }
+  if (!cloudTransport && !isGithubConfigured()) return { state: 'off', message: '', at: null }
   return status
 }
 
@@ -117,6 +118,24 @@ async function applyRemote(effective: Effective, slug: string): Promise<MergeRes
 }
 
 async function syncPass(): Promise<void> {
+  if (cloudTransport) {
+    const lock = captureStudyLock()
+    if (!lock.uid) {
+      setStatus({ state: 'idle', message: 'Saved on this device', at: null })
+      return
+    }
+    setStatus({ state: 'syncing', message: 'Syncing', at: null })
+    const outcome = await cloudSyncPass({
+      requestAgain: () => {
+        syncAgain = true
+      },
+    })
+    if (!studyLockCurrent(lock)) return
+    if (typeof outcome === 'object') setStatus({ state: 'error', message: outcome.message, at: null })
+    else if (outcome === 'synced') setStatus({ state: 'ok', message: 'Synced', at: Date.now() })
+    else setStatus({ state: 'waiting', message: 'Saved on this device', at: null })
+    return
+  }
   const cfg = loadGithubConfig()
   if (!isGithubConfigured(cfg)) {
     setStatus({ state: 'off', message: '', at: null })
@@ -215,8 +234,9 @@ export function syncNow(): Promise<void> {
 
 /** The data write already recorded a pending revision before this is called. */
 export function schedulePush(): void {
-  if (!isGithubConfigured()) return
-  setStatus({ state: 'waiting', message: 'Saved on this device · waiting to back up', at: null })
+  if (!cloudTransport && !isGithubConfigured()) return
+  const waiting = cloudTransport ? 'Saved on this device' : 'Saved on this device · waiting to back up'
+  setStatus({ state: 'waiting', message: waiting, at: null })
   window.clearTimeout(timer)
   if (document.visibilityState === 'hidden') return
   timer = window.setTimeout(() => {
@@ -247,6 +267,15 @@ export async function discoverRemoteUsers(): Promise<number> {
 }
 
 export async function bootSync(): Promise<void> {
+  if (cloudTransport) {
+    if (!captureStudyLock().uid) return
+    try {
+      await syncNow()
+    } catch {
+      /* Keep locally committed changes pending until the next foreground retry. */
+    }
+    return
+  }
   if (!isGithubConfigured()) {
     setStatus({ state: 'off', message: '', at: null })
     return
