@@ -53,6 +53,11 @@ The production preview only captures the authenticated UID needed for later
 migration mapping. Do not create a personal deck, `users/{uid}`, or
 `decks/{uid}`. The spike imports only `firebase/app` and `firebase/auth`.
 
+For issue #14's local Admin importer, private snapshot export, and confirmed
+per-device copy, follow [the migration rehearsal guide](firebase-migration.md).
+The real rehearsal and second-device verification are required before #15's
+public cutover.
+
 ## One-time console setup
 
 The Firebase CLI is installed in this repo as a development dependency. After

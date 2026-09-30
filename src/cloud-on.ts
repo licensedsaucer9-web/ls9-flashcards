@@ -26,6 +26,7 @@ import { esc } from './dom.ts'
 import { provisionAccount } from './provision.ts'
 import { bindStudyDatabase, captureStudyLock } from './study-lock.ts'
 import { getSyncStatus, syncNow } from './sync.ts'
+import { bindMigrationPanel, migrationPanelHtml } from './migration-panel.ts'
 import { accountDatabaseName, currentLocalDatabaseName } from './user.ts'
 
 const GUEST_KEY = 'german-flashcards.device-study'
@@ -167,7 +168,9 @@ async function adoptUser(user: User): Promise<void> {
   const choiceId = `${user.uid}\0${guestName}`
   const alreadyDecided = copyAlreadyDecided(localStorage, user.uid, guestName)
   let chosen: CopyDecision | null = null
-  if (!alreadyDecided && !prompted.has(choiceId)) {
+  // A preassigned shared deck is a legacy migration. Named profiles are
+  // recovered through the reviewed mapping, not the generic guest prompt.
+  if (personal && !alreadyDecided && !prompted.has(choiceId)) {
     prompted.add(choiceId)
     try {
       if (await localDatabaseHasWork(guestName)) chosen = await askToCopy(personal)
@@ -440,11 +443,13 @@ export function accountPanelHtml(): string {
       <button class="danger" type="button" id="sign-out-account">Sign out</button>
       <p class="note" id="auth-error">${esc(pendingError)}</p>
     </div>
+    ${migrationPanelHtml()}
   `
 }
 
 export function bindAccountPanel(panelHooks: AccountHooks): void {
   hooks = panelHooks
+  bindMigrationPanel()
   document.getElementById('google-sign-in')?.addEventListener('click', () => {
     if (auth?.currentUser) {
       void adoptUser(auth.currentUser)

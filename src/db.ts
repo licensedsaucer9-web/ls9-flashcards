@@ -10,9 +10,10 @@ import {
   type PushItem,
 } from './record-sync.ts'
 import { newSrs } from './srs.ts'
+import { validateCard, validateMapping, validateSettings, validateSrs, validateTombstones } from './migration-data.ts'
 import { captureStudyLock, hasStudyBinding, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { inSelectedTier, tierOf } from './tiers.ts'
-import { activeUserSlug, dbNameForUser, hasMigrated, LEGACY_DB_NAME, markMigrated } from './user.ts'
+import { accountDatabaseName, activeUserSlug, dbNameForUser, hasMigrated, LEGACY_DB_NAME, listUsers, markMigrated } from './user.ts'
 
 const DB_VERSION = 1
 
@@ -881,6 +882,111 @@ export async function localDatabaseHasWork(name: string): Promise<boolean> {
   } finally {
     db.close()
   }
+}
+
+/** Explicit operator-confirmed recovery, distinct from a first-login guest copy. */
+export async function copyMappedLegacyProfile(
+  profile: string,
+  rawMapping: unknown,
+  projectId: string,
+  serverDeckId: string,
+): Promise<{ state: 'copied' | 'already copied' | 'skipped'; cards: number; tombstones: number }> {
+  const mapping = validateMapping(rawMapping)
+  const lock = captureStudyLock()
+  const uid = Object.hasOwn(mapping.profiles, profile) ? mapping.profiles[profile] : null
+  if (profile === 'guest' || !uid || !listUsers().some((user) => user.slug === profile)) {
+    return { state: 'skipped', cards: 0, tombstones: 0 }
+  }
+  if (mapping.projectId !== projectId || mapping.deckId !== serverDeckId || lock.uid !== uid
+    || lock.dbName !== accountDatabaseName(uid)) throw new Error('This mapping does not match the signed-in account and its legacy deck')
+  const source = await openDb(dbNameForUser(profile))
+  let cards: Card[]
+  let stored: Settings | undefined
+  try {
+    const tx = source.transaction(['cards', 'settings'], 'readonly')
+    const done = txDone(tx)
+    ;[cards, stored] = await Promise.all([
+      value(tx.objectStore('cards').getAll()) as Promise<Card[]>,
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
+    ])
+    await done
+  } finally { source.close() }
+  if (!studyLockCurrent(lock)) throw new Error('Account changed before the copy')
+  if (!cards.length && !stored) return { state: 'skipped', cards: 0, tombstones: 0 }
+  // Refuse corrupt legacy rows instead of silently repairing away unsent work.
+  for (const card of cards) { validateCard(card); validateSrs(card.srs, card.id) }
+  if (stored) {
+    validateSettings(stored)
+    if (stored.deletedIds !== undefined) validateTombstones(stored.deletedIds)
+    if (stored.stagedProgress) for (const [id, srs] of Object.entries(stored.stagedProgress)) validateSrs(srs, id)
+  }
+  const sourceSettings = normalizeSettings(stored)
+  validateTombstones(sourceSettings.deletedIds)
+  if (stored && stored.settingsUpdatedAt === undefined) sourceSettings.settingsUpdatedAt = legacySettingsClock(cards, sourceSettings.deletedIds)
+  const db = await openDb(lock.dbName)
+  try {
+    if (!studyLockCurrent(lock)) throw new Error('Account changed before the copy')
+    const tx = db.transaction(['cards', 'settings'], 'readwrite')
+    const current = await load(tx)
+    if (!studyLockCurrent(lock)) { tx.abort(); await current.done.catch(() => {}); throw new Error('Account changed during the copy') }
+    const merged = mergeDeck(localDeckFile(cards, sourceSettings), localDeckFile(current.cards, current.settings))
+    const schedules = mergeProgress(
+      { ...Object.fromEntries(cards.map((card) => [card.id, card.srs])), ...sourceSettings.stagedProgress },
+      { ...Object.fromEntries(current.cards.map((card) => [card.id, card.srs])), ...current.settings.stagedProgress },
+    )
+    const byId = new Map(current.cards.map((card) => [card.id, card]))
+    const store = tx.objectStore('cards')
+    const sourceIds = new Set(cards.map((card) => card.id))
+    const rev = Math.max(current.settings.localRevision, sourceSettings.localRevision) + 1
+    if (!Number.isSafeInteger(rev)) { tx.abort(); await current.done.catch(() => {}); throw new Error('Local revision is outside the supported range') }
+    let changed = false
+    for (const content of merged.cards) {
+      const previous = byId.get(content.id)
+      const next: Card = { ...content, srs: schedules[content.id] ?? previous?.srs ?? newSrs() }
+      if (contentChanged(previous, next) || progressChanged(previous, next)) { store.put(next); changed = true }
+      // GitHub's acknowledgement is not a Firestore acknowledgement. Backfill
+      // copied records even on a pre-marker account database; preserve real acks.
+      if (sourceIds.has(content.id)) {
+        if (contentChanged(previous, next) || !current.settings.pending.cards[content.id]) {
+          current.settings.pending.cards[content.id] = bumpMark(current.settings.pending.cards[content.id], rev); changed = true
+        }
+        if (progressChanged(previous, next) || !current.settings.pending.progress[content.id]) {
+          current.settings.pending.progress[content.id] = bumpMark(current.settings.pending.progress[content.id], rev); changed = true
+        }
+      }
+    }
+    const liveIds = new Set(merged.cards.map((card) => card.id))
+    const staged = Object.fromEntries(Object.entries(schedules).filter(([id]) => !liveIds.has(id) && !merged.deleted_ids[id]))
+    if (Object.keys(staged).length) {
+      if (JSON.stringify(staged) !== JSON.stringify(current.settings.stagedProgress)) changed = true
+      current.settings.stagedProgress = staged
+    } else if (current.settings.stagedProgress) { delete current.settings.stagedProgress; changed = true }
+    for (const card of current.cards) if (!liveIds.has(card.id)) { store.delete(card.id); changed = true }
+    for (const [id, time] of Object.entries(merged.deleted_ids)) {
+      if (Object.hasOwn(sourceSettings.deletedIds, id)
+        && (current.settings.deletedIds[id] !== time || !current.settings.pending.tombstones[id])) {
+        current.settings.pending.tombstones[id] = bumpMark(current.settings.pending.tombstones[id], rev); changed = true
+      }
+    }
+    current.settings.deletedIds = merged.deleted_ids
+    const localAt = current.settings.settingsUpdatedAt
+    const sourceAt = sourceSettings.settingsUpdatedAt
+    const preferences = newerSettings(publicSettings(current.settings), localAt, publicSettings(sourceSettings), sourceAt)
+    if (current.settings.direction !== preferences.direction || current.settings.sessionSize !== preferences.sessionSize
+      || current.settings.tier !== preferences.tier || sourceAt > localAt || !current.settings.pending.settings) {
+      Object.assign(current.settings, preferences)
+      current.settings.settingsUpdatedAt = Math.max(localAt, sourceAt)
+      current.settings.pending.settings = bumpMark(current.settings.pending.settings, rev)
+      changed = true
+    }
+    if (changed) {
+      current.settings.localRevision = rev
+      tx.objectStore('settings').put(current.settings)
+    }
+    await current.done
+    if (!studyLockCurrent(lock)) throw new Error('Account changed during the copy; reopen the original account to check it')
+    return { state: changed ? 'copied' : 'already copied', cards: cards.length, tombstones: Object.keys(sourceSettings.deletedIds).length }
+  } finally { db.close() }
 }
 
 export type GuestCopyMode = 'progress' | 'vocabulary'
