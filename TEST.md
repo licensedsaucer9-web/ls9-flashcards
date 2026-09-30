@@ -1,5 +1,9 @@
 # German Flashcards — click path
 
+For the Firebase-enabled migration preview, use the separate
+[migration rehearsal and device-copy checks](docs/firebase-migration.md).
+The public build continues to use the GitHub click path below until #15.
+
 App lives in this folder. IndexedDB is the offline cache. Connect the **private GitHub data repo** in Settings so the deck and SRS follow you across browsers (PC, iPhone Safari, etc.). A fresh profile without sync currently seeds 514 A1/A2 cards, split into three tiers. Existing decks gain missing seed cards on launch without resetting SRS on cards you already have. Use a disposable browser profile for this click path so the tests do not change your personal deck.
 
 ## Run
