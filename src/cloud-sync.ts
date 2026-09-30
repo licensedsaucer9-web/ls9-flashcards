@@ -57,12 +57,7 @@ async function pushLoaded(
 
 export const cloudTransport = true
 
-/**
- * Pull, merge, seed, then upload each dirty record. Seeding waits until the
- * pull has applied remote tombstones. A failed record stops the rest; earlier
- * acknowledgements stay.
- */
-export async function cloudSyncPass(control: { requestAgain: () => void }): Promise<'synced' | 'pending' | 'idle'> {
+export async function cloudSyncPass(control: { requestAgain: () => void }): Promise<'synced' | 'pending' | 'idle' | { state: 'rejected'; message: string }> {
   const lock = captureStudyLock()
   if (!lock.uid) return 'idle'
   const db = cloudFirestore()
@@ -100,12 +95,21 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     const after = await readCloudSnapshot()
     if (!after) return 'idle'
     const dirty = hasDirty(after.settings.pending)
+    if (result.rejected.length) {
+      const first = result.rejected[0]
+      const record = first.item.kind === 'settings' ? 'settings' : first.item.id
+      return { state: 'rejected', message: `Saved on this device · ${record} rejected (${first.code})` }
+    }
     if (!result.clean || dirty) {
       if (result.clean && dirty && studyLockCurrent(lock)) control.requestAgain()
       return 'pending'
     }
-    await acknowledgeRevision(after.settings.localRevision)
+    const newerChanges = await acknowledgeRevision(after.settings.localRevision)
     if (!studyLockCurrent(lock)) return 'idle'
+    if (newerChanges) {
+      control.requestAgain()
+      return 'pending'
+    }
     return 'synced'
   } catch {
     return 'pending'

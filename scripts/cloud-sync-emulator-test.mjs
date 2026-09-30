@@ -225,6 +225,30 @@ try {
   assert((await getDoc(doc(alice, 'users', ALICE, 'progress', 'card-ok'))).exists(), 'the first record was committed')
   assert(!(await getDoc(doc(alice, 'users', ALICE, 'progress', 'card-fail'))).exists(), 'the failed record was not committed')
 
+  const rejectedAcks = []
+  const denied = await runDirtyQueue(
+    [
+      { kind: 'card', id: 'card-invalid', contentRevision: 1, tombstoneRevision: 0 },
+      { kind: 'card', id: 'card-valid', contentRevision: 1, tombstoneRevision: 0 },
+    ],
+    {
+      locked: () => true,
+      push: (item) => commitCard(
+        alice,
+        ALICE,
+        item.id,
+        content(item.id, { example_de: item.id === 'card-invalid' ? 'x'.repeat(1001) : 'valid' }),
+        0,
+      ),
+      ack: async (item) => {
+        rejectedAcks.push(item.id)
+      },
+    },
+  )
+  assert(!denied.clean && denied.rejected.length === 1 && denied.rejected[0].code === 'permission-denied', 'rules rejection keeps the queue pending')
+  assert(rejectedAcks.join() === 'card-valid', 'a valid record behind a rejected card is acknowledged')
+  assert((await getDoc(doc(alice, 'decks', ALICE, 'cards', 'card-valid'))).exists(), 'the valid later card reached the server')
+
   const expiredAcks = []
   const expired = await runDirtyQueue(
     [{ kind: 'settings', revision: 3 }],

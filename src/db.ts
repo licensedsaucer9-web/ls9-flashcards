@@ -6,6 +6,7 @@ import {
   contentChanged,
   normalizePending,
   progressChanged,
+  reconcileStagedProgress,
   type PushItem,
 } from './record-sync.ts'
 import { newSrs } from './srs.ts'
@@ -853,8 +854,8 @@ export async function applyStagedProgress(): Promise<void> {
       delete staged[id]
       const mine = byId.get(id)
       if (!mine) continue
-      const merged = mergeProgress({ [id]: mine.srs }, { [id]: srs })[id]
-      if (!merged || sameSrs(merged, mine.srs)) continue
+      const merged = reconcileStagedProgress(srs, mine.srs)
+      if (sameSrs(merged, mine.srs)) continue
       store.put({ ...mine, srs: merged })
       current.settings.pending.progress[id] = bumpMark(current.settings.pending.progress[id], rev)
       changed = true

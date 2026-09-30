@@ -98,6 +98,10 @@ export function progressChanged(previous: Card | undefined, next: Card): boolean
   return !sameSrs(previous.srs, next.srs)
 }
 
+export function reconcileStagedProgress(staged: Srs, current: Srs): Srs {
+  return mergeProgress({ card: staged }, { card: current }).card
+}
+
 export type PushItem =
   | { kind: 'card'; id: string; contentRevision: number; tombstoneRevision: number }
   | { kind: 'progress'; id: string; revision: number }
@@ -134,6 +138,14 @@ export function chunkItems<T>(items: T[], size = WRITE_CHUNK): T[][] {
   return out
 }
 
+export type RejectedPush = { item: PushItem; code: string }
+
+function rejectionCode(error: unknown): string | null {
+  const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : ''
+  const reason = code.split('/').at(-1)
+  return reason === 'permission-denied' || reason === 'invalid-argument' || reason === 'out-of-range' ? reason : null
+}
+
 export async function runDirtyQueue(
   items: PushItem[],
   ops: {
@@ -141,23 +153,31 @@ export async function runDirtyQueue(
     ack: (item: PushItem) => Promise<void>
     locked: () => boolean
   },
-): Promise<{ clean: boolean; chunkSizes: number[] }> {
+): Promise<{ clean: boolean; chunkSizes: number[]; rejected: RejectedPush[] }> {
   const chunks = chunkItems(items)
   const chunkSizes = chunks.map((chunk) => chunk.length)
-  if (!ops.locked()) return { clean: false, chunkSizes }
-  try {
-    for (const chunk of chunks) {
-      for (const item of chunk) {
-        if (!ops.locked()) return { clean: false, chunkSizes }
+  const rejected: RejectedPush[] = []
+  if (!ops.locked()) return { clean: false, chunkSizes, rejected }
+  for (const chunk of chunks) {
+    for (const item of chunk) {
+      if (!ops.locked()) return { clean: false, chunkSizes, rejected }
+      try {
         await ops.push(item)
-        if (!ops.locked()) return { clean: false, chunkSizes }
+      } catch (error) {
+        const code = rejectionCode(error)
+        if (!code) return { clean: false, chunkSizes, rejected }
+        rejected.push({ item, code })
+        continue
+      }
+      if (!ops.locked()) return { clean: false, chunkSizes, rejected }
+      try {
         await ops.ack(item)
+      } catch {
+        return { clean: false, chunkSizes, rejected }
       }
     }
-  } catch {
-    return { clean: false, chunkSizes }
   }
-  return { clean: ops.locked(), chunkSizes }
+  return { clean: ops.locked() && rejected.length === 0, chunkSizes, rejected }
 }
 
 function deckOf(id: string, card: CardContent | null, deletedAt: number): DeckFile {

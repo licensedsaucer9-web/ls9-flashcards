@@ -14,6 +14,7 @@ import {
   planProgressWrite,
   planSettingsWrite,
   progressChanged,
+  reconcileStagedProgress,
   runDirtyQueue,
 } from '../src/record-sync.ts'
 
@@ -165,6 +166,11 @@ assert(progressChanged(previous, { ...previous, srs: srs({ due: 90, updated_at: 
 assert(contentChanged(previous, { ...previous, de: 'Katze', updated_at: 9 }), 'a vocabulary edit dirties the card')
 assert(!progressChanged(previous, { ...previous, de: 'Katze', updated_at: 9 }), 'a vocabulary edit does not dirty progress')
 
+const guestSchedule = srs({ ease: 3, updated_at: 0 })
+const accountSchedule = srs({ ease: 2, updated_at: 0 })
+assert(reconcileStagedProgress(guestSchedule, accountSchedule).ease === 2, 'a clockless staged copy keeps the account schedule')
+assert(reconcileStagedProgress(srs({ ease: 3, updated_at: 9 }), accountSchedule).ease === 3, 'a newer staged review is kept')
+
 const acked = []
 let attempts = 0
 const retry = await runDirtyQueue(
@@ -201,6 +207,25 @@ const second = await runDirtyQueue(
   },
 )
 assert(!second.clean && acked.join() === 'progress', 'a later failure keeps the earlier acknowledgement')
+
+acked.length = 0
+const rejected = await runDirtyQueue(
+  [
+    { kind: 'card', id: 'bad', contentRevision: 1, tombstoneRevision: 0 },
+    { kind: 'card', id: 'good', contentRevision: 1, tombstoneRevision: 0 },
+  ],
+  {
+    locked: () => true,
+    push: async (item) => {
+      if (item.kind === 'card' && item.id === 'bad') throw { code: 'firestore/permission-denied' }
+      return 'wrote'
+    },
+    ack: async (item) => {
+      acked.push(item.id)
+    },
+  },
+)
+assert(!rejected.clean && rejected.rejected[0].item.id === 'bad' && acked.join() === 'good', 'a rejected record remains dirty while later records upload')
 
 let switched = false
 let foreign = 0
