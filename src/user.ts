@@ -73,6 +73,23 @@ export function dbNameForUser(slug: string): string {
   return `${LEGACY_DB_NAME}:${slug}`
 }
 
+/** Signed-in study. Distinct from `german-flashcards` and `german-flashcards:<slug>`. */
+export function accountDatabaseName(uid: string): string {
+  return `${LEGACY_DB_NAME}:account:${uid}`
+}
+
+/**
+ * The database a signed-out device is already using. Does not register a profile.
+ * A device with no profile list still uses the original database.
+ */
+export function currentLocalDatabaseName(): string {
+  const users = readUsers()
+  if (!users.length) return LEGACY_DB_NAME
+  const wanted = localStorage.getItem(ACTIVE_KEY)
+  const found = users.find((u) => u.slug === wanted) ?? users[0]
+  return dbNameForUser(found.slug)
+}
+
 export function createUser(name: string, at = Date.now()): UserProfile {
   const clean = name.trim()
   const slug = slugify(clean)

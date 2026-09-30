@@ -2,6 +2,7 @@ import type { DeckFile, UserFile } from './types.ts'
 import { acknowledgeRevision, mergeDeckIntoDb, mergeProgressIntoDb, readLocalState } from './db.ts'
 import type { MergeResult } from './db.ts'
 import { legacyToFiles, mergeProgress } from './merge.ts'
+import { captureStudyLock, hasStudyBinding, studyLockCurrent } from './study-lock.ts'
 import { activeUserSlug, listUsers, registerRemoteUsers } from './user.ts'
 import {
   fetchDeck,
@@ -122,12 +123,17 @@ async function syncPass(): Promise<void> {
     return
   }
   const slug = activeUserSlug()
+  const lock = captureStudyLock()
   setStatus({ state: 'syncing', message: 'Checking GitHub…' })
   try {
     for (let attempt = 0; attempt < 4; attempt++) {
+      if (!studyLockCurrent(lock)) return
       const effective = await readRemote(slug)
+      if (!studyLockCurrent(lock)) return
       const applied = await applyRemote(effective, slug)
+      if (!studyLockCurrent(lock)) return
       const local = await readLocalState(slug)
+      if (!studyLockCurrent(lock)) return
       const desiredDeck = local.snapshot.deck
       const desiredUser = local.snapshot.user
 
@@ -142,8 +148,10 @@ async function syncPass(): Promise<void> {
         const revision = applied?.revision ?? local.settings.localRevision
         if (revision > local.settings.acknowledgedRevision) {
           // Nothing to write, but a local edit is still unaccounted for.
+          if (!studyLockCurrent(lock)) return
           await acknowledgeRevision(revision, slug)
         }
+        if (!studyLockCurrent(lock)) return
         setStatus({ state: 'ok', message: 'Backed up on GitHub', at: Date.now() })
         return
       }
@@ -152,6 +160,7 @@ async function syncPass(): Promise<void> {
       let deckSha = effective.deckSha
       let userSha = effective.userSha
       try {
+        if (!studyLockCurrent(lock)) return
         if (pushDeck) {
           deckSha = await putDeck(cfg, desiredDeck, deckSha)
           saveKnownSha(cfg.path, deckSha)
@@ -164,6 +173,7 @@ async function syncPass(): Promise<void> {
         if (error instanceof GithubError && error.message === 'conflict' && attempt < 3) continue
         throw error
       }
+      if (!studyLockCurrent(lock)) return
       if (await acknowledgeRevision(local.settings.localRevision, slug)) {
         syncAgain = true
         setStatus({ state: 'waiting', message: 'Saved on this device · waiting to back up newer changes', at: null })
@@ -222,6 +232,7 @@ export function pauseSync(): void {
 
 /** Pull the list of profiles that have a progress file so switching works on a new device. */
 export async function discoverRemoteUsers(): Promise<number> {
+  if (hasStudyBinding()) return 0
   const cfg = loadGithubConfig()
   if (!isGithubConfigured(cfg)) return 0
   try {

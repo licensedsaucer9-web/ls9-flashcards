@@ -1,9 +1,22 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+
+function accountBackend(): Plugin {
+  return {
+    name: 'account-backend',
+    enforce: 'pre',
+    load(id) {
+      if (process.env.VITE_SYNC_BACKEND !== 'firebase') return null
+      if (!id.endsWith('/src/account.ts')) return null
+      return `export * from './cloud-on.ts'\n`
+    },
+  }
+}
 
 export default defineConfig({
   base: process.env.BASE || '/',
   plugins: [
+    accountBackend(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
