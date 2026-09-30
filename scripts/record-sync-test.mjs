@@ -1,4 +1,4 @@
-import { cardToDoc } from '../src/firestore-docs.ts'
+import { cardToDoc, docsToFiles } from '../src/firestore-docs.ts'
 import {
   WRITE_CHUNK,
   ackAllowed,
@@ -61,6 +61,35 @@ assert(revived === null, 'a stale seed does not overwrite a remote tombstone')
 const localTomb = planCardWrite('seed-02', null, 80, cardToDoc(content({ id: 'seed-02' }), 10))
 assert(localTomb && localTomb.deletedAt === 80, 'a newer local seed tombstone is uploaded')
 assert(localTomb.de === 'Hund', 'a tombstone keeps the server vocabulary when only the time changes')
+
+const remoteTombstone = cardToDoc(content({ id: 'custom-1', de: 'alt', updated_at: 40 }), 100)
+remoteTombstone.deletedAt = 100
+const editedCustom = content({ id: 'custom-1', de: 'neu', en: 'new', updated_at: 200 })
+const restored = planCardWrite('custom-1', editedCustom, 0, remoteTombstone)
+assert(restored && restored.de === 'neu' && restored.updated_at === 200 && restored.deletedAt === 0, 'a newer custom edit clears a remote tombstone')
+const pulled = docsToFiles(
+  {
+    cards: [{ id: 'custom-1', data: restored }],
+    progress: [],
+    settings: { direction: 'de-en', sessionSize: 20, tier: 1, settingsUpdatedAt: 0 },
+  },
+  'joakim',
+  0,
+)
+assert(pulled.deck.cards.some((card) => card.id === 'custom-1' && card.de === 'neu'), 'the next pull keeps the restored custom card')
+assert(pulled.deck.deleted_ids['custom-1'] === undefined, 'the restored custom card is not a tombstone')
+
+const withHistory = planCardWrite('custom-1', editedCustom, 100, remoteTombstone)
+assert(withHistory && withHistory.de === 'neu' && withHistory.deletedAt === 0, 'a historical local tombstone does not stay on a newer custom edit')
+
+const olderCustom = planCardWrite('custom-1', content({ id: 'custom-1', de: 'stale', updated_at: 50 }), 0, remoteTombstone)
+assert(olderCustom === null, 'an older custom edit does not clear a newer tombstone')
+
+const tiedCustom = planCardWrite('custom-1', content({ id: 'custom-1', de: 'gleich', updated_at: 100 }), 100, remoteTombstone)
+assert(tiedCustom === null, 'a custom edit at the tombstone time stays deleted')
+
+const customTomb = planCardWrite('custom-1', null, 300, cardToDoc(content({ id: 'custom-1', updated_at: 200 }), 0))
+assert(customTomb && customTomb.deletedAt === 300, 'a newer custom deletion is uploaded')
 
 const progressSame = planProgressWrite(srs(), {
   ease: 2.5, interval: 1, reps: 1, due: 50, updated_at: 50,

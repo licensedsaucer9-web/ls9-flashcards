@@ -234,6 +234,8 @@ function blankContent(id: string, deletedAt: number): CardContent {
  * Merge one card with the server document. Null means the server already
  * matches, so the transaction must not write. Tombstone text already stored
  * on the server is left in place when the deletion time does not change.
+ * A custom card that wins over an older tombstone is stored with deletedAt 0.
+ * A positive deletedAt would make the next pull treat that edit as deleted.
  */
 export function planCardWrite(
   id: string,
@@ -254,7 +256,7 @@ export function planCardWrite(
     return cardToDoc(blankContent(id, deletedAt), deletedAt)
   }
   if (!card) return null
-  const next = cardToDoc(card, deletedAt)
+  const next = cardToDoc(card, 0)
   if (remote && cardDocsEqual(next, remote)) return null
   return next
 }
