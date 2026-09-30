@@ -20,10 +20,12 @@ import {
 import type { AccountHooks } from './account-hooks.ts'
 import { copyAlreadyDecided, rememberCopyDecision, sessionCopyMode, type CopyDecision } from './copy-choice.ts'
 import { includeGuestVocabulary } from './guest-copy.ts'
+import { setCloudFirestore } from './cloud-handle.ts'
 import { copyGuestDatabase, getSettings, importLegacyData, localDatabaseHasWork } from './db.ts'
 import { esc } from './dom.ts'
 import { provisionAccount } from './provision.ts'
-import { bindStudyDatabase, captureStudyLock, studyLockCurrent } from './study-lock.ts'
+import { bindStudyDatabase, captureStudyLock } from './study-lock.ts'
+import { getSyncStatus, syncNow } from './sync.ts'
 import { accountDatabaseName, currentLocalDatabaseName } from './user.ts'
 
 const GUEST_KEY = 'german-flashcards.device-study'
@@ -39,18 +41,11 @@ let welcomeRelease: (() => void) | null = null
 let choiceRelease: ((id: string) => void) | null = null
 let label = 'Signed in'
 let pendingError = ''
-let syncText = 'Saved on this device'
 let popupBusy = false
 let popupStartedAt = 0
 let popupGeneration = 0
 let recoverPopup: (() => void) | null = null
 const prompted = new Set<string>()
-const syncListeners = new Set<() => void>()
-
-function setSync(text: string): void {
-  syncText = text
-  for (const fn of syncListeners) fn()
-}
 
 function authCode(error: unknown): string {
   if (error && typeof error === 'object' && 'code' in error) return String(error.code)
@@ -131,17 +126,9 @@ async function applyCopy(
   ticket: number,
 ): Promise<void> {
   if (!hooks) return
-  if (mode === 'vocabulary') {
-    await copyGuestDatabase(guestName, 'vocabulary')
-    if (ticket !== ticketId) return
-  }
-  if (mode === 'progress') {
-    await hooks.ensureSeed()
-    if (ticket !== ticketId) return
-    await copyGuestDatabase(guestName, 'progress')
-    return
-  }
-  await hooks.ensureSeed()
+  if (mode === 'skip') return
+  await copyGuestDatabase(guestName, mode)
+  if (ticket !== ticketId) return
 }
 
 async function adoptGuest(): Promise<void> {
@@ -197,10 +184,14 @@ async function adoptUser(user: User): Promise<void> {
   if (ticket !== ticketId) return
   if (chosen) rememberCopyDecision(localStorage, user.uid, guestName, chosen)
   pendingError = ''
-  setSync('Saved on this device')
   welcomeRelease?.()
   welcomeRelease = null
-  if (booted) hooks?.onIdentityChanged()
+  if (booted) {
+    hooks?.onIdentityChanged()
+    void syncNow().catch(() => {
+      /* Pending records stay on this account until the next try. */
+    })
+  }
 }
 
 function startGoogleSignIn(): void {
@@ -283,6 +274,7 @@ async function initAccount(config: { apiKey: string; authDomain: string; project
   const app = getApps()[0] ?? initializeApp(config)
   auth = getAuth(app)
   firestore = initializeFirestore(app, { localCache: memoryLocalCache() })
+  setCloudFirestore(firestore)
   const authEmulator = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR
   if (authEmulator) connectAuthEmulator(auth, emulatorHost(authEmulator), { disableWarnings: true })
   const storeEmulator = import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR
@@ -418,12 +410,12 @@ export function accountBadge(): string {
 
 export function accountSyncText(): string {
   if (!captureStudyLock().uid) return 'This device only'
-  return syncText
+  return getSyncStatus().message || 'Saved on this device'
 }
 
 export function onAccountSync(fn: () => void): () => void {
-  syncListeners.add(fn)
-  return () => syncListeners.delete(fn)
+  void fn
+  return () => {}
 }
 
 export function accountPanelHtml(): string {
@@ -469,15 +461,12 @@ export function bindAccountPanel(panelHooks: AccountHooks): void {
 }
 
 export async function syncAccountNow(): Promise<void> {
-  const lock = captureStudyLock()
-  if (!lock.uid) return
-  setSync('Syncing…')
-  await getSettings()
-  if (!studyLockCurrent(lock)) return
-  setSync('Saved on this device')
+  if (!captureStudyLock().uid) return
+  try {
+    await syncNow()
+  } catch {
+    /* Status stays on this device until the records are acknowledged. */
+  }
 }
 
-export function noteLocalChange(): void {
-  if (!captureStudyLock().uid) return
-  setSync('Saved on this device')
-}
+export function noteLocalChange(): void {}

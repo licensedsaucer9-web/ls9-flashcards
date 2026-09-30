@@ -7,8 +7,9 @@ function accountBackend(): Plugin {
     enforce: 'pre',
     load(id) {
       if (process.env.VITE_SYNC_BACKEND !== 'firebase') return null
-      if (!id.endsWith('/src/account.ts')) return null
-      return `export * from './cloud-on.ts'\n`
+      if (id.endsWith('/src/account.ts')) return `export * from './cloud-on.ts'\n`
+      if (id.endsWith('/src/sync-backend.ts')) return `export * from './cloud-sync.ts'\n`
+      return null
     },
   }
 }

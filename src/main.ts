@@ -100,7 +100,7 @@ function toast(msg: string) {
 }
 
 function pushSoon(): void {
-  if (accountSignIn) {
+  if (accountSignIn && !captureStudyLock().uid) {
     noteLocalChange()
     return
   }
@@ -1078,7 +1078,8 @@ async function boot() {
   let imported = 0
   let added = 0
   if (accountSignIn) {
-    added = await ensureSeed()
+    if (captureStudyLock().uid) await bootSync()
+    else added = await ensureSeed()
   } else if (isGithubConfigured()) {
     // The pre-multi-user database holds the only copy of this profile's schedule,
     // so it moves into the active user's own database before anything reads it.
@@ -1097,12 +1098,12 @@ async function boot() {
     scheduleRender()
   })
   document.addEventListener('visibilitychange', () => {
-    if (accountSignIn) {
-      if (document.visibilityState === 'visible') scheduleRender()
-      return
-    }
     if (document.visibilityState !== 'visible') {
       pauseSync()
+      return
+    }
+    if (accountSignIn && !captureStudyLock().uid) {
+      scheduleRender()
       return
     }
     void syncNow()
@@ -1114,8 +1115,14 @@ async function boot() {
         /* status already set */
       })
   })
+  window.addEventListener('online', () => {
+    if (!accountSignIn || !captureStudyLock().uid) return
+    void syncNow().catch(() => {
+      /* The pending records stay until the next foreground retry. */
+    })
+  })
   window.addEventListener('pagehide', () => {
-    if (!accountSignIn) pauseSync()
+    pauseSync()
   })
   const paintSyncLine = () => {
     const el = document.getElementById('sync-line')

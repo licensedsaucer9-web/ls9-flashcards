@@ -49,6 +49,29 @@ export interface Settings {
   localRevision: number
   acknowledgedRevision: number
   settingsUpdatedAt: number
+  /**
+   * Per-record upload markers. They live on this row so a sync client can ack
+   * one record without a schema bump. GitHub payloads omit them.
+   */
+  pending: PendingRecords
+  /**
+   * Schedules copied from a signed-out database before the account's cards
+   * existed. Applied after a pull, then removed. Omitted from GitHub payloads.
+   */
+  stagedProgress?: Record<string, Srs>
+}
+
+/** One local edit of a single record, and the revision the server has confirmed. */
+export interface RecordMark {
+  revision: number
+  acked: number
+}
+
+export interface PendingRecords {
+  cards: Record<string, RecordMark>
+  tombstones: Record<string, RecordMark>
+  progress: Record<string, RecordMark>
+  settings: RecordMark | null
 }
 
 /** The settings that travel between devices. */
