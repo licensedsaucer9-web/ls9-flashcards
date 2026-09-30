@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawn, execFile } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { createServer } from 'vite'
 import { chromium } from 'playwright-core'
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
 import { assertFails } from '@firebase/rules-unit-testing'
@@ -17,12 +18,21 @@ const env = await initializeTestEnvironment({ projectId: mapping.projectId,
   firestore: { rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') } })
 const store = await adminStore(mapping.projectId, { emulator: true })
 const base = 'http://127.0.0.1:4177/'
-const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '4177', '--strictPort'], {
-  stdio: 'ignore', env: { ...process.env, VITE_SYNC_BACKEND: 'firebase', VITE_FIREBASE_PROJECT_ID: mapping.projectId },
-})
+process.env.VITE_SYNC_BACKEND = 'firebase'
+process.env.VITE_FIREBASE_PROJECT_ID = mapping.projectId
+let server
 let browser
 const privateDirectory = mkdtempSync(join(tmpdir(), 'migration-emulator-'))
 try {
+  server = await createServer({
+    server: { host: '127.0.0.1', port: 4177, strictPort: true },
+    // Every run starts cold, as CI does. The browser imports its fixture via
+    // evaluate(), outside Vite's HTML scan; explicitly optimize its dependencies
+    // so discovering them cannot trigger a reload during the account restore.
+    cacheDir: join(privateDirectory, 'vite-cache'),
+    optimizeDeps: { include: ['firebase/app', 'firebase/firestore'], noDiscovery: true },
+  })
+  await server.listen()
   await env.clearFirestore()
   const plan = prepareMigration(snapshot(), mapping)
   const source = snapshot()
@@ -43,11 +53,6 @@ try {
   const before = await store.get(progressRef)
   await runMigration(plan, store, { dryRun: false })
   assert.deepEqual(await store.get(progressRef), before)
-  for (let attempt = 0; ; attempt++) {
-    try { if ((await fetch(base)).ok) break } catch { /* server is starting */ }
-    if (attempt === 100) throw new Error('Migration test Vite server did not start')
-    await new Promise((resolve) => setTimeout(resolve, 100))
-  }
   browser = await chromium.launch({ executablePath: process.env.CHROME || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()),
     headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] })
   async function cleanClient(uid) {
@@ -165,7 +170,7 @@ try {
   console.log('migration emulator/browser: import, clean-client #13 restore, private schedules, confirmed device copy, durable markers, repeat, source preservation, account guards: ok')
 } finally {
   if (browser) await browser.close()
-  server.kill('SIGTERM')
+  if (server) await server.close()
   await store.close()
   await env.cleanup()
   rmSync(privateDirectory, { recursive: true, force: true })
