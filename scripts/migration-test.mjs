@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { prepareMigration, runMigration, same } from './migration-core.mjs'
-import { exportRepository, privatePath, readExport, snapshotDigest } from './migration-files.mjs'
+import { exportFirestore, exportRepository, privatePath, readExport, snapshotDigest } from './migration-files.mjs'
 import { mapping, snapshot, card, srs, user } from './migration-fixtures.mjs'
 
 function memoryStore() {
@@ -111,9 +111,20 @@ try {
   assert.deepEqual(readExport(second).deck, source.deck, 'export ignores uncommitted local changes')
   assert.throws(() => privatePath(join(repo, 'private/export.json')), /outside Git/)
   assert.throws(() => exportRepository(repo, 'HEAD', output), /already exists/)
+  const firestoreOut = join(directory, 'private/firestore.json')
+  const dumped = await exportFirestore(store, firestoreOut)
+  assert.equal(statSync(firestoreOut).mode & 0o777, 0o600)
+  const dumpedBody = JSON.parse(readFileSync(firestoreOut, 'utf8'))
+  assert.equal(dumpedBody.kind, 'firestore')
+  assert.equal(dumpedBody.sha256, snapshotDigest(dumpedBody))
+  assert.equal(dumped.sha256, dumpedBody.sha256)
+  assert.equal(dumpedBody.users['uid-alice'].progress['custom-1'].reps, 50)
+  assert.equal(dumpedBody.decks['legacy-deck'].cards['custom-1'].de, 'Katze')
+  await assert.rejects(exportFirestore(store, join(repo, 'firestore.json')), /outside Git/)
+  await assert.rejects(exportFirestore(store, firestoreOut), /already exists/)
   const corrupted = JSON.parse(readFileSync(output))
   corrupted.deck.cards[0].de = 'changed'
   writeFileSync(output, JSON.stringify(corrupted))
   assert.throws(() => readExport(output), /checksum/)
 } finally { rmSync(directory, { recursive: true, force: true }) }
-console.log('migration: dry-run, exact readback, resume, v1/v2, two profiles, unmapped names, newer server values, private commit export: ok')
+console.log('migration: dry-run, exact readback, resume, v1/v2, two profiles, unmapped names, newer server values, private commit export, firestore backup: ok')

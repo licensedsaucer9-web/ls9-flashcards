@@ -10,6 +10,12 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg)
 }
 
+async function dismissWelcome(page) {
+  await page.waitForFunction(() => document.querySelector('#guest-study') || document.querySelector('[data-due-count]'))
+  if (await page.locator('#guest-study').count()) await page.click('#guest-study')
+  await page.waitForSelector('[data-due-count]')
+}
+
 const userDataDir = await mkdtemp(join(tmpdir(), 'de-cards-'))
 
 const context = await chromium.launchPersistentContext(userDataDir, {
@@ -23,7 +29,7 @@ page.setDefaultTimeout(8000)
 
 try {
   await page.goto(BASE, { waitUntil: 'networkidle' })
-  await page.waitForSelector('[data-due-count]')
+  await dismissWelcome(page)
   const due0 = Number(await page.locator('[data-due-count]').innerText())
   assert(due0 >= 400, `seed due should be >= 400, got ${due0}`)
   console.log(`slice1: seeded ${due0} due cards`)
@@ -150,9 +156,10 @@ try {
   console.log('session: 10-card cap works')
 
   await page.goto(BASE + '#/settings', { waitUntil: 'networkidle' })
-  await page.waitForSelector('#gh-form')
-  assert(await page.locator('#gh-form').count(), 'github form missing')
-  console.log('settings: GitHub sync form present')
+  await page.waitForSelector('#dir')
+  assert((await page.locator('#gh-form').count()) === 0, 'token form must be gone')
+  assert((await page.locator('input[type="password"]').count()) === 0, 'token field must be gone')
+  console.log('settings: no token form')
 
   console.log('verify.mjs: ok')
 } finally {

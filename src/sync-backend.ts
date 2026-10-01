@@ -1,4 +1,4 @@
-/** Flag-off builds keep the GitHub transport. The cloud module is swapped in at build time. */
+/** Flag-off builds stay on this device. A Firebase build swaps in Firestore. */
 export const cloudTransport = false
 
 export async function cloudSyncPass(control: { requestAgain: () => void }): Promise<'synced' | 'pending' | 'idle' | { state: 'rejected'; message: string }> {

@@ -10,6 +10,12 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg)
 }
 
+async function dismissWelcome(page) {
+  await page.waitForFunction(() => document.querySelector('#guest-study') || document.querySelector('[data-due-count]'))
+  if (await page.locator('#guest-study').count()) await page.click('#guest-study')
+  await page.waitForSelector('[data-due-count]')
+}
+
 const userDataDir = await mkdtemp(join(tmpdir(), 'de-pwa-'))
 const context = await chromium.launchPersistentContext(userDataDir, {
   executablePath: CHROME,
@@ -31,7 +37,7 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
   await page.goto(BASE, { waitUntil: 'load' })
-  await page.waitForSelector('[data-due-count]')
+  await dismissWelcome(page)
 
   const manifestLink = await page.locator('link[rel="manifest"]').getAttribute('href')
   assert(manifestLink, 'no manifest link')
@@ -83,11 +89,12 @@ try {
   assert(gbox && gbox.height >= 56, `grade hit target ${gbox?.height}`)
 
   await page.goto(BASE, { waitUntil: 'load' })
-  await page.waitForSelector('[data-due-count]')
+  await dismissWelcome(page)
   await page.reload({ waitUntil: 'load' }) // let the installed worker control this tab
+  await dismissWelcome(page)
   await context.setOffline(true)
   await page.reload({ waitUntil: 'load' })
-  await page.waitForSelector('[data-due-count]')
+  await dismissWelcome(page)
 
   console.log('installable: manifest + SW + offline reload + Chrome installability errors empty')
   console.log('mobile: grade bar in thumb zone, tabbar hidden in review')

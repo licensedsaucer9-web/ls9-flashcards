@@ -6,6 +6,8 @@ function accountBackend(): Plugin {
     name: 'account-backend',
     enforce: 'pre',
     load(id) {
+      // VITE_SYNC_BACKEND=firebase swaps in Firestore. Pages checks that client
+      // in dist-firebase and does not publish it until the #14 readback is recorded.
       if (process.env.VITE_SYNC_BACKEND !== 'firebase') return null
       if (id.endsWith('/src/account.ts')) return `export * from './cloud-on.ts'\n`
       if (id.endsWith('/src/sync-backend.ts')) return `export * from './cloud-sync.ts'\n`

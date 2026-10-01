@@ -53,10 +53,42 @@ The production preview only captures the authenticated UID needed for later
 migration mapping. Do not create a personal deck, `users/{uid}`, or
 `decks/{uid}`. The spike imports only `firebase/app` and `firebase/auth`.
 
-For issue #14's local Admin importer, private snapshot export, and confirmed
+For the local Admin importer, private snapshot export, and confirmed
 per-device copy, follow [the migration rehearsal guide](firebase-migration.md).
-The real rehearsal and second-device verification are required before #15's
-public cutover.
+The Pages workflow builds with `VITE_SYNC_BACKEND=firebase` into
+`dist-firebase` and checks that client. It does not publish it. The live site
+stays on the previous build until issue #15 records the #14 second-device
+readback, including Joakim’s imported SRS on a second device and a new Google
+account that studies the public URL without seeing that schedule. The staged
+client’s web config is the tracked file `src/firebase-web.ts` (public web
+config; rules protect the data). A partial `VITE_FIREBASE_*` env, including
+the emulator’s project id alone, does not fall through to that file.
+
+Do not revoke the data-repo write token until the devices you still use are
+on a published Firebase build.
+
+## Backup Firestore
+
+One Admin SDK export writes a private JSON file on this machine. Spark can do
+this. Nothing schedules it, and CI never runs it. Put the service account JSON
+in `~/.config/german-flashcards/` (mode 600). The filename below is
+`service-account-prod.json`. The tool refuses a path inside a Git repository
+and writes the output with mode 600.
+
+```bash
+mkdir -p "$HOME/.config/german-flashcards/exports"
+npm run migrate -- backup \
+  --project flashcards-ls9-prod \
+  --credential service-account-prod.json \
+  --out "$HOME/.config/german-flashcards/exports/firestore-$(date -u +%Y%m%dT%H%M%SZ).json"
+```
+
+The file lists each user, that user’s settings and progress, and each deck’s
+cards, plus a SHA-256 of that body. It is a Firestore dump, separate from the
+GitHub snapshot produced by `npm run migrate -- export`. The emulator rehearsal
+in `npm run test:rules` runs the same writer against `demo-german-flashcards`.
+Generating a production service account was not part of the cutover; create one
+only when you want this file from the live project.
 
 ## One-time console setup
 
@@ -119,12 +151,12 @@ BASE=/german-flashcards-site/auth-spike/ npm run auth-spike:build
 The output is `dist-auth-spike/`. Publish that output only as an unlinked
 `auth-spike/` directory in the public site's `gh-pages` branch, without
 replacing the existing site's root files. The normal `npm run build` uses the
-root app entry, and `.github/workflows/pages.yml` publishes only `dist/` from
-`master`; this spike is never included in that build. Before sharing the
-preview, check that its manifest `start_url` and scope resolve to
-`/german-flashcards-site/auth-spike/`. Once testing is finished, remove the
-temporary directory from the public site. The normal publish job uses
-`rsync --delete`, so a later `master` publish will also remove the preview
+root app entry. The held Pages publish copies only `dist-firebase` and does
+not run until the #14 readback is recorded, so this spike is never part of
+that client. Before sharing the preview, check that its manifest `start_url`
+and scope resolve to `/german-flashcards-site/auth-spike/`. Once testing is
+finished, remove the temporary directory from the public site. When the held
+publish runs it uses `rsync --delete`, which will also remove the preview
 directory; republish it if the phone test is still pending.
 
 The main app's navigation service worker originally captured the preview

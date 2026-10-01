@@ -1,6 +1,6 @@
 import './style.css'
 import { registerSW } from 'virtual:pwa-register'
-import type { Article, Card, Direction, GithubConfig, Grade, PublicSettings, Tier } from './types.ts'
+import type { Article, Card, Direction, Grade, PublicSettings, Tier } from './types.ts'
 import { ARTICLES } from './types.ts'
 import {
   accountBadge,
@@ -37,23 +37,13 @@ import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
 import { sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
 import { tierCounts, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
-import { activeUser, createUser, listUsers, setActiveUser } from './user.ts'
 import {
   bootSync,
-  discoverRemoteUsers,
-  getSyncStatus,
   onSyncStatus,
   pauseSync,
   schedulePush,
   syncNow,
 } from './sync.ts'
-import {
-  defaultGithubConfig,
-  isGithubConfigured,
-  loadGithubConfig,
-  sanitizeToken,
-  saveGithubConfig,
-} from './github.ts'
 
 registerSW({ immediate: true })
 
@@ -170,18 +160,7 @@ function touch(card: Card): Card {
 
 function syncLineText(): string {
   if (accountSignIn) return accountSyncText()
-  const st = getSyncStatus()
-  if (st.state === 'off') return 'This device only · connect GitHub in Settings'
-  if (st.state === 'syncing') return st.message || 'Syncing…'
-  if (st.state === 'waiting' || st.state === 'error') return st.message
-  if (st.state === 'ok' && st.at) {
-    const sec = Math.max(0, Math.round((Date.now() - st.at) / 1000))
-    if (sec < 10) return 'Backed up just now'
-    if (sec < 60) return `Backed up ${sec}s ago`
-    const min = Math.round(sec / 60)
-    return `Backed up ${min}m ago`
-  }
-  return st.message || 'GitHub connected'
+  return 'On this device'
 }
 
 function setTabbar(active: 'home' | 'deck' | 'settings' | 'none') {
@@ -272,9 +251,7 @@ async function renderHome() {
           </label>
         </div>
         <button class="primary" id="start" data-session-count="${n}" ${ready ? '' : 'disabled'}>${esc(startLabel)}</button>
-        <p class="note" id="who">${
-          accountSignIn ? accountHomeNote() : `${esc(activeUser().name)} · <a href="#/settings">switch profile</a>`
-        }</p>
+        <p class="note" id="who">${accountSignIn ? accountHomeNote() : 'On this device'}</p>
       </div>
     </section>
   `
@@ -822,229 +799,7 @@ async function renderCloudSettings() {
 }
 
 async function renderSettings() {
-  if (accountSignIn) return renderCloudSettings()
-  return renderGithubSettings()
-}
-
-async function renderGithubSettings() {
-  setTabbar('settings')
-  const settings = await getSettings()
-  const gh = loadGithubConfig()
-  const connected = isGithubConfigured(gh)
-  const dueByTier = await getDueByTier()
-  const cards = await getAllCards()
-  const counts = tierCounts(cards)
-  const suggested = suggestSessionSize((await getDueCards(settings.tier)).length)
-  const user = activeUser()
-  const users = listUsers()
-  main.innerHTML = `
-    <section class="screen scroll">
-      <header class="topbar"><h1>Settings</h1><span class="badge">${esc(user.name)}</span></header>
-      <div class="setting">
-        <p class="kicker" style="margin:0">Profile</p>
-        <p class="note">Each profile keeps its own review schedule, session settings and tier on this device, in <code>users/${esc(user.slug)}.json</code> in the repo. The word list is shared by everyone.</p>
-        <div class="user-list" id="user-list">
-          ${users
-            .map(
-              (u) => `<button type="button" class="user-row${u.slug === user.slug ? ' is-on' : ''}" data-user="${esc(u.slug)}">
-                <span class="name">${esc(u.name)}</span>
-                <span class="badge">${u.slug === user.slug ? 'current' : 'switch'}</span>
-              </button>`,
-            )
-            .join('')}
-        </div>
-        <form class="form" id="user-form" style="padding:0" autocomplete="off">
-          <label>Add a profile
-            <input name="name" type="text" placeholder="Name" autocomplete="off" enterkeyhint="done" />
-          </label>
-          <button class="secondary" type="submit">Add and switch</button>
-        </form>
-      </div>
-      <div class="setting">
-        <p class="kicker" style="margin:0">Deck tier</p>
-        <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
-        <p class="note">${esc(TIER_NOTES[settings.tier])} Higher tiers include the lower ones, so tier 2 reviews everything in tier 1 too. ${counts[1]} / ${counts[1] + counts[2]} / ${cards.length} words.</p>
-      </div>
-      <div class="setting">
-        <p class="kicker" style="margin:0">Review direction</p>
-        <div class="seg" id="dir">
-          <button type="button" data-dir="de-en" class="${settings.direction === 'de-en' ? 'is-on' : ''}">DE → EN</button>
-          <button type="button" data-dir="en-de" class="${settings.direction === 'en-de' ? 'is-on' : ''}">EN → DE</button>
-        </div>
-        <p class="note">DE → EN shows the German word first. EN → DE shows English first.</p>
-      </div>
-      <div class="setting">
-        <p class="kicker" style="margin:0">Session size</p>
-        <p class="note">Cap how many due cards a review starts with. Suggested now: ${suggested}. 0 / All means the whole due queue.</p>
-        <label>Cards per session
-          <input id="session-size" type="number" min="0" step="1" inputmode="numeric" value="${settings.sessionSize}" />
-        </label>
-      </div>
-      <div class="setting">
-        <p class="kicker" style="margin:0">GitHub sync</p>
-        <p class="note">Backup: the repo holds the shared word list in <code>${esc(gh.path)}</code> and one file per profile in <code>users/</code>, so every browser (including iPhone Safari) shares progress without two profiles overwriting each other. Paste a <strong>personal access token</strong> (<code>github_pat_</code> or <code>ghp_</code>), not your GitHub password. Fine-grained PAT: Contents read/write on <code>german-flashcards-data</code> only. Token stays in this browser.</p>
-        <form class="form" id="gh-form" style="padding:0" autocomplete="off">
-          <label>Owner
-            <input name="owner" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(gh.owner)}" />
-          </label>
-          <label>Repo
-            <input name="repo" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(gh.repo)}" />
-          </label>
-          <label>Path
-            <input name="path" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(gh.path)}" />
-          </label>
-          <label>Branch
-            <input name="branch" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(gh.branch)}" />
-          </label>
-          <label>Token
-            <input name="github_pat" id="github_pat" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="done" placeholder="${
-              gh.token ? 'saved — paste a new token to replace' : 'github_pat_… or ghp_…'
-            }" />
-          </label>
-          <button class="primary" type="submit" id="gh-connect">${connected ? 'Save and sync' : 'Connect and sync'}</button>
-          ${connected ? `<button class="secondary" type="button" id="sync-now">Sync now</button>
-          <button class="danger" type="button" id="gh-disconnect">Disconnect this browser</button>` : ''}
-        </form>
-        <p class="note" id="sync-line">${esc(syncLineText())}</p>
-      </div>
-      <div class="setting">
-        <p class="kicker" style="margin:0">Install</p>
-        <p class="note">PWA: Chrome/Edge install, iPhone Safari share → Add to Home Screen. The app itself must be served over HTTPS for iPhone. Progress follows GitHub once connected, with IndexedDB as the offline cache.</p>
-        <p class="note" id="sw-status"></p>
-      </div>
-      <div class="setting">
-        <p class="kicker" style="margin:0">SRS</p>
-        <p class="note">SM-2 with Again / Gender / Hard / Good / Easy. Gender is for nouns: you knew the word but missed der, die, or das. It requeues the card now with a smaller ease penalty than Again. Verbs and adjectives hide that button.</p>
-      </div>
-    </section>
-  `
-  bindTierChips(async (tier) => {
-    await patchSettings({ tier })
-    await renderSettings()
-  })
-  $('#user-list').querySelectorAll<HTMLButtonElement>('[data-user]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const slug = btn.dataset.user
-      if (!slug || slug === user.slug) return
-      setActiveUser(slug)
-      toast(`Switched to ${slug}`)
-      // Pull this profile's schedule, then populate any built-in cards that are
-      // missing locally. The latter also gives a new profile a deck while offline.
-      try {
-        await syncNow()
-      } catch {
-        /* status already set */
-      }
-      await ensureSeed()
-      await renderSettings()
-    })
-  })
-  const userForm = $('#user-form') as HTMLFormElement
-  userForm.addEventListener('submit', (e) => {
-    e.preventDefault()
-    const name = String(new FormData(userForm).get('name') ?? '').trim()
-    if (!name) {
-      toast('Type a name first')
-      return
-    }
-    try {
-      const created = createUser(name)
-      toast(created.slug === user.slug ? `Already on ${created.name}` : `Now on ${created.name}`)
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Could not add that profile')
-      return
-    }
-    void (async () => {
-      try {
-        await syncNow()
-      } catch {
-        /* status already set */
-      }
-      await ensureSeed()
-      await renderSettings()
-    })()
-  })
-  $('#dir').querySelectorAll<HTMLButtonElement>('button').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const direction = btn.dataset.dir as Direction
-      await patchSettings({ direction })
-      await renderSettings()
-      toast(direction === 'de-en' ? 'DE → EN' : 'EN → DE')
-    })
-  })
-  $('#session-size').addEventListener('change', async () => {
-    const v = Math.floor(Number(($('#session-size') as HTMLInputElement).value))
-    if (!Number.isFinite(v) || v < 0) return
-    await patchSettings({ sessionSize: v })
-    toast(v === 0 ? 'Session: all due' : `Session: ${v}`)
-  })
-  const ghForm = $('#gh-form') as HTMLFormElement
-  const inputVal = (name: string) => {
-    const el = ghForm.elements.namedItem(name)
-    return el instanceof HTMLInputElement ? el.value : ''
-  }
-  const connectGithub = async () => {
-    ;(document.activeElement instanceof HTMLElement ? document.activeElement : null)?.blur()
-    await new Promise((r) => window.setTimeout(r, 50))
-    const typed = sanitizeToken(inputVal('github_pat'))
-    const cfg: GithubConfig = {
-      token: typed || loadGithubConfig().token,
-      owner: inputVal('owner').trim(),
-      repo: inputVal('repo').trim(),
-      path: inputVal('path').trim() || 'data.json',
-      branch: inputVal('branch').trim() || 'main',
-    }
-    saveGithubConfig(cfg)
-    const missing: string[] = []
-    if (!cfg.owner) missing.push('owner')
-    if (!cfg.repo) missing.push('repo')
-    if (!cfg.token) missing.push('token')
-    if (missing.length) {
-      toast(`Missing: ${missing.join(', ')}. Paste the token, then tap Connect.`)
-      return
-    }
-    if (!/^(ghp_|github_pat_)/.test(cfg.token)) {
-      toast('Token should start with github_pat_ or ghp_ — not your GitHub password')
-      return
-    }
-    try {
-      await syncNow()
-      toast('GitHub synced')
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Sync failed')
-    }
-    await renderSettings()
-  }
-  ghForm.addEventListener('submit', (e) => {
-    e.preventDefault()
-    void connectGithub()
-  })
-  $('#github_pat').addEventListener('paste', (e) => {
-    const pasted = e.clipboardData?.getData('text') ?? ''
-    if (pasted) {
-      e.preventDefault()
-      ;($('#github_pat') as HTMLInputElement).value = sanitizeToken(pasted)
-    }
-  })
-  document.getElementById('sync-now')?.addEventListener('click', async () => {
-    try {
-      await discoverRemoteUsers()
-      await syncNow()
-      toast('GitHub synced')
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Sync failed')
-    }
-    await renderSettings()
-  })
-  document.getElementById('gh-disconnect')?.addEventListener('click', () => {
-    saveGithubConfig(defaultGithubConfig())
-    toast('Disconnected')
-    void renderSettings()
-  })
-  const sw = 'serviceWorker' in navigator
-  $('#sw-status').textContent = sw
-    ? 'Service worker APIs are available in this browser.'
-    : 'Service worker is not available in this browser.'
+  return renderCloudSettings()
 }
 
 let renderChain: Promise<void> = Promise.resolve()
@@ -1071,29 +826,31 @@ async function render() {
   document.getElementById('db-block')?.remove()
 }
 
+function clearLegacyGithubToken(): void {
+  try {
+    localStorage.removeItem('german-flashcards.github')
+    localStorage.removeItem('german-flashcards.github.shas')
+  } catch {
+    /* Storage can be blocked; the token is unused either way. */
+  }
+}
+
 async function boot() {
+  clearLegacyGithubToken()
   onDatabaseEvent(showDatabaseNotice)
   await prepareAccount(accountHooks)
   markAccountBooted()
-  let imported = 0
   let added = 0
   if (accountSignIn) {
     if (captureStudyLock().uid) await bootSync()
     else added = await ensureSeed()
-  } else if (isGithubConfigured()) {
-    // The pre-multi-user database holds the only copy of this profile's schedule,
-    // so it moves into the active user's own database before anything reads it.
-    imported = await importLegacyData()
-    await bootSync()
-    added = await ensureSeed()
   } else {
-    imported = await importLegacyData()
+    await importLegacyData()
     added = await ensureSeed()
   }
   scheduleRender()
   await renderChain
-  if (!accountSignIn && imported > 0) toast(`Moved ${imported} cards into ${activeUser().name}'s profile`)
-  else if (added > 0) toast(`Added ${added} new cards`)
+  if (added > 0) toast(`Added ${added} new cards`)
   window.addEventListener('hashchange', () => {
     scheduleRender()
   })
