@@ -3,7 +3,11 @@ import { readFile, readdir } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const root = fileURLToPath(new URL('../dist/', import.meta.url))
+const artifactDir = process.env.ARTIFACT_DIR || 'dist'
+if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(artifactDir)) {
+  throw new Error(`unsupported ARTIFACT_DIR: ${artifactDir}`)
+}
+const root = fileURLToPath(new URL(`../${artifactDir}/`, import.meta.url))
 const base = process.env.BASE || '/'
 assert(base.startsWith('/') && base.endsWith('/'), `invalid BASE: ${base}`)
 
@@ -41,4 +45,4 @@ async function checkFiles(directory) {
 
 await checkFiles(root)
 assert(scripts.some((source) => source.includes('flashcards-ls9-prod')), 'public bundle must name the production Firebase project')
-console.log(`Public artifact uses ${base}, names flashcards-ls9-prod, and contains no token, private key, or source map`)
+console.log(`Checked ${artifactDir} uses ${base}, names flashcards-ls9-prod, and contains no token, private key, or source map`)

@@ -1,11 +1,10 @@
 # German Flashcards — click path
 
-The public site signs in with Google and does not ask for a token. Device-copy of an older local profile is in
-[the migration rehearsal](docs/firebase-migration.md).
+A Firebase build signs in with Google and does not ask for a token. Pages checks that build in `dist-firebase` and does not publish it until the rehearsal in [the migration guide](docs/firebase-migration.md) is recorded. Device-copy of an older local profile is in that guide.
 
 App lives in this folder. IndexedDB is the offline cache. A fresh **Study on this device** visit seeds 514 A1/A2 cards, split into three tiers. Existing decks gain missing seed cards on launch without resetting SRS on cards you already have. Use a disposable browser profile for this click path so the tests do not change your personal deck.
 
-`npm run dev` stays on this device. To click through the public build locally:
+`npm run dev` stays on this device. To click through the staged Firebase client locally:
 
 ```bash
 BASE=/german-flashcards-site/ VITE_SYNC_BACKEND=firebase npm run build
@@ -66,7 +65,7 @@ open `http://localhost:4173/german-flashcards-site/`.
 
 ## 4. Account
 
-1. On a public build, a fresh profile shows **Continue with Google** and **Study on this device**. There is no owner, repository, or token field.
+1. On a Firebase build, a fresh profile shows **Continue with Google** and **Study on this device**. There is no owner, repository, or token field. The published site does not serve this build yet.
 2. **Study on this device** seeds the local deck. Home says **On this device**. Those cards stay local until you later sign in and confirm a copy.
 3. **Settings** for a signed-out visit shows **Continue with Google**. A signed-in visit shows the account label, **Sync now**, and **Sign out**.
 4. A second Google account gets its own seeded deck. It cannot open the first account’s schedule. The emulator rules test covers that isolation; a real second account is a manual check on the public URL.
@@ -102,14 +101,14 @@ open `http://localhost:4173/german-flashcards-site/`.
 
 ## 7. Cloud sync (cross-device)
 
-The public URL is <https://licensedsaucer9-web.github.io/german-flashcards-site/>. Sign in with Google. The app does not ask for a token.
+These steps apply after the Firebase client is published. Until issue #15 records the #14 readback, <https://licensedsaucer9-web.github.io/german-flashcards-site/> still serves the previous build. On the Firebase client, sign in with Google. The app does not ask for a token.
 
 1. Sign in on device A and wait until Settings says **Synced**.
 2. Grade one card and keep the app open. The line may say **Saved on this device** while the write is still pending, then **Synced** after Firestore acknowledges it.
 3. Open device B in a fresh profile, sign in with the same Google account, and wait for sync or tap **Sync now**. The grade matches. Switching apps does not perform a background upload.
 4. Turn Airplane Mode on, grade another card, kill the PWA, and reopen it offline. The grade is still there and the line does not say **Synced**. Go online and confirm the grade arrives.
 5. Sign in as a different Google account. Its deck is the bundled seed, and Joakim’s schedule is not visible.
-6. `german-flashcards-data` stays a frozen snapshot. Do not paste its token into the app. Revoke that token only after the devices you still use are on this build.
+6. `german-flashcards-data` stays a frozen snapshot. Do not paste its token into the app. Revoke that token only after the devices you still use are on a published Firebase build.
 
 The [README](README.md#move-an-older-iphone-home-screen-installation) explains moving an older Home Screen icon. A private Firestore export is in [docs/firebase-setup.md](docs/firebase-setup.md).
 

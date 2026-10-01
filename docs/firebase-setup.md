@@ -55,16 +55,17 @@ migration mapping. Do not create a personal deck, `users/{uid}`, or
 
 For the local Admin importer, private snapshot export, and confirmed
 per-device copy, follow [the migration rehearsal guide](firebase-migration.md).
-The public Pages build now sets `VITE_SYNC_BACKEND=firebase` and signs in
-against production. Its web config is the tracked file `src/firebase-web.ts`
-(public web config; rules protect the data). A partial `VITE_FIREBASE_*` env,
-including the emulator’s project id alone, does not fall through to that file.
+The Pages workflow builds with `VITE_SYNC_BACKEND=firebase` into
+`dist-firebase` and checks that client. It does not publish it. The live site
+stays on the previous build until issue #15 records the #14 second-device
+readback, including Joakim’s imported SRS on a second device and a new Google
+account that studies the public URL without seeing that schedule. The staged
+client’s web config is the tracked file `src/firebase-web.ts` (public web
+config; rules protect the data). A partial `VITE_FIREBASE_*` env, including
+the emulator’s project id alone, does not fall through to that file.
 
-The #14 second-device readback was not recorded on the issue when this cutover
-landed. Confirm Joakim’s imported SRS on a second device, and confirm a new
-Google account studies the public URL without seeing that schedule, before
-treating the live site as verified. Do not revoke the data-repo write token
-until the devices you still use are on this build.
+Do not revoke the data-repo write token until the devices you still use are
+on a published Firebase build.
 
 ## Backup Firestore
 
@@ -150,12 +151,12 @@ BASE=/german-flashcards-site/auth-spike/ npm run auth-spike:build
 The output is `dist-auth-spike/`. Publish that output only as an unlinked
 `auth-spike/` directory in the public site's `gh-pages` branch, without
 replacing the existing site's root files. The normal `npm run build` uses the
-root app entry, and `.github/workflows/pages.yml` publishes only `dist/` from
-`master`; this spike is never included in that build. Before sharing the
-preview, check that its manifest `start_url` and scope resolve to
-`/german-flashcards-site/auth-spike/`. Once testing is finished, remove the
-temporary directory from the public site. The normal publish job uses
-`rsync --delete`, so a later `master` publish will also remove the preview
+root app entry. The held Pages publish copies only `dist-firebase` and does
+not run until the #14 readback is recorded, so this spike is never part of
+that client. Before sharing the preview, check that its manifest `start_url`
+and scope resolve to `/german-flashcards-site/auth-spike/`. Once testing is
+finished, remove the temporary directory from the public site. When the held
+publish runs it uses `rsync --delete`, which will also remove the preview
 directory; republish it if the phone test is still pending.
 
 The main app's navigation service worker originally captured the preview

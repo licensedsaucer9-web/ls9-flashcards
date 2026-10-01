@@ -34,26 +34,31 @@ jobs:
           java-version: 21
       - name: Test Firestore rules
         run: npm run test:rules
-      - name: Build public site
-        run: npm run build
+      - name: Build staged Firebase client
+        run: npm run build -- --outDir dist-firebase --emptyOutDir
         env:
           BASE: /german-flashcards-site/
           VITE_SYNC_BACKEND: firebase
-      - name: Check public files
+      - name: Check staged Firebase files
         run: node scripts/check-deploy-artifact.mjs
         env:
           BASE: /german-flashcards-site/
+          ARTIFACT_DIR: dist-firebase
       - name: Check installability and offline reload
         env:
           BASE: /german-flashcards-site/
           APP_URL: http://127.0.0.1:4173/german-flashcards-site/
         run: |
-          npm run preview -- --strictPort &
+          npm run preview -- --outDir dist-firebase --strictPort &
           preview_pid=$!
           trap 'kill "$preview_pid"' EXIT
           node scripts/installable.mjs
+      # Held until issue #15 records the #14 second-device readback.
+      # Restore this condition together with the publish step below:
+      # github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+      # Publish dist-firebase only. Do not publish a flag-off dist/ in its place.
       - name: Check out public site
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        if: ${{ false }}
         uses: actions/checkout@v4
         with:
           repository: licensedsaucer9-web/german-flashcards-site
@@ -61,9 +66,9 @@ jobs:
           path: public-site
           ssh-key: ${{ secrets.PUBLIC_SITE_DEPLOY_KEY }}
       - name: Publish tested files
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        if: ${{ false }}
         run: |
-          rsync -a --delete --exclude='.git/' dist/ public-site/
+          rsync -a --delete --exclude='.git/' dist-firebase/ public-site/
           git -C public-site add -A
           if git -C public-site diff --cached --quiet; then
             echo 'Public site is already current.'

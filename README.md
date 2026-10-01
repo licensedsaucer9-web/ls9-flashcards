@@ -2,9 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-German flashcards as a local-first PWA (Vite + TypeScript). The public site signs in with Google. Each account’s schedule and deck live in Firestore project `flashcards-ls9-prod`. A visit can also study on this device without an account. The app does not store a review event history.
+German flashcards as a local-first PWA (Vite + TypeScript). A Firebase build signs in with Google. Each account’s schedule and deck live in Firestore project `flashcards-ls9-prod`. That client is checked in Pages and is not published until issue #15 records the #14 second-device readback. A visit can also study on this device without an account. The app does not store a review event history.
 
-The private repo [german-flashcards-data](https://github.com/licensedsaucer9-web/german-flashcards-data) stays in place as a frozen recovery snapshot. The app no longer asks for a token or writes that repo. Revoke its write token only after the devices you still use are on this build. Keep `PUBLIC_SITE_DEPLOY_KEY` for the Pages deploy.
+The private repo [german-flashcards-data](https://github.com/licensedsaucer9-web/german-flashcards-data) stays in place as a frozen recovery snapshot. The app no longer asks for a token or writes that repo. Revoke its write token only after the devices you still use are on a published Firebase build. Keep `PUBLIC_SITE_DEPLOY_KEY` for the Pages deploy.
 
 ## Deck tiers
 
@@ -42,7 +42,7 @@ Cards you add yourself have no rank and start in tier 3; the card editor has a t
 
 ## Account
 
-The public build offers **Continue with Google** and **Study on this device**. A Google account gets its own deck, seeded from the bundled word list, and its own schedule. Signing in does not upload cards already on the device unless you confirm that copy in Settings. Two accounts cannot read each other’s progress.
+A Firebase build offers **Continue with Google** and **Study on this device**. A Google account gets its own deck, seeded from the bundled word list, and its own schedule. Signing in does not upload cards already on the device unless you confirm that copy in Settings. Two accounts cannot read each other’s progress. The published site does not serve this build yet.
 
 A profile name on an older install is local data only. It does not select a cloud account. The first launch of this build removes the saved GitHub token (`german-flashcards.github` and `german-flashcards.github.shas`) from this browser.
 
@@ -61,7 +61,7 @@ npm run test:rules  # Firestore rules, cloud sync, and migration on the emulator
 
 `npm test` covers SRS, CSV, tiers, Firestore document shapes, account helpers, record sync, and the migration files. It does not call Firebase or GitHub. `npm run test:rules` needs Java 21 and Chromium (`node node_modules/playwright-core/cli.js install chromium`, or `CHROME=/path/to/chromium`).
 
-`npm run dev` and `npm run build` without `VITE_SYNC_BACKEND=firebase` stay on this device: no Google sign-in and no cloud sync. For a local preview of the **public deployment path**:
+`npm run dev` and `npm run build` without `VITE_SYNC_BACKEND=firebase` stay on this device: no Google sign-in and no cloud sync. For a local preview of the staged Firebase client:
 
 ```bash
 BASE=/german-flashcards-site/ VITE_SYNC_BACKEND=firebase npm run build
@@ -79,25 +79,27 @@ This source repository and the [review-data repository](https://github.com/licen
 stay private. The public `german-flashcards-site` repository contains only the
 built site. Its `gh-pages` branch is the Pages source.
 
-On a pull request, the private repository tests the app, builds it with
-`BASE=/german-flashcards-site/` and `VITE_SYNC_BACKEND=firebase`, and checks
-that the bundle names `flashcards-ls9-prod`, contains no GitHub token or
-private key, and still installs offline. A push to `master` copies that tested
-build to the public repository with `rsync --delete`. The private repository
-secret `PUBLIC_SITE_DEPLOY_KEY` is a write-enabled SSH deploy key for that
-public repository only. The workflow does not publish from pull requests and
-does not deploy Firestore rules.
+On a pull request and on a push to `master`, the private repository tests the
+app, builds a Firebase client with `BASE=/german-flashcards-site/` and
+`VITE_SYNC_BACKEND=firebase` into `dist-firebase`, and checks that the bundle
+names `flashcards-ls9-prod`, contains no GitHub token or private key, and
+still installs offline. The publish steps do not run, so that client does not
+replace the public site, until issue #15 records the #14 second-device
+readback. Restoring publish copies `dist-firebase` with `rsync --delete`. The
+private repository secret `PUBLIC_SITE_DEPLOY_KEY` is a write-enabled SSH
+deploy key for that public repository only. The workflow does not publish
+from pull requests and does not deploy Firestore rules.
 
 ## Move an older iPhone Home Screen installation
 
-The new site has a different URL. Treat it as a new installation. An older Home Screen icon can still hold local reviews and a saved token; this build clears that token and does not upload those reviews until you sign in and confirm the copy.
+Do this only after the Firebase client is published. Until then the public URL still serves the previous build. The new site has a different URL. Treat it as a new installation. An older Home Screen icon can still hold local reviews and a saved token; this build clears that token and does not upload those reviews until you sign in and confirm the copy.
 
 1. Open the new public URL in Safari, choose **Continue with Google**, and compare the imported schedule with the device you already trust.
 2. Add the site to the Home Screen as its own icon. Keep the old icon until that comparison matches.
 3. On each older device that still has reviews, sign in with the same Google account and use **Recover a legacy profile on this device** if those reviews are not already in the account.
 4. Turn on Airplane Mode, review one card, and leave the app. Reopen it. The grade is still there and the status stays **Saved on this device** until you are online again. Then wait for **Synced**, and open a second device signed into the same account.
 
-Remove the old icon after those checks. Revoke the data-repo write token only after every device you still use is on this build.
+Remove the old icon after those checks. Revoke the data-repo write token only after every device you still use is on a published Firebase build.
 
 If the public cutover is wrong before anyone has studied on Firebase, republish the previous `master` build. After Firebase progress exists, publish a Firebase build only. This source no longer contains a GitHub writer, so a new build cannot push `german-flashcards-data`.
 
