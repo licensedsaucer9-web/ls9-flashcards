@@ -1,6 +1,6 @@
 import type { AccountHooks } from './account-hooks.ts'
 
-/** This build keeps the profile and repository sign-in. */
+/** Flag-off builds stay on this device. The public build swaps in Google sign-in. */
 export const accountSignIn: boolean = false
 
 export async function prepareAccount(hooks: AccountHooks): Promise<void> {

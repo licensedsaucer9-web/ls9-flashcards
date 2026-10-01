@@ -12,7 +12,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { adminStore } from './migration-admin.mjs'
 import { prepareMigration, runMigration } from './migration-core.mjs'
 import { mapping, snapshot, srs, card } from './migration-fixtures.mjs'
-import { snapshotDigest } from './migration-files.mjs'
+import { exportFirestore, snapshotDigest } from './migration-files.mjs'
 
 const env = await initializeTestEnvironment({ projectId: mapping.projectId,
   firestore: { rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') } })
@@ -167,7 +167,14 @@ try {
   assert.equal(guards.skipped.state, 'skipped')
   assert(guards.wrong && guards.changed, 'wrong decks and account changes refuse the copy')
   assert.deepEqual(guards.before, guards.after)
-  console.log('migration emulator/browser: import, clean-client #13 restore, private schedules, confirmed device copy, durable markers, repeat, source preservation, account guards: ok')
+  const backupPath = join(privateDirectory, 'firestore-backup.json')
+  const backup = await exportFirestore(store, backupPath)
+  const backupBody = JSON.parse(readFileSync(backupPath, 'utf8'))
+  assert.equal(backup.sha256, backupBody.sha256)
+  assert.equal(backupBody.sha256, snapshotDigest(backupBody))
+  assert.equal(backupBody.users['uid-alice'].progress['custom-offline'].reps, 7)
+  assert.equal(backupBody.decks[mapping.deckId].cards['seed-01'].deletedAt, 700)
+  console.log('migration emulator/browser: import, clean-client #13 restore, private schedules, confirmed device copy, durable markers, repeat, source preservation, account guards, admin export: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()

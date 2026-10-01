@@ -11,7 +11,7 @@
     "auth-spike:dev": "vite --config spikes/firebase-auth/vite.config.ts --host 127.0.0.1",
     "auth-spike:build": "tsc -p spikes/firebase-auth/tsconfig.json && vite build --config spikes/firebase-auth/vite.config.ts",
     "auth-spike:preview": "vite preview --config spikes/firebase-auth/vite.config.ts --host 127.0.0.1 --port 4175",
-    "test": "node --experimental-strip-types scripts/srs-csv-test.mjs && node --experimental-strip-types scripts/edge-cases-test.mjs && node --experimental-strip-types scripts/tiers-test.mjs && node scripts/sync-browser-test.mjs && node --experimental-strip-types scripts/firestore-docs-test.mjs && node --experimental-strip-types scripts/account-test.mjs && node --experimental-strip-types scripts/record-sync-test.mjs && node --experimental-strip-types scripts/migration-test.mjs",
+    "test": "node --experimental-strip-types scripts/srs-csv-test.mjs && node --experimental-strip-types scripts/edge-cases-test.mjs && node --experimental-strip-types scripts/tiers-test.mjs && node --experimental-strip-types scripts/firestore-docs-test.mjs && node --experimental-strip-types scripts/account-test.mjs && node --experimental-strip-types scripts/record-sync-test.mjs && node --experimental-strip-types scripts/migration-test.mjs",
     "test:rules": "firebase emulators:exec --only firestore --project demo-german-flashcards \"node scripts/firestore-rules-test.mjs && node --experimental-strip-types scripts/cloud-sync-emulator-test.mjs && node --experimental-strip-types scripts/migration-emulator-test.mjs\"",
     "migrate": "node --experimental-strip-types scripts/migrate.mjs"
   },

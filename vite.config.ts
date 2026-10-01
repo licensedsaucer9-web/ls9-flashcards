@@ -6,6 +6,7 @@ function accountBackend(): Plugin {
     name: 'account-backend',
     enforce: 'pre',
     load(id) {
+      // The public workflow sets this. There is no GitHub transport left to fall back to.
       if (process.env.VITE_SYNC_BACKEND !== 'firebase') return null
       if (id.endsWith('/src/account.ts')) return `export * from './cloud-on.ts'\n`
       if (id.endsWith('/src/sync-backend.ts')) return `export * from './cloud-sync.ts'\n`

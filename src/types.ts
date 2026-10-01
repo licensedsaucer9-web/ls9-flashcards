@@ -123,14 +123,5 @@ export type Snapshot = {
   settings_updated_at?: number
 }
 
-export type GithubConfig = {
-  token: string
-  owner: string
-  repo: string
-  /** Shared vocabulary file, e.g. `data.json`. Per-user files live in `users/`. */
-  path: string
-  branch: string
-}
-
 export const ARTICLES: Article[] = ['der', 'die', 'das', 'none']
 export const GRADES: Grade[] = ['again', 'wrong_gender', 'hard', 'good', 'easy']

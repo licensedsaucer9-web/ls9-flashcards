@@ -21,6 +21,7 @@ import type { AccountHooks } from './account-hooks.ts'
 import { copyAlreadyDecided, rememberCopyDecision, sessionCopyMode, type CopyDecision } from './copy-choice.ts'
 import { includeGuestVocabulary } from './guest-copy.ts'
 import { setCloudFirestore } from './cloud-handle.ts'
+import { publicFirebaseWeb } from './firebase-web.ts'
 import { copyGuestDatabase, getSettings, importLegacyData, localDatabaseHasWork } from './db.ts'
 import { esc } from './dom.ts'
 import { provisionAccount } from './provision.ts'
@@ -269,8 +270,12 @@ function readConfig(): { apiKey: string; authDomain: string; projectId: string; 
   const authDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
   const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
   const appId = import.meta.env.VITE_FIREBASE_APP_ID
-  if (!apiKey || !authDomain || !projectId || !appId) return null
-  return { apiKey, authDomain, projectId, appId }
+  // A partial env is the emulator and must not fall through to production.
+  if (apiKey || authDomain || projectId || appId) {
+    if (!apiKey || !authDomain || !projectId || !appId) return null
+    return { apiKey, authDomain, projectId, appId }
+  }
+  return publicFirebaseWeb
 }
 
 async function initAccount(config: { apiKey: string; authDomain: string; projectId: string; appId: string }): Promise<void> {

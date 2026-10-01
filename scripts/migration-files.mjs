@@ -42,6 +42,43 @@ export function readExport(path) {
   return snapshot
 }
 
+function byId(left, right) {
+  return left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+}
+
+/** Admin SDK dump of users, progress, decks, and cards. Not a GitHub snapshot. */
+export async function exportFirestore(store, output) {
+  const destination = privatePath(output)
+  if (existsSync(destination)) throw new Error('Export already exists; use a new timestamped filename')
+  const users = {}
+  for (const user of (await store.list('users')).sort(byId)) {
+    const progress = {}
+    for (const row of (await store.list(`users/${user.id}/progress`)).sort(byId)) progress[row.id] = row.data
+    users[user.id] = {
+      account: user.data,
+      settings: await store.get(`users/${user.id}/settings/current`),
+      progress,
+    }
+  }
+  const decks = {}
+  for (const deck of (await store.list('decks')).sort(byId)) {
+    const cards = {}
+    for (const row of (await store.list(`decks/${deck.id}/cards`)).sort(byId)) cards[row.id] = row.data
+    decks[deck.id] = { deck: deck.data, cards }
+  }
+  const snapshot = {
+    version: 1,
+    kind: 'firestore',
+    exportedAt: new Date().toISOString(),
+    users,
+    decks,
+  }
+  snapshot.sha256 = snapshotDigest(snapshot)
+  mkdirSync(dirname(destination), { recursive: true, mode: 0o700 })
+  writeFileSync(destination, `${JSON.stringify(snapshot)}\n`, { flag: 'wx', mode: 0o600 })
+  return { path: destination, sha256: snapshot.sha256, users: Object.keys(users), decks: Object.keys(decks) }
+}
+
 /** git show reads one immutable commit, never the clone's working files. */
 export function exportRepository(repo, commit, output) {
   const destination = privatePath(output)

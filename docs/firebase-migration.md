@@ -1,9 +1,15 @@
 # Rehearse the legacy migration (#14)
 
-The public build still uses GitHub. These are local operator tools, never a
-Cloud Function or a production CI step. Use the OAuth test project first. The
-real-data rehearsal and second-device check below remain prerequisites for
-issue #15; passing synthetic emulator tests does not record them as done.
+The public build signs in with Google and syncs through Firestore. These
+importer commands stay local operator tools, never a Cloud Function or a
+production CI step. Use the OAuth test project first. The checklist in section
+5 was still open when the public flag was enabled; passing synthetic emulator
+tests does not record that human rehearsal as done. A private Firestore backup
+command is in [firebase-setup.md](firebase-setup.md).
+
+Rollback before any Firebase study is republishing the previous `master` build.
+After Firebase progress exists, publish a Firebase build only. This repo no
+longer contains `src/github.ts`, so a new build cannot write the data repo.
 
 ## 1. Prepare private inputs
 
@@ -143,8 +149,9 @@ changes before the write refuse the copy.
       the cutover issue without posting private data or UID mapping files.
 
 The production rehearsal waits for the separately confirmed production mapping.
-Enabling Firebase publicly, final collection of local work, and token revocation
-belong to #15.
+The public build now uses Firebase. Collect any remaining local work with the
+Settings copy, then revoke the data-repo write token only after those devices
+are on the new build. Leave `german-flashcards-data` as a frozen snapshot.
 
 ## Automated checks
 

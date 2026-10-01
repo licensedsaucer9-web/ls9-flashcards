@@ -38,6 +38,7 @@ jobs:
         run: npm run build
         env:
           BASE: /german-flashcards-site/
+          VITE_SYNC_BACKEND: firebase
       - name: Check public files
         run: node scripts/check-deploy-artifact.mjs
         env:

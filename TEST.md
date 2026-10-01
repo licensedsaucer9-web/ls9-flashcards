@@ -1,10 +1,18 @@
 # German Flashcards — click path
 
-For the Firebase-enabled migration preview, use the separate
-[migration rehearsal and device-copy checks](docs/firebase-migration.md).
-The public build continues to use the GitHub click path below until #15.
+The public site signs in with Google and does not ask for a token. Device-copy of an older local profile is in
+[the migration rehearsal](docs/firebase-migration.md).
 
-App lives in this folder. IndexedDB is the offline cache. Connect the **private GitHub data repo** in Settings so the deck and SRS follow you across browsers (PC, iPhone Safari, etc.). A fresh profile without sync currently seeds 514 A1/A2 cards, split into three tiers. Existing decks gain missing seed cards on launch without resetting SRS on cards you already have. Use a disposable browser profile for this click path so the tests do not change your personal deck.
+App lives in this folder. IndexedDB is the offline cache. A fresh **Study on this device** visit seeds 514 A1/A2 cards, split into three tiers. Existing decks gain missing seed cards on launch without resetting SRS on cards you already have. Use a disposable browser profile for this click path so the tests do not change your personal deck.
+
+`npm run dev` stays on this device. To click through the public build locally:
+
+```bash
+BASE=/german-flashcards-site/ VITE_SYNC_BACKEND=firebase npm run build
+BASE=/german-flashcards-site/ npm run preview
+```
+
+Open `http://127.0.0.1:4173/german-flashcards-site/`. The first screen offers **Continue with Google** and **Study on this device**.
 
 ## Run
 
@@ -56,15 +64,13 @@ open `http://localhost:4173/german-flashcards-site/`.
 5. Start review: the card you graded Good is gone from the queue.
 6. Optional: grade a card **Again**, reload — that card is still due (interval reset).
 
-## 4. Profiles
+## 4. Account
 
-1. **Settings → Profile**. The current profile is listed first, marked *current*; home shows the same name with a **switch profile** link.
-2. Type a second name → **Add and switch**. The app reloads onto that profile.
-3. On the new profile the due count is the full tier again and the direction is back to **DE → EN**: a new profile starts fresh, it does not inherit the first one's schedule or settings.
-4. Change the new profile to **EN → DE** and pick **Tier 3**, so the two profiles differ visibly.
-5. Switch back to the first profile. Its direction and tier are exactly as you left them.
-6. Add a card on the second profile. It appears for the first profile too, because the word list is shared.
-7. With GitHub connected, the repository now holds `data.json` plus `users/<profile>.json` for each profile. Grading on one profile must not change the other's file.
+1. On a public build, a fresh profile shows **Continue with Google** and **Study on this device**. There is no owner, repository, or token field.
+2. **Study on this device** seeds the local deck. Home says **On this device**. Those cards stay local until you later sign in and confirm a copy.
+3. **Settings** for a signed-out visit shows **Continue with Google**. A signed-in visit shows the account label, **Sync now**, and **Sign out**.
+4. A second Google account gets its own seeded deck. It cannot open the first account’s schedule. The emulator rules test covers that isolation; a real second account is a manual check on the public URL.
+5. Signing out leaves the account’s local database on this device and returns to device study. It does not upload that database as the next account.
 
 ## 5. Editor + CSV import
 
@@ -94,30 +100,18 @@ open `http://localhost:4173/german-flashcards-site/`.
    controlling service worker, offline reload, and Chromium installability
    errors. Chrome/Edge can show an install option on desktop.
 
-## 7. GitHub sync (cross-device)
+## 7. Cloud sync (cross-device)
 
-1. Use the existing private `licensedsaucer9-web/german-flashcards-data` repository only when checking your real backup. For a disposable test, create a separate **private** repository with a `main` branch (initialize it with a README). The app creates `data.json` and `users/<profile>.json` on first sync if they are absent.
-2. Create a fine-grained GitHub personal access token with Contents **read/write** on the selected private repository only.
-3. In the app: **Settings → GitHub sync**. Enter owner, repo, path `data.json`, branch `main`, and the token → **Connect and sync**. Wait for **Backed up**.
-4. Reload another browser (or iPhone Safari on the HTTPS-hosted PWA), enter the same owner/repo/token, **Sync now**. Due counts and grades match.
-5. Grade a card on device A and keep the app open until it says **Backed up**. Open device B, wait for sync or tap **Sync now**. Progress matches. Switching apps does not perform a background upload.
-6. In the repository, `users/<profile>.json` has the new due date in it. A grade must not have rewritten `data.json`.
-7. **Sync now** on the second device, then check **Settings → Profile**: profiles that already have a file are listed, so you can switch to another person's progress.
-8. Disconnect removes the token from that browser only; the GitHub files stay.
+The public URL is <https://licensedsaucer9-web.github.io/german-flashcards-site/>. Sign in with Google. The app does not ask for a token.
 
-### Upgrading an existing `data.json`
+1. Sign in on device A and wait until Settings says **Synced**.
+2. Grade one card and keep the app open. The line may say **Saved on this device** while the write is still pending, then **Synced** after Firestore acknowledges it.
+3. Open device B in a fresh profile, sign in with the same Google account, and wait for sync or tap **Sync now**. The grade matches. Switching apps does not perform a background upload.
+4. Turn Airplane Mode on, grade another card, kill the PWA, and reopen it offline. The grade is still there and the line does not say **Synced**. Go online and confirm the grade arrives.
+5. Sign in as a different Google account. Its deck is the bundled seed, and Joakim’s schedule is not visible.
+6. `german-flashcards-data` stays a frozen snapshot. Do not paste its token into the app. Revoke that token only after the devices you still use are on this build.
 
-If the repository still holds a version 1 `data.json` — the single file with the deck and
-one person's schedule in it — the first sync after the upgrade rewrites it in place:
-
-- `data.json` becomes the shared deck file, with `rank` and `tier` on each card and no review state.
-- The schedule it held moves to `users/joakim.json`, and the device claims it as the `joakim` profile.
-- A second sync writes nothing, so the upgrade settles instead of repeating.
-
-Check it by opening `data.json` and confirming no card has an `srs` field, and that
-`users/joakim.json` has a `progress` object.
-
-The iPhone app is served over HTTPS at <https://licensedsaucer9-web.github.io/german-flashcards-site/>. Keep the *data* repo private. The [README](README.md#move-an-older-iphone-home-screen-installation) explains migration from an older Home Screen icon.
+The [README](README.md#move-an-older-iphone-home-screen-installation) explains moving an older Home Screen icon. A private Firestore export is in [docs/firebase-setup.md](docs/firebase-setup.md).
 
 ## 8. Mobile layout
 

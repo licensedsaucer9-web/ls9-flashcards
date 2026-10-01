@@ -53,10 +53,41 @@ The production preview only captures the authenticated UID needed for later
 migration mapping. Do not create a personal deck, `users/{uid}`, or
 `decks/{uid}`. The spike imports only `firebase/app` and `firebase/auth`.
 
-For issue #14's local Admin importer, private snapshot export, and confirmed
+For the local Admin importer, private snapshot export, and confirmed
 per-device copy, follow [the migration rehearsal guide](firebase-migration.md).
-The real rehearsal and second-device verification are required before #15's
-public cutover.
+The public Pages build now sets `VITE_SYNC_BACKEND=firebase` and signs in
+against production. Its web config is the tracked file `src/firebase-web.ts`
+(public web config; rules protect the data). A partial `VITE_FIREBASE_*` env,
+including the emulator’s project id alone, does not fall through to that file.
+
+The #14 second-device readback was not recorded on the issue when this cutover
+landed. Confirm Joakim’s imported SRS on a second device, and confirm a new
+Google account studies the public URL without seeing that schedule, before
+treating the live site as verified. Do not revoke the data-repo write token
+until the devices you still use are on this build.
+
+## Backup Firestore
+
+One Admin SDK export writes a private JSON file on this machine. Spark can do
+this. Nothing schedules it, and CI never runs it. Put the service account JSON
+in `~/.config/german-flashcards/` (mode 600). The filename below is
+`service-account-prod.json`. The tool refuses a path inside a Git repository
+and writes the output with mode 600.
+
+```bash
+mkdir -p "$HOME/.config/german-flashcards/exports"
+npm run migrate -- backup \
+  --project flashcards-ls9-prod \
+  --credential service-account-prod.json \
+  --out "$HOME/.config/german-flashcards/exports/firestore-$(date -u +%Y%m%dT%H%M%SZ).json"
+```
+
+The file lists each user, that user’s settings and progress, and each deck’s
+cards, plus a SHA-256 of that body. It is a Firestore dump, separate from the
+GitHub snapshot produced by `npm run migrate -- export`. The emulator rehearsal
+in `npm run test:rules` runs the same writer against `demo-german-flashcards`.
+Generating a production service account was not part of the cutover; create one
+only when you want this file from the live project.
 
 ## One-time console setup
 

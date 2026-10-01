@@ -1,4 +1,5 @@
 import { cloudFirestore } from './cloud-handle.ts'
+import { publicFirebaseWeb } from './firebase-web.ts'
 import { accountDeckId } from './cloud-push.ts'
 import { copyMappedLegacyProfile } from './db.ts'
 import { esc } from './dom.ts'
@@ -6,6 +7,10 @@ import { validateMapping, type MigrationMapping } from './migration-data.ts'
 import { captureStudyLock, studyLockCurrent } from './study-lock.ts'
 import { listUsers } from './user.ts'
 import { syncNow } from './sync.ts'
+
+function activeProjectId(): string {
+  return import.meta.env.VITE_FIREBASE_PROJECT_ID || publicFirebaseWeb.projectId
+}
 
 export function migrationPanelHtml(): string {
   if (!listUsers().length) return ''
@@ -42,7 +47,7 @@ export function bindMigrationPanel(): void {
     void selected.text().then((text) => {
       if (!studyLockCurrent(lock) || file.files?.[0] !== selected) return
       const parsed = validateMapping(JSON.parse(text))
-      if (parsed.projectId !== import.meta.env.VITE_FIREBASE_PROJECT_ID) throw new Error('Mapping is for a different Firebase project')
+      if (parsed.projectId !== activeProjectId()) throw new Error('Mapping is for a different Firebase project')
       const candidates = listUsers().filter((user) => Object.hasOwn(parsed.profiles, user.slug) && parsed.profiles[user.slug] === lock.uid)
       if (!candidates.length) throw new Error('No local profile is mapped to this signed-in account')
       mapping = parsed
@@ -64,7 +69,7 @@ export function bindMigrationPanel(): void {
       if (!db || !lock.uid) throw new Error('Sign in before copying')
       const deckId = await accountDeckId(db, lock.uid)
       if (!studyLockCurrent(lock)) return
-      const copied = await copyMappedLegacyProfile(selectedProfile, chosen, import.meta.env.VITE_FIREBASE_PROJECT_ID || '', deckId)
+      const copied = await copyMappedLegacyProfile(selectedProfile, chosen, activeProjectId(), deckId)
       if (!studyLockCurrent(lock)) return
       result.textContent = copied.state === 'skipped' ? 'No mapped local data to copy.'
         : `${copied.cards} cards and ${copied.tombstones} deletions checked. Saved on this device; syncing now.`
