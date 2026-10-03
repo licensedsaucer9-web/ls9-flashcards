@@ -29,8 +29,9 @@ import { bindStudyDatabase, captureStudyLock } from './study-lock.ts'
 import { getSyncStatus, syncNow } from './sync.ts'
 import { bindMigrationPanel, migrationPanelHtml } from './migration-panel.ts'
 import { accountDatabaseName, currentLocalDatabaseName } from './user.ts'
+import { rehearsalNote, rehearsalPreview, storagePrefix } from './rehearsal.ts'
 
-const GUEST_KEY = 'german-flashcards.device-study'
+const GUEST_KEY = `${storagePrefix}.device-study`
 
 export const accountSignIn: boolean = true
 
@@ -58,7 +59,9 @@ function showAuthError(error: unknown): void {
   const code = authCode(error)
   const message = code === 'missing-config'
     ? 'Google sign-in is not configured on this build. Cards on this device were left as they are.'
-    : `Sign-in stopped (${code}). Cards on this device were left as they are.`
+    : code === 'rehearsal/import-required'
+      ? 'This test account is waiting for its verified import. You can study on this device until then.'
+      : `Sign-in stopped (${code}). Cards on this device were left as they are.`
   pendingError = message
   const el = document.getElementById('auth-error')
   if (el) el.textContent = message
@@ -153,7 +156,8 @@ async function adoptUser(user: User): Promise<void> {
   }
   let personal = false
   try {
-    const provisioned = await provisionAccount(firestore, user.uid)
+    const provisioned = await provisionAccount(firestore, user.uid,
+      { requiredLegacyDeckId: rehearsalPreview ? 'legacy-german' : undefined })
     personal = provisioned.personal
   } catch (error) {
     if (ticket !== ticketId) return
@@ -273,8 +277,10 @@ function readConfig(): { apiKey: string; authDomain: string; projectId: string; 
   // A partial env is the emulator and must not fall through to production.
   if (apiKey || authDomain || projectId || appId) {
     if (!apiKey || !authDomain || !projectId || !appId) return null
+    if (rehearsalPreview && projectId !== 'flashcards-ls9-auth-test') return null
     return { apiKey, authDomain, projectId, appId }
   }
+  if (rehearsalPreview) return null
   return publicFirebaseWeb
 }
 
@@ -321,7 +327,9 @@ async function showWelcome(googleReady: boolean): Promise<void> {
     <section class="screen">
       <header class="topbar"><h1>German</h1></header>
       <div class="due-hero">
+        ${rehearsalNote()}
         <p class="kicker">Welcome</p>
+        ${rehearsalNote()}
         <p class="due-label">Study with spaced repetition. Sign in and this account’s cards follow you. You can also study on this device without an account.</p>
         <div class="stack">
           <button class="primary" type="button" id="google-sign-in" ${googleReady ? '' : 'disabled'}>Continue with Google</button>
@@ -408,8 +416,10 @@ export function markAccountBooted(): void {
 }
 
 export function accountHomeNote(): string {
-  if (!captureStudyLock().uid) return 'On this device · <a href="#/settings">sign in</a>'
-  return `${esc(label)} · <a href="#/settings">account</a>`
+  const account = !captureStudyLock().uid
+    ? 'On this device · <a href="#/settings">sign in</a>'
+    : `${esc(label)} · <a href="#/settings">account</a>`
+  return `${rehearsalNote()}${account}`
 }
 
 export function accountBadge(): string {
@@ -431,6 +441,7 @@ export function accountPanelHtml(): string {
   if (!signedIn) {
     return `
       <div class="setting">
+        ${rehearsalNote()}
         <p class="kicker" style="margin:0">Account</p>
         <p class="note">Studying on this device. Signing in does not upload these cards unless you agree.</p>
         <p class="note" id="sync-line">${esc(accountSyncText())}</p>
@@ -441,6 +452,7 @@ export function accountPanelHtml(): string {
   }
   return `
     <div class="setting">
+      ${rehearsalNote()}
       <p class="kicker" style="margin:0">Account</p>
       <p class="note">${esc(label)}</p>
       <p class="note" id="sync-line">${esc(accountSyncText())}</p>

@@ -1,4 +1,6 @@
-const KEY = 'german-flashcards.copy-choice'
+import { storagePrefix } from './rehearsal.ts'
+
+const KEY = `${storagePrefix}.copy-choice`
 
 export type CopyDecision = 'skip' | 'progress' | 'vocabulary'
 

@@ -55,6 +55,8 @@ migration mapping. Do not create a personal deck, `users/{uid}`, or
 
 For the local Admin importer, private snapshot export, and confirmed
 per-device copy, follow [the migration rehearsal guide](firebase-migration.md).
+The full-app test environment and operator commands are in
+[firebase-rehearsal.md](firebase-rehearsal.md).
 That guide also covers the offline comparison baseline and
 `GERMAN_FLASHCARDS_PRIVATE_DIR` when the default operator directory is inside
 a Git repository. The override applies to credential filenames below too;

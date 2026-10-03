@@ -9,6 +9,7 @@ import { chromium } from 'playwright-core'
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
 import { assertFails } from '@firebase/rules-unit-testing'
 import { doc, getDoc } from 'firebase/firestore'
+import { provisionAccount } from '../src/provision.ts'
 import { adminStore } from './migration-admin.mjs'
 import { prepareMigration, runMigration } from './migration-core.mjs'
 import { mapping, snapshot, srs, card } from './migration-fixtures.mjs'
@@ -34,6 +35,12 @@ try {
   })
   await server.listen()
   await env.clearFirestore()
+  const unimportedUid = 'uid-not-imported'
+  const unimportedStore = env.authenticatedContext(unimportedUid).firestore()
+  await assert.rejects(provisionAccount(unimportedStore, unimportedUid, { requiredLegacyDeckId: mapping.deckId }),
+    (error) => error.code === 'rehearsal/import-required')
+  assert.equal(await store.get(`users/${unimportedUid}`), null, 'rehearsal login before import cannot create an account')
+  assert.equal(await store.get(`decks/${unimportedUid}`), null, 'rehearsal login before import cannot create a personal deck')
   const plan = prepareMigration(snapshot(), mapping)
   const source = snapshot()
   source.sha256 = snapshotDigest(source)
@@ -48,6 +55,16 @@ try {
   assert.equal((await store.list('decks/legacy-deck/cards')).length, 0, 'the CLI dry-run writes no vocabulary')
   await runMigration(plan, store, { dryRun: false })
   assert.equal((await store.get('users/uid-alice')).migrationStatus, 'complete')
+  const aliceStore = env.authenticatedContext('uid-alice').firestore()
+  // Rehearsal opens only a complete legacy assignment, without provisioning writes.
+  assert.deepEqual(await provisionAccount(aliceStore, 'uid-alice', { requiredLegacyDeckId: mapping.deckId }),
+    { deckId: 'legacy-deck', personal: false })
+  const completeAccount = await store.get('users/uid-alice')
+  await store.atomic(['users/uid-alice'], () => [{ ...completeAccount, migrationStatus: 'pending' }])
+  await assert.rejects(provisionAccount(aliceStore, 'uid-alice', { requiredLegacyDeckId: mapping.deckId }),
+    (error) => error.code === 'rehearsal/import-required')
+  assert.equal((await store.get('users/uid-alice')).migrationStatus, 'pending', 'rehearsal must not complete a pending import')
+  await store.atomic(['users/uid-alice'], () => [completeAccount])
   assert.equal(await store.get('decks/uid-alice'), null, 'import preassigns the shared deck, not a personal deck')
   const progressRef = 'users/uid-alice/progress/custom-1'
   const before = await store.get(progressRef)

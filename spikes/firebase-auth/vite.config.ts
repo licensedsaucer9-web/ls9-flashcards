@@ -27,7 +27,8 @@ export default defineConfig({
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
         ],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,png,webmanifest}'] },
+      workbox: { globPatterns: ['**/*.{js,css,html,png,webmanifest}'],
+        navigateFallbackDenylist: [/\/rehearsal\//] },
     }),
   ],
 })

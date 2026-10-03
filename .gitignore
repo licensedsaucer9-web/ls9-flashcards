@@ -2,6 +2,7 @@ node_modules
 dist
 dist-firebase
 dist-auth-spike
+dist-rehearsal
 *.local
 .DS_Store
 playwright-report

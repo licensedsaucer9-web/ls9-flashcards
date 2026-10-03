@@ -1,6 +1,11 @@
 import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const rehearsal = process.env.VITE_REHEARSAL_PREVIEW === 'true'
+if (rehearsal && process.env.VITE_FIREBASE_PROJECT_ID !== 'flashcards-ls9-auth-test') {
+  throw new Error('Rehearsal builds require the explicit OAuth test-project configuration')
+}
+
 function accountBackend(): Plugin {
   return {
     name: 'account-backend',
@@ -25,8 +30,8 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png', 'pwa-512-maskable.png'],
       manifest: {
-        name: 'German Flashcards',
-        short_name: 'DE Cards',
+        name: rehearsal ? 'German Flashcards Test Rehearsal' : 'German Flashcards',
+        short_name: rehearsal ? 'DE Test' : 'DE Cards',
         description: 'Personal German SRS flashcards',
         theme_color: '#0e1116',
         background_color: '#0e1116',

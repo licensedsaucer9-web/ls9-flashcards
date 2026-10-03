@@ -1,9 +1,11 @@
-const ACTIVE_KEY = 'german-flashcards.user'
-const USERS_KEY = 'german-flashcards.users'
-const MIGRATED_KEY = 'german-flashcards.migrated'
+import { storagePrefix } from './rehearsal.ts'
+
+const ACTIVE_KEY = `${storagePrefix}.user`
+const USERS_KEY = `${storagePrefix}.users`
+const MIGRATED_KEY = `${storagePrefix}.migrated`
 
 /** The database every pre-multi-user build used. Read once to seed the first user. */
-export const LEGACY_DB_NAME = 'german-flashcards'
+export const LEGACY_DB_NAME = storagePrefix
 
 export type UserProfile = {
   slug: string

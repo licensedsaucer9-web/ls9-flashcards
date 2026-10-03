@@ -37,6 +37,7 @@ import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
 import { sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
 import { tierCounts, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
+import { rehearsalPreview } from './rehearsal.ts'
 import {
   bootSync,
   onSyncStatus,
@@ -827,6 +828,7 @@ async function render() {
 }
 
 function clearLegacyGithubToken(): void {
+  if (rehearsalPreview) return
   try {
     localStorage.removeItem('german-flashcards.github')
     localStorage.removeItem('german-flashcards.github.shas')
