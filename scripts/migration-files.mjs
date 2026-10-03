@@ -4,7 +4,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
 
-export const configDirectory = join(homedir(), '.config/german-flashcards')
+export const configDirectory = resolve(process.env.GERMAN_FLASHCARDS_PRIVATE_DIR || join(homedir(), '.config/german-flashcards'))
 
 export function privatePath(input) {
   let ancestor = resolve(input)
@@ -27,7 +27,7 @@ export function credentialPath(name = 'service-account.json') {
   const path = privatePath(join(configDirectory, name))
   const root = realpathSync(configDirectory)
   const rel = relative(root, path)
-  if (rel.startsWith('..') || rel === '' || rel.startsWith('/')) throw new Error('Credentials must be inside ~/.config/german-flashcards/')
+  if (rel.startsWith('..') || rel === '' || rel.startsWith('/')) throw new Error('Credentials must be inside the private operator directory')
   return path
 }
 

@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { prepareMigration, runMigration, same } from './migration-core.mjs'
 import { exportFirestore, exportRepository, privatePath, readExport, snapshotDigest } from './migration-files.mjs'
 import { mapping, snapshot, card, srs, user } from './migration-fixtures.mjs'
+import { createMigrationBaseline, exportMigrationBaseline } from './migration-baseline.mjs'
 
 function memoryStore() {
   const records = new Map()
@@ -105,6 +106,67 @@ try {
   const parsed = readExport(output)
   assert.deepEqual(parsed.deck, source.deck)
   assert.equal(parsed.sha256, snapshotDigest(parsed))
+  const mappingPath = join(directory, 'private/migration-map.json')
+  writeFileSync(mappingPath, JSON.stringify({ ...mapping, profiles: { alice: 'uid-alice' } }), { mode: 0o600 })
+  const baselinePath = join(directory, 'private/baseline.json')
+  const baselineSummary = exportMigrationBaseline(output, mappingPath, baselinePath)
+  const baseline = readExport(baselinePath)
+  assert.equal(statSync(baselinePath).mode & 0o777, 0o600)
+  assert.equal(baseline.kind, 'migration-baseline')
+  assert.equal(baseline.source.sha256, parsed.sha256)
+  assert.equal(baseline.source.commit, exported.commit)
+  assert.deepEqual(baselineSummary.counts, { cards: 2, tombstones: 1, cardDocuments: 3,
+    profiles: 1, progressRecords: 1, settingsDocuments: 1, skippedProfiles: 0 })
+  const expected = new Map(baseline.expectedDocuments.map((item) => [item.path, item.data]))
+  assert.deepEqual(expected.get('users/uid-alice/progress/custom-1'), srs())
+  assert.deepEqual(expected.get('users/uid-alice/settings/current'), {
+    direction: 'en-de', sessionSize: 10, tier: 2, settingsUpdatedAt: 100 })
+  assert.equal(expected.get('decks/legacy-deck/cards/seed-02').deletedAt, 50)
+  assert.equal(expected.get('decks/legacy-deck/cards/seed-02').de, '')
+  assert.deepEqual(baseline.normalizedFiles.users.alice.progress, source.users.alice.progress)
+  assert.throws(() => exportMigrationBaseline(output, mappingPath, baselinePath), /EEXIST/)
+  assert.throws(() => exportMigrationBaseline(output, mappingPath, join(repo, 'baseline.json')), /outside Git/)
+
+  const unsignedLegacy = structuredClone(v1)
+  unsignedLegacy.sha256 = snapshotDigest(unsignedLegacy)
+  const legacyBaseline = createMigrationBaseline(unsignedLegacy, { ...mapping, v1Profile: 'alice' })
+  assert.equal(legacyBaseline.normalizedFiles.users.alice.settings_updated_at, 80)
+  const legacyExpected = new Map(legacyBaseline.expectedDocuments.map((item) => [item.path, item.data]))
+  assert.deepEqual(legacyExpected.get('users/uid-alice/progress/custom-1'), srs({ updated_at: 0, reps: 4 }))
+  assert.equal(legacyExpected.get('users/uid-alice/settings/current').tier, 1)
+  assert.equal(legacyExpected.get('users/uid-alice/settings/current').settingsUpdatedAt, 80)
+  const overlap = structuredClone(parsed)
+  overlap.deck.deleted_ids['custom-1'] = 200
+  delete overlap.users.alice.settings_updated_at
+  delete overlap.users.alice.settings.tier
+  overlap.sha256 = snapshotDigest(overlap)
+  const overlapBaseline = createMigrationBaseline(overlap, { ...mapping, profiles: { alice: 'uid-alice' } })
+  const deletedCustom = overlapBaseline.expectedDocuments.find((item) => item.path.endsWith('/cards/custom-1')).data
+  assert.equal(deletedCustom.deletedAt, 200)
+  assert.equal(deletedCustom.de, '', 'expect importer tombstone semantics rather than stale source vocabulary')
+  const defaultSettings = overlapBaseline.expectedDocuments.find((item) => item.kind === 'settings').data
+  assert.equal(defaultSettings.tier, 1)
+  assert.equal(defaultSettings.settingsUpdatedAt, 0)
+  assert.throws(() => createMigrationBaseline({ ...parsed, commit: 'b'.repeat(40) }, mapping), /checksum/)
+  assert.throws(() => createMigrationBaseline(parsed, { ...mapping, profiles: { guest: 'uid-guest' } }), /guest/)
+
+  const cliBaseline = join(directory, 'private/cli-baseline.json')
+  const operatorEnv = { ...process.env, GERMAN_FLASHCARDS_PRIVATE_DIR: join(directory, 'private'),
+    FIRESTORE_EMULATOR_HOST: '127.0.0.1:1' }
+  const cliOutput = execFileSync(process.execPath, ['--experimental-strip-types', 'scripts/migrate.mjs',
+    'baseline', '--export', output, '--out', cliBaseline], { encoding: 'utf8', env: operatorEnv })
+  assert.deepEqual(JSON.parse(cliOutput).counts, baselineSummary.counts)
+  assert(!cliOutput.includes('uid-alice') && !cliOutput.includes('Hund') && !cliOutput.includes('expectedDocuments'),
+    'offline CLI prints aggregate metadata, not the mapping or private record values')
+  writeFileSync(join(directory, 'private/credential.json'), '{}', { mode: 0o600 })
+  execFileSync(process.execPath, ['--input-type=module', '-e', `
+    import assert from 'node:assert/strict'
+    import { join } from 'node:path'
+    import { configDirectory, credentialPath } from './scripts/migration-files.mjs'
+    assert.equal(configDirectory, process.env.GERMAN_FLASHCARDS_PRIVATE_DIR)
+    assert.equal(credentialPath('credential.json'), join(configDirectory, 'credential.json'))
+    assert.throws(() => credentialPath('../escape.json'), /inside the private operator directory/)
+  `], { env: operatorEnv })
   writeFileSync(join(repo, 'data.json'), '{}')
   const second = join(directory, 'private/second.json')
   exportRepository(repo, exported.commit, second)
@@ -127,4 +189,4 @@ try {
   writeFileSync(output, JSON.stringify(corrupted))
   assert.throws(() => readExport(output), /checksum/)
 } finally { rmSync(directory, { recursive: true, force: true }) }
-console.log('migration: dry-run, exact readback, resume, v1/v2, two profiles, unmapped names, newer server values, private commit export, firestore backup: ok')
+console.log('migration: dry-run, exact readback, resume, v1/v2, two profiles, unmapped names, newer server values, private commit export, offline baseline, operator-directory override, firestore backup: ok')
