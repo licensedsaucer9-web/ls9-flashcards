@@ -327,7 +327,6 @@ async function showWelcome(googleReady: boolean): Promise<void> {
     <section class="screen">
       <header class="topbar"><h1>German</h1></header>
       <div class="due-hero">
-        ${rehearsalNote()}
         <p class="kicker">Welcome</p>
         ${rehearsalNote()}
         <p class="due-label">Study with spaced repetition. Sign in and this account’s cards follow you. You can also study on this device without an account.</p>
