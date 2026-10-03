@@ -55,6 +55,10 @@ migration mapping. Do not create a personal deck, `users/{uid}`, or
 
 For the local Admin importer, private snapshot export, and confirmed
 per-device copy, follow [the migration rehearsal guide](firebase-migration.md).
+That guide also covers the offline comparison baseline and
+`GERMAN_FLASHCARDS_PRIVATE_DIR` when the default operator directory is inside
+a Git repository. The override applies to credential filenames below too;
+choose export output paths outside Git explicitly.
 The Pages workflow builds with `VITE_SYNC_BACKEND=firebase` into
 `dist-firebase` and checks that client. It does not publish it. The live site
 stays on the previous build until issue #15 records the #14 second-device

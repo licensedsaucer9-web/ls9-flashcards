@@ -21,7 +21,24 @@ Credentials are loaded using the [Admin SDK service-account setup](https://fireb
 The credential's project must match the mapping. The tool does not fall back
 to ambient credentials for a live import.
 
-Joakim writes `~/.config/german-flashcards/migration-map-auth-test.json` by hand
+If your home directory is a Git repository, that default location is refused
+even when its files are ignored. Choose a private directory outside all Git
+repositories and set `GERMAN_FLASHCARDS_PRIVATE_DIR`; it controls the default
+mapping location and credential root. Create that directory with mode 700.
+A directory under `/var/tmp` can serve as a rehearsal workspace; keep long-term
+production backups in durable private storage outside Git.
+
+```bash
+export GERMAN_FLASHCARDS_PRIVATE_DIR=/path/outside/git/german-flashcards
+MIGRATION_DIR="${GERMAN_FLASHCARDS_PRIVATE_DIR:-$HOME/.config/german-flashcards}"
+```
+
+The commands below use `MIGRATION_DIR`. If the default location is outside Git
+on your machine, leave the override unset and define `MIGRATION_DIR` using the
+second line. Place the reviewed mapping, credential, and exports under that
+directory. Credentials must stay within that directory even with the override.
+
+Joakim prepares `migration-map-auth-test.json` in that private directory
 after confirming each authenticated UID. Use the UID for the **test project**,
 which differs from the production UID. This example contains placeholders:
 
@@ -52,15 +69,17 @@ in a build or saved to localStorage.
 
 ## 2. Export an immutable GitHub snapshot
 
-Update the private data clone before choosing the source commit. Export reads
+Fetch `origin main` in the private data clone before choosing the source commit;
+resolve `origin/main` to its full SHA and pass that SHA, rather than a stale
+local `HEAD`. Export reads
 `data.json` and `users/*.json` at that exact commit, including a v1 `data.json`
 if present. It ignores uncommitted working files and leaves the data repo intact.
 
 ```bash
 npm run migrate -- export \
   --repo /home/joakim/src/german-flashcards-data \
-  --commit HEAD \
-  --out "$HOME/.config/german-flashcards/exports/2026-09-30-rehearsal.json"
+  --commit REPLACE_WITH_FETCHED_MAIN_SHA \
+  --out "$MIGRATION_DIR/exports/REPLACE_WITH_TIMESTAMP-rehearsal.json"
 ```
 
 The private export records the full commit, export time, and SHA-256 checksum.
@@ -69,12 +88,46 @@ are never overwritten; choose a fresh dated filename for a later snapshot.
 Exports are created with mode 600. Input and output paths inside Git repositories
 (including symlinks into them) are refused.
 
+### Prepare the offline comparison baseline (#22)
+
+The confirmed test-project UID is recorded in issue #10. Preparing its mapping
+can use that recorded sign-in evidence; do not substitute the production UID.
+Keep the confirmation source and private artifact locations in a private
+rehearsal record. The actual source snapshot stays intact as a separate file.
+
+```bash
+npm run migrate -- baseline \
+  --export "$MIGRATION_DIR/exports/REPLACE_WITH_TIMESTAMP-rehearsal.json" \
+  --mapping "$MIGRATION_DIR/migration-map-auth-test.json" \
+  --out "$MIGRATION_DIR/exports/REPLACE_WITH_TIMESTAMP-baseline.json"
+```
+
+This command works offline with no Admin credential. It checks the export
+checksum and validates the mapping and source before writing a mode-600 file
+outside Git. Existing output files are never overwritten. Standard output
+contains only paths, checksums, the source commit, and aggregate counts.
+
+The private baseline binds to the export checksum and migration fingerprint.
+It includes validated v1/v2 files with exact card/progress IDs, SRS and content
+clocks, settings, and tombstones, plus expected Firestore documents using the
+importer's empty-server merge rules. Missing progress/settings clocks become
+zero in those documents; the parser supplies tier 1 when absent. V1 settings
+retain their legacy settings clock or snapshot clock. Winning tombstones use
+the importer's deleted-document representation. Later live readback must use
+the reviewed merge result for any newer server records, rather than overwriting
+them with this baseline.
+
+Complete #22 by recording the source commit, aggregate counts, mapping
+confirmation status, and baseline validation result on the issue. Keep exact
+values, mapping files, and actual artifact locations private. No Firebase write
+or preview deployment is needed for this preparation.
+
 ## 3. Dry-run, import, read back, and resume
 
 ```bash
 npm run migrate -- import \
-  --export "$HOME/.config/german-flashcards/exports/2026-09-30-rehearsal.json" \
-  --mapping "$HOME/.config/german-flashcards/migration-map-auth-test.json" \
+  --export "$MIGRATION_DIR/exports/REPLACE_WITH_TIMESTAMP-rehearsal.json" \
+  --mapping "$MIGRATION_DIR/migration-map-auth-test.json" \
   --credential service-account-auth-test.json
 ```
 

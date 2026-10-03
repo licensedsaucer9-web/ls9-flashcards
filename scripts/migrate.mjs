@@ -3,15 +3,19 @@ import { parseArgs } from 'node:util'
 import { join } from 'node:path'
 import { configDirectory, exportFirestore, exportRepository, readExport, readPrivateJson } from './migration-files.mjs'
 import { prepareMigration, runMigration } from './migration-core.mjs'
+import { exportMigrationBaseline } from './migration-baseline.mjs'
 
 const help = `Usage (Node 22+):
   npm run migrate -- export --repo /path/to/german-flashcards-data --commit HEAD --out /private/export.json
+  npm run migrate -- baseline --export /private/export.json [--mapping /private/map.json] --out /private/baseline.json
   npm run migrate -- import --export /private/export.json [--mapping /private/map.json] [--credential service-account.json] [--apply] [--emulator]
   npm run migrate -- backup --project flashcards-ls9-prod --credential service-account-prod.json --out /private/firestore.json
 
 Import defaults to dry-run and prints record-level source/before/after differences.
-Mapping defaults to ~/.config/german-flashcards/migration-map.json.
-Live credentials are read only from ~/.config/german-flashcards/.
+The private operator directory defaults to ~/.config/german-flashcards/.
+Set GERMAN_FLASHCARDS_PRIVATE_DIR to a directory outside Git if home is tracked.
+Mapping defaults to migration-map.json there; live credentials are read only there.
+baseline validates the export/mapping and writes private exact expectations offline.
 --apply writes and verifies every imported record before marking migration complete.
 --emulator requires a demo-* project and FIRESTORE_EMULATOR_HOST.
 backup writes one private Admin SDK JSON file. It is not a scheduled job and does not need Blaze.
@@ -39,6 +43,11 @@ async function main() {
     try {
       console.log(JSON.stringify(await exportFirestore(store, values.out)))
     } finally { await store.close() }
+    return
+  }
+  if (positionals[0] === 'baseline') {
+    if (!values.export || !values.out) throw new Error(help)
+    console.log(JSON.stringify(exportMigrationBaseline(values.export, values.mapping, values.out)))
     return
   }
   if (positionals[0] !== 'import' || !values.export) throw new Error(help)
