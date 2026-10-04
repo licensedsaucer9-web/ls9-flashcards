@@ -14,6 +14,26 @@ function memoryStore() {
     get: async (path) => structuredClone(records.get(path) ?? null),
     list: async (path) => [...records].filter(([key]) => key.startsWith(`${path}/`) && key.slice(path.length + 1).indexOf('/') === -1)
       .map(([key, data]) => ({ id: key.split('/').at(-1), data: structuredClone(data) })),
+    listDocumentIds: async (collection) => {
+      const prefix = `${collection}/`
+      const ids = new Set()
+      for (const key of records.keys()) {
+        if (!key.startsWith(prefix)) continue
+        const id = key.slice(prefix.length).split('/')[0]
+        if (id) ids.add(id)
+      }
+      return [...ids]
+    },
+    listSubcollections: async (docPath) => {
+      const prefix = `${docPath}/`
+      const names = new Set()
+      for (const key of records.keys()) {
+        if (!key.startsWith(prefix)) continue
+        const [name, documentId] = key.slice(prefix.length).split('/')
+        if (name && documentId) names.add(name)
+      }
+      return [...names]
+    },
     async atomic(paths, compute) {
       const before = paths.map((path) => structuredClone(records.get(path) ?? null))
       const after = compute(before)
@@ -109,6 +129,41 @@ try {
   assert.equal(refusedExtra.extras, 1)
   assert.equal(extra.writes, 0)
   assert.equal(saved(extra), beforeExtra)
+
+  const orphanProgress = { ease: 2.5, interval: 1, reps: 4, due: 5000, updated_at: 9_000_000_000_000 }
+  const orphaned = memoryStore()
+  orphaned.records.set('users/uid-orphan', { deckId: 'orphan-deck', schemaVersion: 1, migrationStatus: 'new' })
+  orphaned.records.set('users/uid-orphan/progress/custom-9', orphanProgress)
+  orphaned.records.delete('users/uid-orphan')
+  assert.equal(await orphaned.get('users/uid-orphan'), null)
+  assert.equal((await orphaned.list('users')).length, 0)
+  assert.deepEqual(await orphaned.get('users/uid-orphan/progress/custom-9'), orphanProgress)
+  const beforeOrphan = saved(orphaned)
+  const dryOrphan = await runRestore(plan, orphaned, { projectId, reportPath: join(directory, 'orphan-dry.json') })
+  assert.equal(dryOrphan.state, 'refused')
+  assert.equal(dryOrphan.extras, 1)
+  assert.equal(JSON.stringify(publicRestoreSummary(dryOrphan)).includes('uid-orphan'), false)
+  assert.equal(orphaned.writes, 0)
+  assert.equal(saved(orphaned), beforeOrphan)
+  const applyOrphan = await runRestore(plan, orphaned, { dryRun: false, projectId, reportPath: join(directory, 'orphan-apply.json') })
+  assert.equal(applyOrphan.state, 'refused')
+  assert.equal(applyOrphan.extras, 1)
+  assert.equal(orphaned.writes, 0)
+  assert.equal(saved(orphaned), beforeOrphan)
+  assert.equal(orphaned.records.size, 1)
+  const repeatOrphan = await runRestore(plan, orphaned, { dryRun: false, projectId, reportPath: join(directory, 'orphan-repeat.json') })
+  assert.equal(repeatOrphan.state, 'refused')
+
+  const deckOrphan = memoryStore()
+  deckOrphan.records.set('decks/orphan-deck/cards/extra-1', { de: 'Zusatz' })
+  assert.equal((await deckOrphan.list('decks')).length, 0)
+  const beforeDeck = saved(deckOrphan)
+  const refusedDeck = await runRestore(plan, deckOrphan, { dryRun: false, projectId, reportPath: join(directory, 'orphan-deck.json') })
+  assert.equal(refusedDeck.state, 'refused')
+  assert.equal(refusedDeck.extras, 1)
+  assert.equal(deckOrphan.writes, 0)
+  assert.equal(saved(deckOrphan), beforeDeck)
+  assert.equal(deckOrphan.records.has('decks/legacy-deck'), false)
 
   const interrupted = memoryStore()
   const atomic = interrupted.atomic.bind(interrupted)
@@ -209,4 +264,4 @@ function statSafe(path) {
   try { return statSync(path) } catch { return null }
 }
 
-console.log('restore: checksum, schema, assignment, dry-run, exact round trip, newer/older/extra refusal, interrupt/resume, cleared target, credential pairing: ok')
+console.log('restore: checksum, schema, assignment, dry-run, exact round trip, newer/older/extra refusal, deleted-parent subcollections, interrupt/resume, cleared target, credential pairing: ok')

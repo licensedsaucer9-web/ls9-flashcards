@@ -210,22 +210,24 @@ export function preflightRestore({ dumpPath, projectId, credentialName, reportPa
   return { plan, reportPath: reserveRestoreReport(reportPath) }
 }
 
-async function collectTarget(store, plan) {
+// Ordinary parent queries omit a deleted account or deck even when progress,
+// settings, or cards remain. Those surviving documents are still part of the target.
+const ROOTS = { users: ['settings', 'progress'], decks: ['cards'] }
+
+async function collectTarget(store) {
   const present = new Map()
-  const users = await store.list('users')
-  const decks = await store.list('decks')
-  const userIds = new Set([...users.map((row) => row.id), ...plan.userIds])
-  const deckIds = new Set([...decks.map((row) => row.id), ...plan.deckIds])
-  const userRows = new Map(users.map((row) => [row.id, row.data]))
-  const deckRows = new Map(decks.map((row) => [row.id, row.data]))
-  for (const uid of userIds) {
-    if (userRows.has(uid)) present.set(`users/${uid}`, userRows.get(uid))
-    for (const row of await store.list(`users/${uid}/settings`)) present.set(`users/${uid}/settings/${row.id}`, row.data)
-    for (const row of await store.list(`users/${uid}/progress`)) present.set(`users/${uid}/progress/${row.id}`, row.data)
-  }
-  for (const deckId of deckIds) {
-    if (deckRows.has(deckId)) present.set(`decks/${deckId}`, deckRows.get(deckId))
-    for (const row of await store.list(`decks/${deckId}/cards`)) present.set(`decks/${deckId}/cards/${row.id}`, row.data)
+  for (const [collection, knownChildren] of Object.entries(ROOTS)) {
+    const rows = await store.list(collection)
+    const data = new Map(rows.map((row) => [row.id, row.data]))
+    const ids = new Set([...data.keys(), ...await store.listDocumentIds(collection)])
+    for (const id of ids) {
+      if (data.has(id)) present.set(`${collection}/${id}`, data.get(id))
+      const docPath = `${collection}/${id}`
+      const children = new Set([...knownChildren, ...await store.listSubcollections(docPath)])
+      for (const child of children) {
+        for (const row of await store.list(`${docPath}/${child}`)) present.set(`${docPath}/${child}/${row.id}`, row.data)
+      }
+    }
   }
   return present
 }
@@ -277,7 +279,7 @@ function writeReport(destination, result) {
 }
 
 async function verifyRestore(store, plan) {
-  const present = await collectTarget(store, plan)
+  const present = await collectTarget(store)
   const dumpPaths = new Set(plan.items.map((item) => item.path))
   for (const item of plan.items) {
     if (!present.has(item.path) || !same(await store.get(item.path), item.data)) {
@@ -330,7 +332,7 @@ export async function runRestore(plan, store, { dryRun = true, projectId, report
     return result
   }
   try {
-    const present = await collectTarget(store, plan)
+    const present = await collectTarget(store)
     const dumpPaths = new Set(plan.items.map((item) => item.path))
     const documents = []
     for (const item of plan.items) {

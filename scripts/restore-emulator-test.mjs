@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
+import { collectionGroup, deleteDoc, doc, getDocs, setDoc } from 'firebase/firestore'
 import { adminStore } from './migration-admin.mjs'
 import { prepareMigration, runMigration, same } from './migration-core.mjs'
 import { exportFirestore } from './migration-files.mjs'
@@ -88,6 +89,45 @@ try {
     '--dump', dumpPath, '--project', projectId, '--credential', 'service-account.json',
     '--report', join(directory, 'cli-repeat.json'), '--emulator', '--apply'], { encoding: 'utf8', env: operator })
   assert.equal(JSON.parse(again).state, 'already restored')
+
+  await envRules.clearFirestore()
+  const orphanUid = 'uid-orphan'
+  const orphanProgressPath = `users/${orphanUid}/progress/custom-9`
+  const orphanProgress = { ease: 2.5, interval: 1, reps: 4, due: 5000, updated_at: 9_000_000_000_000 }
+  await envRules.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore()
+    await setDoc(doc(db, 'users', orphanUid), { deckId: 'orphan-deck', schemaVersion: 1, migrationStatus: 'new' })
+    await setDoc(doc(db, 'users', orphanUid, 'progress', 'custom-9'), orphanProgress)
+    await deleteDoc(doc(db, 'users', orphanUid))
+  })
+  assert.equal(await store.get(`users/${orphanUid}`), null)
+  assert.equal((await store.list('users')).length, 0)
+  assert(same(await store.get(orphanProgressPath), orphanProgress))
+  const countedAtomic = store.atomic.bind(store)
+  let writes = 0
+  store.atomic = async (...args) => { writes += 1; return countedAtomic(...args) }
+  try {
+    const dry = await runRestore(plan, store, { projectId, reportPath: join(directory, 'orphan-dry.json') })
+    assert.equal(dry.state, 'refused')
+    assert.equal(dry.extras, 1)
+    assert.equal(writes, 0)
+    const applied = await runRestore(plan, store, { dryRun: false, projectId, reportPath: join(directory, 'orphan-apply.json') })
+    assert.equal(applied.state, 'refused')
+    assert.equal(applied.extras, 1)
+    assert.equal(writes, 0)
+    const repeat = await runRestore(plan, store, { dryRun: false, projectId, reportPath: join(directory, 'orphan-repeat.json') })
+    assert.equal(repeat.state, 'refused')
+  } finally {
+    store.atomic = countedAtomic
+  }
+  assert.equal(await store.get('users/uid-alice'), null)
+  assert.equal(await store.get('decks/legacy-deck'), null)
+  assert(same(await store.get(orphanProgressPath), orphanProgress))
+  await envRules.withSecurityRulesDisabled(async (ctx) => {
+    const rows = await getDocs(collectionGroup(ctx.firestore(), 'progress'))
+    assert.equal(rows.size, 1)
+    assert.equal(rows.docs[0].ref.path, orphanProgressPath)
+  })
   console.log(`restore emulator: state=${summary.state} cards=${summary.cards} tombstones=${summary.tombstones} elapsedMs=${summary.elapsedMs} sha256=${summary.sha256}`)
 } finally {
   await store.close()

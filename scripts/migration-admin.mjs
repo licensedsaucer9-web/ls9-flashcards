@@ -27,6 +27,9 @@ export async function adminStore(projectId, { emulator = false, credential = 'se
   return {
     get: async (path) => (await db.doc(path).get()).data() ?? null,
     list: async (path) => (await db.collection(path).get()).docs.map((row) => ({ id: row.id, data: row.data() })),
+    // Includes ids whose document is gone but a subcollection still has documents.
+    listDocumentIds: async (path) => (await db.collection(path).listDocuments()).map((ref) => ref.id),
+    listSubcollections: async (path) => (await db.doc(path).listCollections()).map((col) => col.id),
     atomic: (paths, compute) => db.runTransaction(async (tx) => {
       const refs = paths.map((path) => db.doc(path))
       const snaps = await tx.getAll(...refs)
