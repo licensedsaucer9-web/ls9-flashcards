@@ -140,6 +140,9 @@ async function adoptGuest(): Promise<void> {
   const ticket = ++ticketId
   cancelChoice('not-now')
   prompted.clear()
+  pendingError = ''
+  const error = document.getElementById('auth-error')
+  if (error) error.textContent = ''
   bindStudyDatabase({ uid: null, dbName: currentLocalDatabaseName() })
   if (ticket !== ticketId) return
   if (booted) hooks?.onIdentityChanged()
@@ -300,6 +303,8 @@ async function initAccount(config: { apiKey: string; authDomain: string; project
   await new Promise<void>((resolve, reject) => {
     let first = true
     onAuthStateChanged(auth!, (user) => {
+      const signOutButton = document.getElementById('sign-out-account')
+      if (signOutButton) signOutButton.hidden = !user
       void (async () => {
         if (user) await adoptUser(user)
         else await adoptGuest()
@@ -333,11 +338,13 @@ async function showWelcome(googleReady: boolean): Promise<void> {
         <div class="stack">
           <button class="primary" type="button" id="google-sign-in" ${googleReady ? '' : 'disabled'}>Continue with Google</button>
           <button class="secondary" type="button" id="guest-study">Study on this device</button>
+          <button class="danger" type="button" id="sign-out-account" ${auth?.currentUser ? '' : 'hidden'}>Sign out of Google</button>
         </div>
         <p class="note" id="auth-error">${esc(pendingError || (googleReady ? '' : 'Google sign-in is not configured on this build.'))}</p>
       </div>
     </section>
   `
+  bindSignOutButton()
   document.getElementById('guest-study')?.addEventListener('click', () => {
     localStorage.setItem(GUEST_KEY, '1')
     welcomeRelease?.()
@@ -368,8 +375,11 @@ async function maybeWelcome(googleReady: boolean): Promise<void> {
 
 async function confirmSignOut(): Promise<void> {
   if (!auth) return
-  const settings = await getSettings()
-  if (settings.localRevision > settings.acknowledgedRevision) {
+  // Guarded Google sessions still study locally. Only the bound account's
+  // pending changes need an account sign-out confirmation.
+  const signedIn = Boolean(captureStudyLock().uid)
+  const settings = signedIn ? await getSettings() : null
+  if (settings && settings.localRevision > settings.acknowledgedRevision) {
     const choice = await presentChoice(
       'Your latest changes stay on this device for this account. They are not deleted and they are not uploaded as the next account.',
       [
@@ -389,6 +399,21 @@ async function confirmSignOut(): Promise<void> {
     }
   }
   await signOut(auth)
+}
+
+function bindSignOutButton(): void {
+  const button = document.getElementById('sign-out-account') as HTMLButtonElement | null
+  button?.addEventListener('click', () => {
+    button.disabled = true
+    void confirmSignOut()
+      .catch(() => {
+        pendingError = 'Google sign-out failed. Try again. Cards on this device were left as they are.'
+        const error = document.getElementById('auth-error')
+        if (error) error.textContent = pendingError
+        else hooks?.toast(pendingError)
+      })
+      .finally(() => { button.disabled = false })
+  })
 }
 
 export async function prepareAccount(next: AccountHooks): Promise<void> {
@@ -445,6 +470,7 @@ export function accountPanelHtml(): string {
         <p class="note">Studying on this device. Signing in does not upload these cards unless you agree.</p>
         <p class="note" id="sync-line">${esc(accountSyncText())}</p>
         <button class="primary" type="button" id="google-sign-in">Continue with Google</button>
+        <button class="danger" type="button" id="sign-out-account" ${auth?.currentUser ? '' : 'hidden'}>Sign out of Google</button>
         <p class="note" id="auth-error">${esc(pendingError)}</p>
       </div>
     `
@@ -476,9 +502,7 @@ export function bindAccountPanel(panelHooks: AccountHooks): void {
   document.getElementById('sync-now-account')?.addEventListener('click', () => {
     void syncAccountNow()
   })
-  document.getElementById('sign-out-account')?.addEventListener('click', () => {
-    void confirmSignOut()
-  })
+  bindSignOutButton()
 }
 
 export async function syncAccountNow(): Promise<void> {

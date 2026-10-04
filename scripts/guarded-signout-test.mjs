@@ -1,0 +1,206 @@
+// Exercise the real account UI and IndexedDB with synthetic Google sessions.
+// Only Auth and the import lookup are replaced; no live account is accessed.
+import assert from 'node:assert/strict'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { createServer } from 'vite'
+import { chromium } from 'playwright-core'
+import { card, srs } from './migration-fixtures.mjs'
+
+const authKey = 'guarded-signout-test.user'
+const importedKey = 'guarded-signout-test.imported'
+const authModule = '\0guarded-signout-auth'
+const cacheDir = mkdtempSync(join(tmpdir(), 'guarded-signout-test-'))
+Object.assign(process.env, {
+  BASE: '/', VITE_SYNC_BACKEND: 'firebase', VITE_REHEARSAL_PREVIEW: 'true',
+  VITE_FIREBASE_API_KEY: 'synthetic-key', VITE_FIREBASE_AUTH_DOMAIN: 'localhost',
+  VITE_FIREBASE_PROJECT_ID: 'flashcards-ls9-auth-test', VITE_FIREBASE_APP_ID: 'synthetic-app',
+  VITE_FIREBASE_AUTH_EMULATOR: '', VITE_FIREBASE_FIRESTORE_EMULATOR: '',
+})
+
+const fakeAuth = `
+  const key = ${JSON.stringify(authKey)};
+  const user = { uid: 'synthetic-user', displayName: 'Test account' };
+  const auth = { currentUser: localStorage.getItem(key) ? user : null };
+  const observers = new Set();
+  function emit() { for (const observer of observers) queueMicrotask(() => observer(auth.currentUser)); }
+  export const browserLocalPersistence = {};
+  export function getAuth() { return auth; }
+  export async function setPersistence() {}
+  export function onAuthStateChanged(_auth, observer) {
+    observers.add(observer);
+    queueMicrotask(() => observer(auth.currentUser));
+    return () => observers.delete(observer);
+  }
+  export class GoogleAuthProvider {}
+  export async function signInWithPopup() {
+    localStorage.setItem(key, '1'); auth.currentUser = user; emit();
+  }
+  export async function signOut() {
+    window.signOutCalls = (window.signOutCalls || 0) + 1;
+    if (window.failSignOut) throw new Error('Synthetic sign-out failure');
+    localStorage.removeItem(key); auth.currentUser = null; emit();
+  }
+  export function connectAuthEmulator() { throw new Error('Unexpected emulator connection'); }
+`
+
+let server
+let browser
+const pageErrors = []
+const externalRequests = []
+try {
+  server = await createServer({
+    cacheDir,
+    server: { host: '127.0.0.1', port: 4181, strictPort: true },
+    optimizeDeps: { include: ['firebase/app', 'firebase/firestore'], exclude: ['firebase/auth'], noDiscovery: true },
+    plugins: [{
+      name: 'synthetic-guarded-account', enforce: 'pre',
+      resolveId(id) { if (id === 'firebase/auth') return authModule },
+      load(id) {
+        if (id === authModule) return fakeAuth
+        if (id.endsWith('/src/provision.ts')) return `
+          export async function provisionAccount(_db, _uid, options) {
+            if (options.requiredLegacyDeckId !== 'legacy-german') throw new Error('Missing rehearsal guard');
+            if (localStorage.getItem(${JSON.stringify(importedKey)})) return { deckId: 'legacy-german', personal: false };
+            throw Object.assign(new Error('Synthetic import guard'), { code: 'rehearsal/import-required' });
+          }
+        `
+      },
+    }],
+  })
+  await server.listen()
+  browser = await chromium.launch({
+    executablePath: process.env.CHROME || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()),
+    headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'],
+  })
+  async function newPage(restored = false, imported = false, harness = false) {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true,
+      hasTouch: true, serviceWorkers: 'block' })
+    await context.addInitScript(({ authKey, importedKey, restored, imported }) => {
+      if (restored) localStorage.setItem(authKey, '1')
+      if (imported) localStorage.setItem(importedKey, '1')
+    }, { authKey, importedKey, restored, imported })
+    await context.route('**/*', (route) => {
+      if (new URL(route.request().url()).hostname === '127.0.0.1') return route.continue()
+      externalRequests.push(route.request().url())
+      return route.abort()
+    })
+    const page = await context.newPage()
+    page.on('pageerror', (error) => pageErrors.push(error.message))
+    await page.goto(`http://127.0.0.1:4181/${harness ? 'scripts/migration-harness.html' : ''}`)
+    return page
+  }
+  async function seedLocalWork(page) {
+    return page.evaluate(async ({ fixture }) => {
+      const db = await import('/src/db.ts')
+      await db.putCard(fixture)
+      await db.putSettings({ direction: 'en-de', sessionSize: 10, tier: 2 })
+      localStorage.setItem('german-flashcards.github', 'synthetic-legacy-token-sentinel')
+      return (await import('/src/study-lock.ts')).captureStudyLock().dbName
+    }, { fixture: { ...card('sign-out-card'), srs: srs() } })
+  }
+  async function snapshot(page, dbName) {
+    return page.evaluate(async ({ dbName, authKey, importedKey }) => {
+      const request = indexedDB.open(dbName)
+      const db = await new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+      const read = (request) => new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+      const tx = db.transaction(['cards', 'settings'], 'readonly')
+      const [cards, settings] = await Promise.all([
+        read(tx.objectStore('cards').getAll()), read(tx.objectStore('settings').getAll()),
+      ])
+      db.close()
+      const preferences = Object.fromEntries(Object.entries(localStorage)
+        .filter(([key]) => key !== authKey && key !== importedKey))
+      return { cards, settings, preferences }
+    }, { dbName, authKey, importedKey })
+  }
+  async function assertSignedOut(page) {
+    await page.waitForFunction((key) => !localStorage.getItem(key), authKey)
+    await page.waitForFunction(() => document.getElementById('sign-out-account')?.hidden)
+    assert.equal(await page.evaluate(async () => (await import('/src/study-lock.ts')).captureStudyLock().uid), null)
+  }
+
+  // The issue's exact path: a fresh welcome, Google login, import guard, sign-out.
+  const fresh = await newPage()
+  await fresh.waitForSelector('#guest-study')
+  assert.equal(await fresh.locator('#sign-out-account').isVisible(), false)
+  await fresh.click('#google-sign-in')
+  await fresh.waitForFunction(() => document.getElementById('auth-error')?.textContent.includes('waiting for its verified import'))
+  assert.equal(await fresh.locator('#sign-out-account').isVisible(), true)
+  const guestDb = await seedLocalWork(fresh)
+  const before = await snapshot(fresh, guestDb)
+  assert(before.settings[0].localRevision > before.settings[0].acknowledgedRevision)
+  await fresh.click('#sign-out-account')
+  await assertSignedOut(fresh)
+  assert.equal(await fresh.locator('[id^="choice-"]').count(), 0, 'guest changes must not prompt about an account upload')
+  assert.deepEqual(await snapshot(fresh, guestDb), before, 'welcome sign-out preserves local cards, settings, and preferences')
+  assert.equal(await fresh.locator('#auth-error').textContent(), '')
+  await fresh.click('#guest-study')
+  await fresh.waitForSelector('[data-due-count]')
+
+  // A restored, still-guarded session must also expose sign-out and allow retry.
+  const restored = await newPage(true)
+  await restored.waitForSelector('#sign-out-account')
+  await restored.evaluate(() => { window.failSignOut = true })
+  await restored.click('#sign-out-account')
+  await restored.waitForFunction(() => document.getElementById('auth-error')?.textContent.includes('Google sign-out failed'))
+  assert.equal(await restored.locator('#sign-out-account').isEnabled(), true)
+  assert.equal(await restored.evaluate((key) => localStorage.getItem(key), authKey), '1')
+  await restored.evaluate(() => { window.failSignOut = false })
+  await restored.click('#sign-out-account')
+  await assertSignedOut(restored)
+
+  // Choosing local study keeps the Google session; Settings must still sign out.
+  const settings = await newPage(true)
+  await settings.waitForSelector('#guest-study')
+  await settings.click('#guest-study')
+  await settings.waitForSelector('[data-due-count]')
+  const settingsDb = await seedLocalWork(settings)
+  await settings.goto('http://127.0.0.1:4181/#/settings')
+  await settings.waitForSelector('#sign-out-account')
+  const settingsBefore = await snapshot(settings, settingsDb)
+  await settings.click('#sign-out-account')
+  await assertSignedOut(settings)
+  assert.deepEqual(await snapshot(settings, settingsDb), settingsBefore, 'settings sign-out preserves local study data')
+
+  // Ordinary account sign-out must retain its pending-change confirmation.
+  const account = await newPage(true, true, true)
+  await account.evaluate(async () => {
+    document.body.innerHTML = '<main id="main"></main>'
+    const cloud = await import('/src/cloud-on.ts')
+    function render() {
+      document.getElementById('main').innerHTML = cloud.accountPanelHtml()
+      cloud.bindAccountPanel(hooks)
+    }
+    const hooks = { setTabs() {}, toast() {}, ensureSeed: async () => 0, onIdentityChanged: render }
+    await cloud.prepareAccount(hooks)
+    render()
+  })
+  const accountDb = await seedLocalWork(account)
+  const accountBefore = await snapshot(account, accountDb)
+  await account.click('#sign-out-account')
+  await account.waitForSelector('#choice-stay')
+  await account.click('#choice-stay')
+  await account.waitForSelector('#sign-out-account')
+  assert.equal(await account.evaluate((key) => localStorage.getItem(key), authKey), '1')
+  await account.click('#sign-out-account')
+  await account.waitForSelector('#choice-sign-out')
+  await account.click('#choice-sign-out')
+  await account.waitForFunction((key) => !localStorage.getItem(key), authKey)
+  assert.deepEqual(await snapshot(account, accountDb), accountBefore, 'confirmed account sign-out preserves pending account data')
+
+  assert.deepEqual(pageErrors, [], 'no unhandled browser errors')
+  assert.deepEqual(externalRequests, [], 'the test must not access live Firebase or Google')
+  console.log('guarded-signout: fresh/restored welcome, retry, local Settings, data preservation, account confirmation: ok')
+} finally {
+  if (browser) await browser.close()
+  if (server) await server.close()
+  rmSync(cacheDir, { recursive: true, force: true })
+}
