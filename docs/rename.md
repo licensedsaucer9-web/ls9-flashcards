@@ -45,10 +45,38 @@ is also used when an existing default-owner configuration has the old name.
 Stored tokens, revision clocks, and data files remain intact.
 
 The production Firebase client is still staged. Both production publication
-steps remain disabled. The test-only previews can be rebuilt with the new
+steps remain disabled. The test-only previews are published with the new
 branding at their corresponding new and compatibility paths. Authorized
 Firebase domains use the unchanged `licensedsaucer9-web.github.io` hostname;
 no project/UID reassignment is part of this rename.
 
 The [rollout plan](firebase-rollout-plan.md) owns later production cutover,
 device recovery, token retirement, and retirement of the compatibility site.
+
+## Deployment and verification, 2026-10-04
+
+| Artifact | Published revision |
+| --- | --- |
+| Current source and test preview | `bdf9b152bc4f65e09623a414bbd005e6a2e81cad` |
+| Legacy client source (`rename/legacy-public`) | `925fc60b12f039f7a5b040fd02a84a81f40625ee` |
+| New site's `gh-pages` | `fe39ae7440a6c4d44d67b18f65781b99238b33b1` |
+| Compatibility site's `gh-pages` | `1dbc26214bb3bfe1e132edc94688bd3137c1e996` |
+| Data repository documentation | `2079043ad6afd2a5c3c2eef330efdf7962e1d7e8` |
+
+Both Pages sites report successful builds. Their live titles, manifests,
+release records, service workers, offline reload, mobile controls, and Chromium
+installability checks passed. The live rehearsal check verified the expected
+source/test project, nested worker scopes, separate guest storage, and unchanged
+legacy storage sentinels. Local browser checks confirmed the legacy database
+names and a single-line heading at 320px and 390px.
+
+[Source CI](https://github.com/licensedsaucer9-web/ls9-flashcards/actions/runs/37214229420)
+passed unit, account UI, emulator rules/sync/migration, Firebase artifact,
+offline installation, and rehearsal checks. The legacy client's tests and
+artifact checks passed, as did the data repository's three verifier tests.
+The data repository change touched documentation and a script docstring only.
+
+This release did not perform live Google sign-in, provision accounts, import
+data, deploy production Firebase rules, or change stored study records. The
+physical-device rehearsal evidence remains the earlier #25 result; desktop
+mobile viewports do not establish a new iPhone result.

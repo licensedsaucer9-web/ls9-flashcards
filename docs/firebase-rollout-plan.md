@@ -1,6 +1,6 @@
 # Firebase rollout plan
 
-Updated 2026-10-04 against `master` at `efa4d1d`. This is the repository's
+Updated 2026-10-04 against application source `bdf9b15`. This is the repository's
 only active plan. Implementation and the real-data test rehearsal are complete;
 production migration, device recovery, publication, and backup recovery remain.
 
@@ -14,7 +14,7 @@ production migration, device recovery, publication, and backup recovery remain.
 | Isolated preview (#23) | Test project, restrictive rules, separate app storage, and full-app preview prepared. |
 | Live import (#24) | 514 cards, 514 progress records, one settings record, zero tombstones; exact server readback and unchanged repeat with zero writes. |
 | Real second-device rehearsal (#25) | Google restoration on fresh iPhone Home Screen and Mac Safari clients; matching settings/due counts; 10 newer reviews and one settings change survived repeat import and client reopening. |
-| Guarded account UI (#28–#29) | Sign-out and authenticated welcome state merged and covered by synthetic browser checks. These fixes were not published or physically verified by those PRs. |
+| Guarded account UI (#28–#29) | Sign-out and authenticated welcome state merged and covered by synthetic browser checks. Published in the test preview during the rename; no new physical-device verification was performed. |
 | Project rename (2026-10-04) | LS9 Flashcards is the accepted product name. App/package/icons, GitHub repository names, and the public URL are renamed; the old Pages URL remains a compatibility site until device recovery is complete. See [the rename record](rename.md). |
 
 Evidence: [snapshot/baseline](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/22#issuecomment-5972398972),
@@ -27,7 +27,7 @@ with macOS/Safari versions not recorded.
 
 ## Release state and operating boundaries
 
-The public root still serves the previous GitHub-sync build. CI checks the
+The public root serves the renamed legacy GitHub-sync client. CI checks the
 Firebase production client in `dist-firebase`, but both publication steps in
 `.github/workflows/pages.yml` remain disabled. The test rehearsal result is
 also recorded on [#15](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/15#issuecomment-5980512458);

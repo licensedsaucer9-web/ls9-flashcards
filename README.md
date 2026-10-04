@@ -4,7 +4,7 @@
 
 A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German vocabulary deck. It supports frequency tiers, SM-2-style review, card editing, CSV import, and offline study. The longer-term goal is multiple decks on different subjects; the current app assigns one deck per account and has no deck picker.
 
-**Release state, 2026-10-04:** the Google/Firebase client is implemented and the real-data test rehearsal passed on two devices. Production migration and publication remain unfinished. The public root still serves the previous GitHub-sync build; CI checks the production Firebase build without publishing it. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
+**Release state, 2026-10-04:** LS9 Flashcards is live at its new URL with the renamed legacy GitHub-sync client. The Google/Firebase client is implemented and the real-data test rehearsal passed on two devices. Production Firebase migration and publication remain unfinished; CI checks that build without publishing it. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
 
 The project is named **LS9 Flashcards**. The [rename record](docs/rename.md)
 lists the new repositories and URLs. Original storage/configuration identifiers
@@ -12,7 +12,7 @@ remain in use so existing progress is preserved.
 
 On a Firebase build, Google sign-in gives each account its own schedule in Firestore; new accounts receive personal decks. Device-only study remains available. The app stores current SRS state, without review history, an interval multiplier, or FSRS. See [the architecture](docs/architecture.md) for storage and sync guarantees.
 
-The private [german-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) repo remains the legacy data source until final cutover, then stays as a frozen recovery snapshot. Current source has no GitHub data writer or token form; older published/installed builds still do. Revoke the data-write token only after every active device has moved and its pending work is recovered. Keep `PUBLIC_SITE_DEPLOY_KEY` for Pages deployment.
+The private [ls9-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) repo remains the legacy data source until final cutover, then stays as a frozen recovery snapshot. Current source has no GitHub data writer or token form; the published legacy client still does. Revoke the data-write token only after every active device has moved and its pending work is recovered. Keep `PUBLIC_SITE_DEPLOY_KEY` for Pages deployment.
 
 ## Deck tiers
 
@@ -108,7 +108,7 @@ from pull requests and does not deploy Firestore rules.
 
 ## Upgrade an older iPhone Home Screen installation
 
-Do this after production import/device recovery and publication are recorded. This rollout keeps the current public URL. Check Safari and each installed Home Screen app separately; they can hold different local work. Keep each source installation until its pending progress is recovered and verified.
+Do this after production import/device recovery and publication are recorded. The new public URL is the Firebase cutover destination; the old URL currently serves the compatibility client described in [the rename record](docs/rename.md). Check Safari and each installed Home Screen app separately; they can hold different local work. Keep each source installation until its pending progress is recovered and verified.
 
 1. Open the public URL in Safari, confirm the Firebase build, choose **Continue with Google**, and compare the imported schedule with a trusted device.
 2. Open the existing Home Screen installation and confirm it has received the Firebase build. If it still serves an older build or uses a different old URL, preserve it and follow the same-context recovery procedure before replacing its icon.

@@ -13,6 +13,9 @@ The environment (#23), real import (#24), and real second-device verification
 (#25) are complete as of 2026-10-04. The recorded physical-device result used
 app revision `10d48ab`. Account UI fixes from #28–#29 are merged in current
 source, but those PRs did not publish them or record a physical iPhone check.
+The rename release published the test preview at `bdf9b15`; its automated
+live checks are recorded in [the rename record](rename.md). No new physical
+iPhone or real Google sign-in result is claimed for that revision.
 Always compare the visible deployed revision with the revision under test.
 The [rollout plan](firebase-rollout-plan.md) owns remaining production work.
 

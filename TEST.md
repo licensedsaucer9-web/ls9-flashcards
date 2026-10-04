@@ -2,7 +2,7 @@
 
 Use a disposable browser profile for study/editor checks. Existing personal
 decks and legacy storage must remain intact. The public root still serves the
-previous GitHub-sync build; the Firebase client is staged and the real-data
+renamed legacy GitHub-sync client; the Firebase client is staged and the real-data
 test rehearsal is complete. Production acceptance remains in the
 [rollout plan](docs/firebase-rollout-plan.md).
 
