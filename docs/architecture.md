@@ -117,5 +117,8 @@ The [migration runbook](firebase-migration.md) explains the confirmed copy
 and repeat-import behavior.
 
 `npm run migrate -- backup` writes a private Firestore dump with a checksum.
-It is unscheduled and there is no matching restore command yet. The frozen
-legacy repository cannot back up reviews made later in Firebase.
+`npm run migrate -- restore` puts that dump back only onto an isolated
+target, and only where the target is empty or already identical. It does not
+restore Google Auth identities, IndexedDB, rules, or hosting. The frozen
+legacy repository cannot back up reviews made later in Firebase. The procedure
+and its limits are in [Firebase setup](firebase-setup.md#restore-a-firestore-dump).
