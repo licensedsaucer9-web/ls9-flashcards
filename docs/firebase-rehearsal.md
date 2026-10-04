@@ -108,6 +108,12 @@ device**, and confirm the study screen loads. Keep existing study installations
 and storage. Record the device/browser, date, source revision, and result on
 #23. Do not call that check passed based only on a desktop mobile viewport.
 
+Scan with the iPhone camera to open the rehearsal:
+
+![QR code for the rehearsal URL](rehearsal-qr.png)
+
+[Open the rehearsal URL directly](https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike/rehearsal/)
+
 After preview checks, rerun the read-only preflight to confirm Joakim's test
 account has not been provisioned. Record the environment evidence on #23;
 the real import is #24 and real second-device restoration is #25.
