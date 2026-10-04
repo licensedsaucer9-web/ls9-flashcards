@@ -1,22 +1,22 @@
-# Rehearse the legacy migration (#14)
+# Legacy migration and device recovery runbook
 
-Pages builds a Firebase client into `dist-firebase` and does not publish it.
-These importer commands stay local operator tools, never a Cloud Function or a
-production CI step. Use the OAuth test project first. The checklist in section
-5 is still open. Passing synthetic emulator tests does not record that human
-rehearsal as done, and it does not enable the published site. A private
-Firestore backup command is in [firebase-setup.md](firebase-setup.md).
+The test snapshot import (#24) and real second-device rehearsal (#25) passed
+on 2026-10-04. Production import, collection of device-only legacy work, and
+public cutover remain in the [single rollout plan](firebase-rollout-plan.md).
+Use [the saved import record](issue-24-status.md) and
+[the final second-device result](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235)
+when reviewing completed work; do not rerun `--apply` just to inspect evidence.
 
-The real #24 snapshot import into `flashcards-ls9-auth-test` completed on
-2026-10-04: [source/revision evidence, aggregate counts, exact readback, and
-zero-write repeat](issue-24-status.md). This completes the snapshot-import
-portion only; device recovery, second-device verification, and production
-cutover remain separate milestones.
+These are local operator commands, never a Cloud Function or production CI
+step. Rehearse live operations only against `flashcards-ls9-auth-test`.
+Production commands require their separate authorized milestone. Pages builds
+`dist-firebase` but both publication steps remain disabled. A Firestore backup
+command and its recovery limitations are in [Firebase setup](firebase-setup.md).
 
-Rollback before any Firebase study is leaving the previous `master` build
-published. After Firebase progress exists, publish a Firebase build only. This
-repo no longer contains `src/github.ts`, so a new build cannot write the data
-repo.
+Before production Firebase study exists, rollback keeps or restores the
+previously published artifact. Current `master` has no GitHub writer. After
+production Firebase progress exists, use a Firebase-compatible client while
+retaining that data.
 
 ## 1. Prepare private inputs
 
@@ -37,6 +37,9 @@ production backups in durable private storage outside Git.
 ```bash
 export GERMAN_FLASHCARDS_PRIVATE_DIR=/path/outside/git/german-flashcards
 MIGRATION_DIR="${GERMAN_FLASHCARDS_PRIVATE_DIR:-$HOME/.config/german-flashcards}"
+umask 077
+mkdir -p "$MIGRATION_DIR"
+chmod 700 "$MIGRATION_DIR"
 ```
 
 The commands below use `MIGRATION_DIR`. If the default location is outside Git
@@ -82,19 +85,21 @@ local `HEAD`. Export reads
 if present. It ignores uncommitted working files and leaves the data repo intact.
 
 ```bash
+git -C /home/joakim/src/german-flashcards-data fetch origin main
+SOURCE_COMMIT=$(git -C /home/joakim/src/german-flashcards-data rev-parse origin/main)
 npm run migrate -- export \
   --repo /home/joakim/src/german-flashcards-data \
-  --commit REPLACE_WITH_FETCHED_MAIN_SHA \
+  --commit "$SOURCE_COMMIT" \
   --out "$MIGRATION_DIR/exports/REPLACE_WITH_TIMESTAMP-rehearsal.json"
 ```
 
 The private export records the full commit, export time, and SHA-256 checksum.
-Record the printed commit for #15's final GitHub recheck. Existing export files
+Record the printed commit for the final production GitHub recheck. Existing export files
 are never overwritten; choose a fresh dated filename for a later snapshot.
 Exports are created with mode 600. Input and output paths inside Git repositories
 (including symlinks into them) are refused.
 
-### Prepare the offline comparison baseline (#22)
+### Prepare the offline comparison baseline
 
 The confirmed test-project UID is recorded in issue #10. Preparing its mapping
 can use that recorded sign-in evidence; do not substitute the production UID.
@@ -123,10 +128,11 @@ the importer's deleted-document representation. Later live readback must use
 the reviewed merge result for any newer server records, rather than overwriting
 them with this baseline.
 
-Complete #22 by recording the source commit, aggregate counts, mapping
-confirmation status, and baseline validation result on the issue. Keep exact
-values, mapping files, and actual artifact locations private. No Firebase write
-or preview deployment is needed for this preparation.
+Record the source commit, aggregate counts, mapping confirmation status, and
+baseline validation result for each new migration. Keep exact values, mapping
+files, and actual artifact locations private. No Firebase write or preview
+deployment is needed for this preparation. The #22 test baseline is already
+recorded; production needs a fresh snapshot and its own confirmed mapping.
 
 ## 3. Dry-run, import, read back, and resume
 
@@ -134,7 +140,8 @@ or preview deployment is needed for this preparation.
 npm run migrate -- import \
   --export "$MIGRATION_DIR/exports/REPLACE_WITH_TIMESTAMP-rehearsal.json" \
   --mapping "$MIGRATION_DIR/migration-map-auth-test.json" \
-  --credential service-account-auth-test.json
+  --credential service-account-auth-test.json \
+  > "$MIGRATION_DIR/exports/REPLACE_WITH_TIMESTAMP-dry-run.log"
 ```
 
 This defaults to a dry-run: it reads the selected project's existing records
@@ -145,7 +152,8 @@ before opening the network client if the export or mapping is invalid.
 The output contains private vocabulary and progress; save it only to a private
 file outside the repo if a report is needed.
 
-After inspecting the differences, repeat with `--apply`. The importer:
+After inspecting the private differences, repeat with `--apply` only as part
+of the authorized import, saving output to a fresh private log. The importer:
 
 1. Preassigns the shared deck and its exact mapped membership, and creates each
    `users/{uid}` with `migrationStatus: pending`. A conflicting existing personal
@@ -167,10 +175,13 @@ verification and collection of every device's local work are separate steps.
 
 ## 4. Recover each device's unsynced local profile
 
-Use a Firebase-enabled preview **on the same browser origin and storage context
-as the old app**. A localhost preview cannot read an iPhone's existing IndexedDB.
-Check Safari and the installed Home Screen app separately when both were used.
-Deploy the restrictive rules to the test project before using real OAuth there.
+Use a Firebase recovery build **on the same browser origin and storage context
+as the old app**, with the mapped account preassigned and restrictive rules
+deployed before access. A localhost preview cannot read an iPhone's IndexedDB.
+The isolated rehearsal intentionally uses different storage and cannot recover
+root-app profiles. Check Safari and the installed Home Screen app separately.
+If a preview cannot access the actual old installation's storage, the rollout
+needs a same-context recovery/bridge release before that device moves.
 
 Sign in as the already mapped account. Shared legacy accounts do not run the
 generic first-login guest copy. In Settings:
@@ -195,27 +206,27 @@ Firestore acknowledgements, including rows from before per-record tracking.
 Repeating a copy preserves acknowledged markers and newer account data. Account
 changes before the write refuse the copy.
 
-## 5. Record the real rehearsal before #15
+## 5. Record results and apply the release gate
 
-- [x] Record the private export's commit and reviewed test-project UID mapping (#22).
-- [x] Inspect the dry-run's record differences and apply to the isolated test project (#24).
-- [x] Verify imported counts, exact SRS/settings values, and tombstone expectations
-      in readback (#24; the source snapshot has zero tombstones).
-- [ ] Copy pending local work on every previously used device/storage context.
-- [ ] Open a clean second client as Joakim. Confirm the same card schedules,
-      direction, session size, tier, custom words, and deletions through #13 sync.
-- [ ] Make a newer review on that client and repeat the importer. Confirm it
-      reports `already imported` and preserves the newer review.
-- [ ] Record the human check's device, date, commit, and result privately and on
-      the cutover issue without posting private data or UID mapping files.
+The test rehearsal is complete: #22 prepared the immutable source/baseline,
+#24 verified the real import, and #25 verified fresh Google restoration on
+iPhone Home Screen and Mac Safari clients. Ten newer reviews and a newer
+settings record survived a repeat import with zero writes and client reopening.
+Mac browser/OS versions were not recorded.
 
-The production rehearsal waits for the separately confirmed production mapping.
-The public site keeps the previous build until this checklist is recorded on
-issue #15. The Pages publish steps do not run; they copy `dist-firebase` only
-after that record, and a flag-off `dist/` must not be published in its place.
-Collect any remaining local work with the Settings copy, then revoke the
-data-repo write token only after those devices are on the published Firebase
-build. Leave `german-flashcards-data` as a frozen snapshot.
+For production, use a separately confirmed production mapping and credential,
+a fresh final GitHub snapshot, exact server readback, and recovery of every
+active device's local work. Record source/build, date, device/browser, comparison
+method, aggregate result, and unresolved items. Keep exact values and operator
+files private. A server `migrationStatus: complete` marker does not verify
+device recovery or authorize publication.
+
+The [rollout plan](firebase-rollout-plan.md) owns the production checklist.
+Keep both publish steps held until the production recovery gate and publication
+authorization are recorded. Publish the tested `dist-firebase`, never a local-only
+`dist/`. Revoke the legacy write token only after all active devices are on the
+Firebase build and their pending work is acknowledged; then retain the data
+repository as a frozen recovery snapshot.
 
 ## Automated checks
 

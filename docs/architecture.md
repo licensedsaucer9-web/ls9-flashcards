@@ -1,0 +1,121 @@
+# Architecture and data guarantees
+
+This describes the implementation on `master` as of 2026-10-04.
+For what is deployed and what remains, use the
+[rollout plan](firebase-rollout-plan.md).
+
+## Build modes
+
+Vite's `account-backend` plugin swaps `src/account.ts` and
+`src/sync-backend.ts` for the Google/Firestore implementations only when
+`VITE_SYNC_BACKEND=firebase`. Without that flag, the app studies locally.
+
+Ordinary Firebase builds use the public production configuration in
+`src/firebase-web.ts`. An explicit override needs all four
+`VITE_FIREBASE_*` values; partial configuration does not fall through to
+production. The rehearsal builder selects the test project explicitly and
+uses `VITE_REHEARSAL_PREVIEW=true`. Web configuration is public; Admin SDK
+credentials belong only to local operator commands.
+
+## Identity and storage
+
+The LS9 product/package rename keeps the original `german-flashcards`
+storage prefixes and `GERMAN_FLASHCARDS_PRIVATE_DIR` variable. Repository and
+URL names are separate from data identity; see [the rename record](rename.md).
+
+Google Authentication uses browser-local persistence. Firebase UID selects
+the account's IndexedDB database and Firestore ownership; a name or email
+is only a label. Guest and legacy profile databases stay separate and are
+not deleted or renamed on sign-in. Copying device data requires confirmation.
+
+A new account gets a deterministic personal deck at `decks/{uid}`.
+Provisioning keeps an existing account's assigned deck. An Admin import
+preassigns legacy users to `legacy-german`, where vocabulary is shared but
+each user's progress and settings stay private.
+
+The rehearsal uses the `german-flashcards-rehearsal` storage prefix. It
+preserves the root app's databases, profile list, preferences, and token keys.
+It accepts only a schema-1, completed legacy assignment; missing or pending
+assignments cannot create personal decks. An authenticated session can
+therefore remain in device study while showing an import guard. Current
+source shows **Signed in to Google** and **Sign out of Google** in that state.
+
+Ordinary builds remove the obsolete `german-flashcards.github` and
+`german-flashcards.github.shas` keys on launch. The source has no active
+GitHub data transport; the previous published build still has its old writer.
+
+## Firestore layout
+
+| Path | Contents and access |
+| --- | --- |
+| `users/{uid}` | Owner-readable account metadata, deck assignment, schema version, migration status. |
+| `users/{uid}/settings/current` | Owner-only direction, session size, tier, and settings clock. |
+| `users/{uid}/progress/{cardId}` | Owner-only SRS state and its clock. |
+| `decks/{deckId}` | Explicit deck membership. Clients cannot alter membership or assign themselves to a legacy deck. |
+| `decks/{deckId}/cards/{cardId}` | Vocabulary, content clock, optional rank/tier, and deletion tombstone; deck members can edit. |
+
+`firestore.rules` denies unauthenticated access and validates client shapes,
+ownership, membership, and immutable account assignment. Rules do not govern
+Admin SDK operations. The operator importer validates its own inputs and
+project/credential pairing.
+
+## Local commits and synchronization
+
+IndexedDB is the durable offline store. Every mutation commits data, its
+local revision, and the affected records' pending markers atomically.
+Firestore uses an in-memory cache, leaving the durable queue in IndexedDB.
+Database connections close after operations and on `versionchange`;
+blocked upgrades surface an actionable notice.
+
+All foreground triggers share a serialized pull/merge/push loop. Sync runs
+on launch, return to foreground, connectivity return, **Sync now**, and after
+a debounced local change. Hiding or leaving the app pauses the timer; it
+does not attempt a full background upload. There is no realtime listener or
+background polling. Two clients kept visible may need **Sync now** to see
+one another's latest work.
+
+Each dirty record uses a server transaction to read, merge, and write only
+when needed. Acknowledgement clears only the revision actually confirmed;
+a newer local edit stays pending. Failed or rejected records remain pending,
+and an unchanged sync does not rewrite every card. UID/session guards refuse
+stale reads, writes, copies, or acknowledgements after an account change.
+
+**Saved on this device** means work has committed locally and remains pending.
+**Synced** means the account's pending records have been acknowledged by
+Firestore. It does not mean an independent historical backup exists.
+
+## Merge and deletion rules
+
+Vocabulary, SRS progress, and settings have separate clocks, so a card edit
+cannot undo a review and assembling a snapshot does not refresh settings.
+
+- Content uses `updated_at` (falling back to `created_at`); equal clocks
+  prefer the local value.
+- Progress uses its own `updated_at`; equal clocks prefer the remote value.
+- Settings use `settingsUpdatedAt`; equal clocks prefer local settings.
+- Tombstones retain the greatest deletion time. Deleted built-in seed IDs
+  remain deleted despite reseeding or stale content. A custom card can win
+  over an older tombstone if its content clock is newer.
+
+These are wall-clock decisions. Clock skew and simultaneous reviews of the
+same card remain limitations; there is no review-event merge.
+
+## Scheduling and recovery limits
+
+The scheduler is SM-2-style: first Hard/Good = 1 day, second Good = 6 days,
+first Easy = 4 days. Again and Gender requeue immediately, with a smaller ease
+penalty for Gender. The account stores the latest SRS state per card, with
+no interval multiplier, review history, or FSRS.
+
+A review session starts from a captured due queue. Cards arriving from sync
+do not join that running session; start a new session to include them.
+
+Legacy migration preserves card IDs, clocks, settings, progress, and
+tombstones. The Admin completion marker verifies the imported snapshot;
+device-only data and real second-device checks are separate evidence.
+The [migration runbook](firebase-migration.md) explains the confirmed copy
+and repeat-import behavior.
+
+`npm run migrate -- backup` writes a private Firestore dump with a checksum.
+It is unscheduled and there is no matching restore command yet. The frozen
+legacy repository cannot back up reviews made later in Firebase.

@@ -38,17 +38,17 @@ jobs:
       - name: Build staged Firebase client
         run: npm run build -- --outDir dist-firebase --emptyOutDir
         env:
-          BASE: /german-flashcards-site/
+          BASE: /ls9-flashcards-site/
           VITE_SYNC_BACKEND: firebase
       - name: Check staged Firebase files
         run: node scripts/check-deploy-artifact.mjs
         env:
-          BASE: /german-flashcards-site/
+          BASE: /ls9-flashcards-site/
           ARTIFACT_DIR: dist-firebase
       - name: Check installability and offline reload
         env:
-          BASE: /german-flashcards-site/
-          APP_URL: http://127.0.0.1:4173/german-flashcards-site/
+          BASE: /ls9-flashcards-site/
+          APP_URL: http://127.0.0.1:4173/ls9-flashcards-site/
         run: |
           npm run preview -- --outDir dist-firebase --strictPort &
           preview_pid=$!
@@ -58,8 +58,8 @@ jobs:
         run: npm run rehearsal:build
       - name: Check rehearsal installability and offline reload
         env:
-          BASE: /german-flashcards-site/auth-spike/rehearsal/
-          APP_URL: http://127.0.0.1:4178/german-flashcards-site/auth-spike/rehearsal/
+          BASE: /ls9-flashcards-site/auth-spike/rehearsal/
+          APP_URL: http://127.0.0.1:4178/ls9-flashcards-site/auth-spike/rehearsal/
         run: |
           npm run preview -- --outDir dist-rehearsal --port 4178 --strictPort &
           preview_pid=$!
@@ -73,7 +73,7 @@ jobs:
         if: ${{ false }}
         uses: actions/checkout@v4
         with:
-          repository: licensedsaucer9-web/german-flashcards-site
+          repository: licensedsaucer9-web/ls9-flashcards-site
           ref: gh-pages
           path: public-site
           ssh-key: ${{ secrets.PUBLIC_SITE_DEPLOY_KEY }}

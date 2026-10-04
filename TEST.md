@@ -1,85 +1,122 @@
-# German Flashcards — click path
+# LS9 Flashcards — manual acceptance guide
 
-A Firebase build signs in with Google and does not ask for a token. Pages checks that build in `dist-firebase` and does not publish it until the rehearsal in [the migration guide](docs/firebase-migration.md) is recorded. Device-copy of an older local profile is in that guide.
+Use a disposable browser profile for study/editor checks. Existing personal
+decks and legacy storage must remain intact. The public root still serves the
+previous GitHub-sync build; the Firebase client is staged and the real-data
+test rehearsal is complete. Production acceptance remains in the
+[rollout plan](docs/firebase-rollout-plan.md).
 
-App lives in this folder. IndexedDB is the offline cache. A fresh **Study on this device** visit seeds 514 A1/A2 cards, split into three tiers. Existing decks gain missing seed cards on launch without resetting SRS on cards you already have. Use a disposable browser profile for this click path so the tests do not change your personal deck.
+A fresh device-study deck has 514 built-in cards in three tiers. Existing
+decks gain missing seeds without resetting existing SRS; deleted seeds stay
+deleted.
 
-`npm run dev` stays on this device. To click through the staged Firebase client locally:
+## Run and choose a build
 
-```bash
-BASE=/german-flashcards-site/ VITE_SYNC_BACKEND=firebase npm run build
-BASE=/german-flashcards-site/ npm run preview
-```
-
-Open `http://127.0.0.1:4173/german-flashcards-site/`. The first screen offers **Continue with Google** and **Study on this device**.
-
-## Run
+For local study:
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Open the URL Vite prints (usually http://localhost:5173/).
-
-For the installable PWA (service worker):
+Open the printed URL (usually `http://localhost:5173/`). This build has no
+Google login or cloud sync. For a service-worker/offline check:
 
 ```bash
 npm run build
 npm run preview
 ```
 
-Open the preview URL (usually http://localhost:4173/).
-If checking the public site's subpath locally, set
-`BASE=/german-flashcards-site/` for **both** the build and preview commands and
-open `http://localhost:4173/german-flashcards-site/`.
+Open `http://127.0.0.1:4173/`. If checking a subpath, set the same `BASE`
+for build and preview.
+
+For the isolated Firebase test app:
+
+```bash
+npm run rehearsal:build
+BASE=/ls9-flashcards-site/auth-spike/rehearsal/ npm run preview -- --outDir dist-rehearsal --port 4178 --strictPort
+```
+
+Open `http://127.0.0.1:4178/ls9-flashcards-site/auth-spike/rehearsal/`.
+Confirm **Test rehearsal**, the test project, and revision. Choose **Study on
+this device** for local checks. Real Google login needs that hostname authorized
+in the test project. The rehearsal admits only an already verified legacy
+assignment and uses separate storage; it cannot demonstrate fresh-user
+provisioning or recover the old root app's device-only data.
+
+The [published rehearsal](docs/firebase-rehearsal.md) supports physical-device
+testing. Check its visible revision: merged source changes do not automatically
+publish that preview. An ordinary `VITE_SYNC_BACKEND=firebase` build defaults
+to production; do not sign an unmigrated owner into it before the Admin import.
 
 ## 1. Tiers
 
-1. Home shows a **Deck tier** row: **Tier 1 / Tier 2 / Tier 3**, each with its word count and due count. Tier 1 is selected on a fresh profile.
-2. The header reads **Due now · Tier 1 · 100 words**. The due count is at most 100, not 514.
-3. Tap **Tier 2**. The count rises to 250 words and the due count cannot go down — tier 2 includes tier 1.
-4. Tap **Tier 3** for all 514. The footnote under the chips explains the tier.
-5. **Deck** has the same tier row, so you can browse a narrow set and widen it. Every row shows a `T1` / `T2` / `T3` badge.
-6. Tier 1 opens with `haben`, `gut`, `sein`, `werden`, `können` and closes at `groß` / `Hand`. Spot-check a few words against the list in the README.
+1. Home shows **Deck tier** chips with word and due counts. Tier 1 is selected
+   on a fresh profile and includes 100 words.
+2. Tier 2 includes 250 words and all of tier 1; its due count cannot decrease
+   simply because the tier widened.
+3. Tier 3 includes all 514 built-in words.
+4. Deck has the same tier filter, and rows show `T1` / `T2` / `T3` badges.
+5. Spot-check tier 1's frequency order against the README: it opens with
+   `haben`, `gut`, `sein`, `werden`, `können` and ends at `groß` / `Hand`.
 
-## 2. Review loop (due queue only)
+## 2. Review loop and exit
 
-1. Home shows a large **due** count (at most the selected tier's size, 100 on tier 1), a **This session** cap (10 / 20 / 30 / All, plus custom), and **Start N of M**.
-2. The Deck and Settings tabs are in the bottom bar; home is not a full deck list.
-3. Pick a session size (suggested chip is marked). Tap **Start**. Review only that many due cards; leftover due stay on home.
-4. You see a big German card (`der` blue, `die` red, `das` green; verbs have no article color).
-5. Tap the card to flip (or press Space / Enter).
-6. Grade buttons appear at the bottom: **Again / Hard / Good / Easy**. Nouns also get **Gender** (key **5**): you knew the word but missed der/die/das. It comes back in the session, with a smaller ease penalty than Again.
-7. Grade with the buttons or keys **1–4** (and **5** for Gender on nouns).
-8. The next due card appears. Close returns to home. The header also names the tier, so you can tell a 100-word session from a 514-word one.
+1. Home shows the selected tier's due count, **This session** cap
+   (10 / 20 / 30 / All, plus custom), and **Start N of M**.
+2. Choose a cap and start. Only that many due cards enter the initial session;
+   leftover cards remain due on home.
+3. Tap the card or press Space/Enter to flip. Articles use blue `der`,
+   red `die`, green `das`; verbs have no article color.
+4. Grade **Again / Hard / Good / Easy** with buttons or keys 1–4. Nouns also
+   offer **Gender** (key 5), which requeues with a smaller ease penalty than Again.
+5. Grade one card, then **Close** mid-session. Return to home with that grade
+   saved. Start again and confirm a fresh queue; completion offers **Back home**.
+6. A running session uses its initial due queue. Cards arriving through sync
+   enter a later session.
 
-## 3. Grades persist after reload
+## 3. Persistence and deletion
 
-1. Note the due count on home (e.g. 100 on tier 1 in a fresh profile).
-2. Start review, flip, tap **Good** on one card.
-3. Close, or go home. Due count should be one lower.
-4. Reload the page (F5). The lower due count persists.
-5. Start review: the card you graded Good is gone from the queue.
-6. Optional: grade a card **Again**, reload — that card is still due (interval reset).
+1. Grade a fresh card **Good**. Close to home; its due count decreases by one.
+2. Reload. The grade and lower due count persist, and that card is absent from
+   the due queue. **Again** leaves a card due after reload.
+3. Delete a disposable built-in card. Reload; reseeding must not restore it.
+   On a signed-in test account, sync and check that deletion on another client.
+4. Card editing must preserve the existing schedule.
 
-## 4. Account
+## 4. Accounts and guarded sessions
 
-1. On a Firebase build, a fresh profile shows **Continue with Google** and **Study on this device**. There is no owner, repository, or token field. The published site does not serve this build yet.
-2. **Study on this device** seeds the local deck. Home says **On this device**. Those cards stay local until you later sign in and confirm a copy.
-3. **Settings** for a signed-out visit shows **Continue with Google**. A signed-in visit shows the account label, **Sync now**, and **Sign out**.
-4. A second Google account gets its own seeded deck. It cannot open the first account’s schedule. The emulator rules test covers that isolation; a real second account is a manual check on the public URL.
-5. Signing out leaves the account’s local database on this device and returns to device study. It does not upload that database as the next account.
+These checks need a Firebase build. General new-account provisioning is covered
+by automated checks and the later production acceptance, not by the guarded
+rehearsal preview.
 
-## 5. Editor + CSV import
+1. A fresh Firebase visit offers **Continue with Google** and **Study on this
+   device**, with no repository/token form. Device study stays local.
+2. On the test preview, a missing/pending/unassigned account reports that it
+   needs its verified import and does not create a personal deck.
+3. In current source, that guarded Google session shows **Signed in to Google**
+   and **Sign out of Google** and hides **Continue with Google**. Test both a
+   fresh login and a restored session; repeat clicks must not reopen login.
+4. **Study on this device** still opens the local deck. Settings retains the
+   guarded session's sign-out action. Sign out; sign-in becomes available again.
+   Check popup cancellation and a later retry leave the app usable.
+5. A verified legacy account enters its imported deck. Settings shows the
+   account, **Sync now**, and **Sign out**.
+6. With pending account changes, sign-out offers sync, sign-out, or staying
+   signed in. Signing out retains that account's local data; signing in as
+   another account must not expose or upload it.
+7. If guest-copy is offered on a normal personal-account build, cancel it and
+   confirm the local source is retained. Copy only after confirming the account.
 
-1. Bottom bar → **Deck**.
-2. **Add card**. Fill German `Hundewetter`, English `awful weather`, article `das`, save.
-3. Deck list shows `das Hundewetter`. It is **due**, and its badge reads `T3` — a card you add has no corpus rank, so it starts in the widest tier.
-4. Edit a built-in card such as `Kühlschrank`. The note reports its corpus rank and tier. Change the **Tier** box to 1, save, and the badge becomes `T1`: the box overrides the researched placement.
-4. **CSV import**. Paste or use `public/sample.csv`:
+## 5. Editor and CSV
 
-   ```
+1. Deck → **Add card**: enter `Hundewetter`, `awful weather`, article `das`.
+   It is due and starts in tier 3; widen the Deck filter to see it.
+2. Edit a built-in card. The note gives rank/tier; override its tier to 1 and
+   confirm the badge changes without resetting SRS.
+3. Import a CSV such as:
+
+   ```csv
    de,en,article,example_de
    Bahnhof,train station,der,Der Bahnhof ist nah.
    Toilette,toilet,die,Wo ist die Toilette?
@@ -87,34 +124,55 @@ open `http://localhost:4173/german-flashcards-site/`.
    laufen,to run,none,Ich laufe schnell.
    ```
 
-5. Tap **Import**. Toast reports imported count. New rows appear in Deck and are due on home.
-6. Import the same CSV again: those rows are skipped (duplicate `de`+`en`).
+4. Check the imported/skipped count. Existing `de`+`en` pairs are skipped;
+   the sample may already be in the seed. Use unique disposable pairs if you
+   need to demonstrate new rows.
+5. Import again; duplicates are skipped. New unranked cards are in tier 3.
 
-## 6. Reverse direction + PWA
+## 6. Direction, installation, and offline study
 
-1. **Settings** → **EN → DE**. Home → Start review: front is English, back is German.
-2. Switch back to **DE → EN** the same way.
-3. On `npm run preview` (or a hosted HTTPS build), Chrome/Edge: install icon or menu → **Install page as app**.
-4. On `npm run preview`, `node scripts/installable.mjs` checks the manifest,
-   controlling service worker, offline reload, and Chromium installability
-   errors. Chrome/Edge can show an install option on desktop.
+1. Settings → **EN → DE**. Start review; the front is English. Switch back to
+   **DE → EN** and check the German front.
+2. On a build served by preview or HTTPS, check the manifest and service worker.
+   Chrome/Edge may offer installation. On iPhone Safari, use Share →
+   **Add to Home Screen**.
+3. Turn Airplane Mode on after a successful load. Reopen and review a card,
+   immediately switch apps/close, then reopen offline. The grade persists.
+4. For a signed-in account, status stays **Saved on this device** until
+   Firestore acknowledges it after reconnection.
 
-## 7. Cloud sync (cross-device)
+## 7. Cross-device Firebase sync
 
-These steps apply after the Firebase client is published. Until issue #15 records the #14 readback, <https://licensedsaucer9-web.github.io/german-flashcards-site/> still serves the previous build. On the Firebase client, sign in with Google. The app does not ask for a token.
+Use the mapped test account for rehearsal, or production after its authorized
+cutover. Never use the old public root as evidence of the staged client's sync.
 
-1. Sign in on device A and wait until Settings says **Synced**.
-2. Grade one card and keep the app open. The line may say **Saved on this device** while the write is still pending, then **Synced** after Firestore acknowledges it.
-3. Open device B in a fresh profile, sign in with the same Google account, and wait for sync or tap **Sync now**. The grade matches. Switching apps does not perform a background upload.
-4. Turn Airplane Mode on, grade another card, kill the PWA, and reopen it offline. The grade is still there and the line does not say **Synced**. Go online and confirm the grade arrives.
-5. Sign in as a different Google account. Its deck is the bundled seed, and Joakim’s schedule is not visible.
-6. `german-flashcards-data` stays a frozen snapshot. Do not paste its token into the app. Revoke that token only after the devices you still use are on a published Firebase build.
+1. Sign in on client A and wait for **Synced**.
+2. Grade a card; pending status becomes **Synced** only after acknowledgement.
+3. Sign into the same account on a clean client B. Compare settings, due count,
+   and the changed schedule. Use **Sync now** if both clients remained visible:
+   there is no realtime listener or background polling.
+4. Review offline, close/reopen offline, reconnect, and confirm the grade on B.
+5. Create, sync, and delete a disposable card; it stays absent after B syncs.
+6. On a normal production build, verify a fresh account gets its own seeded deck
+   and cannot see the legacy account's schedule or vocabulary edits.
+7. For old device-only progress, use the confirmed same-context copy procedure
+   in [the migration runbook](docs/firebase-migration.md).
 
-The [README](README.md#move-an-older-iphone-home-screen-installation) explains moving an older Home Screen icon. A private Firestore export is in [docs/firebase-setup.md](docs/firebase-setup.md).
+## Automated checks and evidence
 
-## 8. Mobile layout
+`npm test` covers pure logic and synthetic migration inputs without a browser
+or live service. `npm run test:account-ui` checks the account UI with synthetic
+Google sessions and real IndexedDB in Chromium. `npm run test:rules` uses the
+Firestore emulator for rules, cloud sync, and migration (Java 21 and Chromium).
 
-1. DevTools device mode (Pixel / iPhone) or a phone on the LAN.
-2. Grade buttons sit in the thumb zone at the bottom; targets are at least ~64px tall.
-3. Nothing requires hover: flip, grade, tabs, and list rows all work with tap.
-4. Home, Deck, and Settings stay inside a narrow column; review is full-height with the card in the middle.
+With a preview running, `APP_URL=URL node scripts/installable.mjs` checks
+manifest/worker, mobile guest controls, installability, and offline reload.
+`PREVIEW_REVISION=FULL_SHA npm run rehearsal:check` checks the published
+isolated preview without signing into Google. Browser checks require Chromium;
+see [development setup](README.md#develop).
+
+The real #25 rehearsal passed on 2026-10-04; its
+[record](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235)
+distinguishes server comparisons from human checks. New manual results should
+record build, date, device/browser, method, and outcome. Keep record-level
+values and operator files private. Production acceptance is still outstanding.

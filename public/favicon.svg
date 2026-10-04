@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect width="32" height="32" rx="8" fill="#0e1116"/>
-  <text x="16" y="21" text-anchor="middle" font-family="Noto Sans, sans-serif" font-size="13" font-weight="700" fill="#e8eaed">DE</text>
+  <text x="16" y="21" text-anchor="middle" font-family="Noto Sans, sans-serif" font-size="10" font-weight="700" fill="#e8eaed">LS9</text>
   <rect x="6" y="25" width="5" height="2" rx="1" fill="#4ea1ff"/>
   <rect x="13.5" y="25" width="5" height="2" rx="1" fill="#ff6b8a"/>
   <rect x="21" y="25" width="5" height="2" rx="1" fill="#3dd68c"/>

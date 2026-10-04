@@ -6,7 +6,7 @@ import { prepareMigration, runMigration } from './migration-core.mjs'
 import { exportMigrationBaseline } from './migration-baseline.mjs'
 
 const help = `Usage (Node 22+):
-  npm run migrate -- export --repo /path/to/german-flashcards-data --commit HEAD --out /private/export.json
+  npm run migrate -- export --repo /path/to/ls9-flashcards-data --commit HEAD --out /private/export.json
   npm run migrate -- baseline --export /private/export.json [--mapping /private/map.json] --out /private/baseline.json
   npm run migrate -- import --export /private/export.json [--mapping /private/map.json] [--credential service-account.json] [--apply] [--emulator]
   npm run migrate -- backup --project flashcards-ls9-prod --credential service-account-prod.json --out /private/firestore.json

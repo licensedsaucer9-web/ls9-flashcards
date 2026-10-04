@@ -1,5 +1,13 @@
 # Migration rehearsal and handoff
 
+- Read `README.md` for release state and `docs/architecture.md` for implemented
+  behavior. `docs/firebase-rollout-plan.md` is the only active plan; setup,
+  migration, and rehearsal guides are runbooks, not separate roadmaps.
+- The real-data test rehearsal (#22–#25) is complete as of 2026-10-04.
+  Production migration, device recovery, publication, token retirement, and
+  backup restoration remain outstanding. Closed implementation issues do not
+  establish those operational results.
+
 - Run live rehearsal operations only against `flashcards-ls9-auth-test`.
   Production imports, rules deployment, and publishing remain held until their
   separate cutover milestones are authorized. Preserve both disabled production

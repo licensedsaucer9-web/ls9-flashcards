@@ -2,7 +2,11 @@
 
 The real import into `flashcards-ls9-auth-test` completed on 2026-10-04, with
 exact server readback and an unchanged repeat that made zero writes. All #24
-acceptance checks passed. Second-device verification belongs to #25.
+acceptance checks passed. The separate
+[second-device verification (#25)](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235)
+also passed later on 2026-10-04. Production/device recovery and public cutover
+remain in the [rollout plan](firebase-rollout-plan.md). This document retains
+the saved #24 import evidence; reviewing it does not require another import.
 
 ## Reviewed inputs and revisions
 
@@ -13,7 +17,7 @@ acceptance checks passed. Second-device verification belongs to #25.
 - Baseline checksum:
   `9866fe8ad2b4d199ea8975ad15da6398ac7c104efe4ca59ecc956fde458691ec`.
 - Mapping: the confirmed test identity from
-  [Joakim's sign-in evidence in #10](https://github.com/licensedsaucer9-web/german-flashcards/issues/10#issuecomment-5894726933),
+  [Joakim's sign-in evidence in #10](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/10#issuecomment-5894726933),
   as recorded in #22. It assigns one mapped profile to `legacy-german`.
   The mapping and its fingerprint stay private.
 - Importer/tool revision: `046c505640f76e716d58ab8e9954a1db3f0950d3`

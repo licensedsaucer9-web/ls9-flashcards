@@ -340,7 +340,7 @@ async function showWelcome(googleReady: boolean): Promise<void> {
   if (!main) return
   main.innerHTML = `
     <section class="screen">
-      <header class="topbar"><h1>German</h1></header>
+      <header class="topbar"><h1>LS9 Flashcards</h1></header>
       <div class="due-hero">
         <p class="kicker">Welcome</p>
         ${rehearsalNote()}

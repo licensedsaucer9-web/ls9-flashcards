@@ -9,7 +9,7 @@ const config = JSON.parse(readFileSync(new URL('../spikes/firebase-rehearsal/web
 assert.equal(config.projectId, 'flashcards-ls9-auth-test')
 for (const field of ['apiKey', 'authDomain', 'projectId', 'appId']) assert(config[field], `Missing test config field ${field}`)
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
-const env = { ...process.env, BASE: '/german-flashcards-site/auth-spike/rehearsal/',
+const env = { ...process.env, BASE: '/ls9-flashcards-site/auth-spike/rehearsal/',
   VITE_SYNC_BACKEND: 'firebase', VITE_REHEARSAL_PREVIEW: 'true', VITE_REHEARSAL_REVISION: revision,
   VITE_FIREBASE_API_KEY: config.apiKey, VITE_FIREBASE_AUTH_DOMAIN: config.authDomain,
   VITE_FIREBASE_PROJECT_ID: config.projectId, VITE_FIREBASE_APP_ID: config.appId,

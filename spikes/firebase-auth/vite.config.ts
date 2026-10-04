@@ -15,8 +15,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'Firebase Sign-in Check',
-        short_name: 'Auth Check',
+        name: 'LS9 Flashcards Sign-in Check',
+        short_name: 'LS9 Auth',
         start_url: './',
         scope: './',
         display: 'standalone',

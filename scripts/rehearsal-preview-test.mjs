@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 
-const root = process.env.ROOT_URL || 'https://licensedsaucer9-web.github.io/german-flashcards-site/'
+const root = process.env.ROOT_URL || 'https://licensedsaucer9-web.github.io/ls9-flashcards-site/'
 const preview = new URL('auth-spike/rehearsal/', root).href
 const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/chromium',
   headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] })

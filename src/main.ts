@@ -129,7 +129,7 @@ function showDatabaseNotice(event: 'versionchange' | 'blocked'): void {
     document.body.appendChild(banner)
   }
   banner.textContent = event === 'blocked'
-    ? 'A database upgrade is waiting on another tab. Close other German Flashcards tabs and reload.'
+    ? 'A database upgrade is waiting on another tab. Close other LS9 Flashcards tabs and reload.'
     : 'This tab closed its database so another tab can upgrade. Reload to continue.'
 }
 
@@ -222,7 +222,7 @@ async function renderHome() {
   main.innerHTML = `
     <section class="screen">
       <header class="topbar">
-        <h1>German</h1>
+        <h1>LS9 Flashcards</h1>
         <span class="badge" id="sync-line">${esc(syncLineText())}</span>
       </header>
       <div class="due-hero">

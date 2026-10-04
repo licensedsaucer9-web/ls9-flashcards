@@ -1,208 +1,145 @@
-# Firebase setup for issue #10
+# Firebase setup and operations
 
-Status: **Spark confirmed. iPhone and desktop Chrome sign-in and cancel
-passed on Preview revision 3. Installed blocked-popup check does not apply.**
-This guide prepares the temporary Google sign-in spike. It does not enable
-Firebase in the published flashcard app, migrate data, or create Firestore
-user/deck documents.
-
-The unlinked OAuth test preview is live at
-<https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike/>.
-It uses only the OAuth test project. Joakim signed in on desktop Brave and
-confirmed the same UID after refreshing; the UID is recorded in issue #10 as
-a **test-project** identifier. In headless Chromium, closing the popup returned `auth/popup-closed-by-user`,
-and a forced-blocked popup returned `auth/popup-blocked` with the signed-out
-UID unchanged. On the installed iPhone Home Screen preview, sign-in returned
-the test UID, which survived reopening and Airplane Mode. Preview revision 3
-does not stay on Opening Google sign-in after a dismiss: that dismiss reports
-`auth/network-request-failed` because iOS suspends the helper iframe while the
-Google window is open, and the connection line can still say online. The UID
-stays the same. Safari → Block Pop-ups does not apply on that installed app,
-because Firebase opens Google with a synthetic link click rather than
-`window.open`. iPhone Safari sign-in returned the same test UID, and the
-Safari back button reported `auth/popup-closed-by-user`. Desktop Chrome signed
-in on Preview revision 3, and closing a second window reported
-`auth/popup-closed-by-user`. GitHub Pages cannot host the sign-in helper on
-the app's own origin.
-
-The separate production UID preview is live at
-<https://licensedsaucer9-web.github.io/german-flashcards-site/auth-spike-prod/>.
-It uses only `flashcards-ls9-prod` and displays the project ID beside the UID
-so the two projects cannot be confused. Its popup opened in headless Chromium;
-closing it left the page usable. Joakim signed in on desktop Brave and
-confirmed the same production UID after refreshing. That UID is recorded on
-issue #10 for later migration mapping. Neither preview accesses Firestore.
+The Firebase client is implemented but production publication remains held.
+The real-data test rehearsal completed on 2026-10-04. Use the
+[rollout plan](firebase-rollout-plan.md) for remaining work and release gates,
+[the migration runbook](firebase-migration.md) for imports/device recovery,
+and [the rehearsal runbook](firebase-rehearsal.md) for the isolated test app.
 
 ## Project record
 
-Project IDs and the web config below are public identifiers; keep the Admin
-SDK service account JSON private.
+Web configuration is public. Admin SDK service-account JSON is private.
 
-| Setting | Production | OAuth test |
+| Setting | Production | Test |
 | --- | --- | --- |
-| Firebase project ID | `flashcards-ls9-prod` | `flashcards-ls9-auth-test` |
-| Billing plan | Spark. Cloud Billing reports billing disabled and no linked account (2026-09-29) | Spark. Cloud Billing reports billing disabled and no linked account (2026-09-29) |
-| Firestore location | `europe-west1`, Standard, empty, free tier | `europe-west1`, Standard, empty, free tier |
-| Google sign-in | Enabled, confirmed by Joakim in console | Enabled, confirmed by Joakim in console |
-| Authorized domains | `licensedsaucer9-web.github.io` confirmed by Joakim | `licensedsaucer9-web.github.io` confirmed by Joakim; local hostname pending |
+| Project ID | `flashcards-ls9-prod` | `flashcards-ls9-auth-test` |
+| Firestore location | `europe-west1`, Standard | `europe-west1`, Standard |
+| Google sign-in | Enabled | Enabled |
+| Authorized Pages domain | `licensedsaucer9-web.github.io` | `licensedsaucer9-web.github.io` |
 | Web app ID | `1:447756082894:web:6b39de4d88f7638a817a9f` | `1:523307197531:web:171d03e6369727b4208b7e` |
 | Auth domain | `flashcards-ls9-prod.firebaseapp.com` | `flashcards-ls9-auth-test.firebaseapp.com` |
 
-Use the **OAuth test project** for the issue's browser and phone experiment.
-The production preview only captures the authenticated UID needed for later
-migration mapping. Do not create a personal deck, `users/{uid}`, or
-`decks/{uid}`. The spike imports only `firebase/app` and `firebase/auth`.
+Both projects were created on 2026-09-29. Spark/free-tier status and disabled
+billing were confirmed then; that dated check is not a fresh billing audit.
+The test database now contains the verified legacy import and newer rehearsal
+reviews. Production import and rules deployment remain separate rollout work;
+do not assume production is empty without inspecting it.
 
-For the local Admin importer, private snapshot export, and confirmed
-per-device copy, follow [the migration rehearsal guide](firebase-migration.md).
-The full-app test environment and operator commands are in
-[firebase-rehearsal.md](firebase-rehearsal.md).
-That guide also covers the offline comparison baseline and
-`GERMAN_FLASHCARDS_PRIVATE_DIR` when the default operator directory is inside
-a Git repository. The override applies to credential filenames below too;
-choose export output paths outside Git explicitly.
-The Pages workflow builds with `VITE_SYNC_BACKEND=firebase` into
-`dist-firebase` and checks that client. It does not publish it. The live site
-stays on the previous build until issue #15 records the #14 second-device
-readback, including Joakim’s imported SRS on a second device and a new Google
-account that studies the public URL without seeing that schedule. The staged
-client’s web config is the tracked file `src/firebase-web.ts` (public web
-config; rules protect the data). A partial `VITE_FIREBASE_*` env, including
-the emulator’s project id alone, does not fall through to that file.
+Test and production UIDs were confirmed separately in
+[issue #10](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/10).
+Keep their profile mappings private. A test-project UID cannot map a production
+account.
 
-Do not revoke the data-repo write token until the devices you still use are
-on a published Firebase build.
+## Build configuration
 
-## Backup Firestore
+`npm ci` installs the local Firebase CLI; a global installation is unnecessary.
+CI uses Node 22 and Java 21 for the Firestore emulator. `.firebaserc` defaults
+to `demo-german-flashcards`; live operator commands must name their project.
 
-One Admin SDK export writes a private JSON file on this machine. Spark can do
-this. Nothing schedules it, and CI never runs it. Put the service account JSON
-in `~/.config/german-flashcards/` (mode 600). The filename below is
-`service-account-prod.json`. The tool refuses a path inside a Git repository
-and writes the output with mode 600.
+Without `VITE_SYNC_BACKEND=firebase`, the app studies locally. With that flag,
+the default public web configuration comes from `src/firebase-web.ts` and
+selects production. An explicit override requires all four variables:
+
+```text
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_APP_ID
+```
+
+Partial configuration does not fall through to production. For a real test
+session use `npm run rehearsal:build`, which supplies the checked-in test
+configuration, enables the import guard, clears emulator overrides, and selects
+separate storage. Do not use a production-configured preview for an unmigrated
+owner's first full-app login: it could provision a conflicting personal deck.
+
+For local OAuth, authorize the actual local hostname in the test project's
+Authentication settings. The Pages hostname is already recorded; local
+hostname authorization was not established by the original spike. Google
+provider/consent configuration belongs in Firebase Console; use only the
+basic sign-in scopes. See [Google sign-in setup](https://firebase.google.com/docs/auth/web/google-signin).
+
+## Rules and private operator files
+
+`firestore.rules` is the source of the restrictive client rules. CI tests
+rules but does not deploy them. Test deployment and read-only preflight commands
+are in [the rehearsal runbook](firebase-rehearsal.md). Production deployment
+belongs to its authorized rollout milestone.
+
+Set `GERMAN_FLASHCARDS_PRIVATE_DIR` to a durable directory outside every Git
+repository, with mode 700. Keep credentials, mappings, snapshots, baselines,
+and reports there with mode 600. The default is
+`~/.config/german-flashcards`, but this machine's tracked home makes that
+location unsuitable. The tool refuses ignored files and symlinks inside Git
+too. Credential filenames resolve only within the operator directory, and
+their project must match the requested project.
+
+Obtain the project's Admin SDK JSON only when its operation requires it.
+See [Admin SDK setup](https://firebase.google.com/docs/admin/setup#initialize_the_sdk).
+Do not commit it, put it in a build environment, or upload it to Pages.
+
+## Private Firestore backup
+
+The local CLI writes a one-off Admin SDK JSON dump; this does not require Blaze
+and is not scheduled by CI or the application. Run it against production only
+as part of the authorized backup milestone, with that project's credential.
+For a test export, substitute the test project and credential together.
+
+After setting the private directory and placing `service-account-prod.json`
+there:
 
 ```bash
-mkdir -p "$HOME/.config/german-flashcards/exports"
+umask 077
+MIGRATION_DIR="${GERMAN_FLASHCARDS_PRIVATE_DIR:?Set a private directory outside Git}"
+mkdir -p "$MIGRATION_DIR/exports"
+BACKUP_STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 npm run migrate -- backup \
   --project flashcards-ls9-prod \
   --credential service-account-prod.json \
-  --out "$HOME/.config/german-flashcards/exports/firestore-$(date -u +%Y%m%dT%H%M%SZ).json"
+  --out "$MIGRATION_DIR/exports/firestore-$BACKUP_STAMP.json" \
+  > "$MIGRATION_DIR/exports/firestore-$BACKUP_STAMP.log"
 ```
 
-The file lists each user, that user’s settings and progress, and each deck’s
-cards, plus a SHA-256 of that body. It is a Firestore dump, separate from the
-GitHub snapshot produced by `npm run migrate -- export`. The emulator rehearsal
-in `npm run test:rules` runs the same writer against `demo-german-flashcards`.
-Generating a production service account was not part of the cutover; create one
-only when you want this file from the live project.
+The output contains account metadata, each user's settings/progress, deck
+membership/cards, and a SHA-256 of the serialized body. Keep its log private
+too. Files are mode 600 and existing outputs are never overwritten. Check
+the checksum and aggregate document counts privately.
 
-## One-time console setup
+This `kind: firestore` dump differs from the GitHub snapshot accepted by
+`migrate import`. There is no CLI restore command for it yet. The emulator
+suite exercises the export writer, not production backup restoration.
+A restore procedure, isolated recovery rehearsal, cadence, and durable storage
+are required before calling backup/recovery complete.
 
-The Firebase CLI is installed in this repo as a development dependency. After
-`npm ci`, run `npm exec -- firebase --version` from the repo root to check it;
-no global CLI installation is needed. This command does not log in or create a
-project.
+## OAuth spike reference
 
-Both projects, their empty Firestore databases, and their web apps were
-created through the Firebase CLI on 2026-09-29. The CLI reported
-`freeTier: true` for both databases. The setup used by this spike:
+The isolated auth-only spike remains in `spikes/firebase-auth`. It imports
+Authentication only and does not read/write flashcards or Firestore.
 
-1. Both projects are on the **Spark** plan. The Cloud Billing API reports
-   `billingEnabled: false` and no linked billing account for each project
-   (checked 2026-09-29). Do not link a billing account for this issue.
-   Each `(default)` Firestore database is in `europe-west1` and has no
-   collections. Analytics is not required.
-2. Google sign-in has been enabled in both projects. The test spike uses the
-   test project; the separate production preview was used only to record the
-   production UID for later mapping.
-3. `licensedsaucer9-web.github.io` has been added to both projects' authorized
-   domains. If testing from a local Vite server, also add that local hostname
-   to the test project (`127.0.0.1` if accepted, otherwise `localhost`). Only
-   use a local origin over HTTP; the Pages origin uses HTTPS.
+- Test identity preview: <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/>
+- Production identity preview: <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike-prod/>
 
-The OAuth test web config is already in an ignored `.env.local` in the issue
-#10 checkout on Joakim's machine. On another checkout, copy
-`spikes/firebase-auth/config.example` to `.env.local` and fill its four
-variables from the **test** project's web app config. These are public web
-config values. Do not paste an Admin SDK JSON or any token into that file.
-Do not point the spike at production.
+The original test spike passed sign-in/cancel on desktop Chrome, iPhone Safari,
+and the installed iPhone preview. The installed preview also restored its
+session after reopening/offline use. On iOS, dismissing Google could report
+`auth/network-request-failed` while leaving the prior session intact. A
+headless blocked-popup check passed; Safari's popup setting did not intercept
+the installed preview's synthetic-link flow. These are dated spike results,
+not proof of every current full-app release.
 
-If Google requires OAuth consent configuration, follow the Firebase Console's
-provider setup for the test project. Record any test-user restrictions here;
-the phone's Google account must be allowed to use the test project. Do not add
-extra Google scopes. See [Firebase Google sign-in docs](https://firebase.google.com/docs/auth/web/google-signin).
-
-The production Admin SDK JSON, **when a later migration task requires one**,
-belongs at `~/.config/german-flashcards/` on the operator's machine. Do not
-generate it for this spike, commit it, upload it to Pages, or copy it into the
-test project. Keep Firebase CLI credentials out of the repo as well.
-
-## Build the isolated spike
-
-The Vite configuration reads the four public variables from the repository
-root `.env.local`. With that file in place, run:
+If the auth-only tool is needed again, copy
+`spikes/firebase-auth/config.example` to the ignored root `.env.local`,
+fill all four test web values, then run `npm run auth-spike:dev` or:
 
 ```bash
-npm ci
-npm run auth-spike:dev
+BASE=/ls9-flashcards-site/auth-spike/ npm run auth-spike:build
 ```
 
-Open the local URL printed by Vite on desktop. For a static preview at the
-**current GitHub Pages origin**, run:
+Output is `dist-auth-spike`. Operator publication of this unlinked preview
+must preserve the root site and its `rehearsal/` child. Preview workers exclude
+nested preview paths. Keep old study storage intact; clearing Safari website
+data can erase reviews.
 
-```bash
-BASE=/german-flashcards-site/auth-spike/ npm run auth-spike:build
-```
-
-The output is `dist-auth-spike/`. Publish that output only as an unlinked
-`auth-spike/` directory in the public site's `gh-pages` branch, without
-replacing the existing site's root files. The normal `npm run build` uses the
-root app entry. The held Pages publish copies only `dist-firebase` and does
-not run until the #14 readback is recorded, so this spike is never part of
-that client. Before sharing the preview, check that its manifest `start_url`
-and scope resolve to `/german-flashcards-site/auth-spike/`. Once testing is
-finished, remove the temporary directory from the public site. When the held
-publish runs it uses `rsync --delete`, which will also remove the preview
-directory; republish it if the phone test is still pending.
-
-The main app's navigation service worker originally captured the preview
-paths and returned the flashcard app. Its fallback now excludes
-`auth-spike/` and `auth-spike-prod/`, allowing each preview to load and
-register its own service worker. This exclusion must be deployed with any
-main-app rebuild while the previews remain live. On an iPhone that installed
-the old main worker, revisit the main app in Safari to trigger its update,
-then open the exact preview URL and confirm the heading says **Firebase
-Google sign-in check** before adding it to the Home Screen. Do not clear
-Safari website data, which could remove local flashcard progress.
-
-Because the spike is an independently installed preview PWA, record this
-distinction in the phone result. If it behaves differently from the installed
-main app, the issue's gate is still unproven; do not infer the main PWA works.
-
-## Test record to post on issue #10
-
-Use the **OAuth test project**. On each platform, note browser/iOS version,
-result, Firebase error code where applicable, and the UID (keep account email
-out of the issue). Do not post ID tokens or configuration files.
-The test project's UID proves that OAuth completed, but it cannot be used to
-map an account in the separate production Firebase project. The production
-sign-in and refresh checks have passed on desktop Brave, and its UID is
-recorded separately on issue #10 for migration mapping.
-
-| Check | Desktop Chrome | iPhone Safari | iPhone Home Screen preview |
-| --- | --- | --- | --- |
-| User-initiated popup succeeds | Passed on Preview revision 3. Signed in and a UID was shown | Passed; same test UID | Passed; returned to installed preview with test UID |
-| Closing/cancelling popup leaves app usable | Passed. Second attempt closed, `auth/popup-closed-by-user` | Passed. Back button, `auth/popup-closed-by-user`, same UID | Passed on revision 3. Did not hang. `auth/network-request-failed` (helper iframe). Same UID. Connection stayed online |
-| Blocked popup is reported without changing existing session | Headless Chromium: `auth/popup-blocked`, signed-out UID unchanged. Desktop Chrome pending | Pending | Not applicable. The installed app opens Google with a synthetic link click, not `window.open`, so Safari → Block Pop-ups does not intercept it |
-| Leave and reopen; same UID restored | Pending | Pending | Passed |
-| Airplane mode; prior session/local UI remains readable | Pending | Pending | Passed; offline indicator, same UID, sign-in error without losing session |
-
-For the Home Screen check, open the preview URL in Safari, add it to the Home
-Screen, launch from its icon, tap Continue with Google, and check whether the
-popup returns to that installed app. Leave/reopen the app and compare its UID.
-Test with the device offline as well; first-time sign-in requires connectivity.
-
-If the popup is unreliable, report the failure and stop issue #10. The next
-decision is a Firebase Hosting move with a bridge release at the old origin;
-do not start onboarding or cutover issues #12 or #15. Firebase documents the
-cross-origin redirect limitations in [its redirect guidance](https://firebase.google.com/docs/auth/web/redirect-best-practices).
+GitHub Pages cannot proxy Firebase's sign-in helper. If login requires a hosting
+change, use [Firebase's redirect guidance](https://firebase.google.com/docs/auth/web/redirect-best-practices)
+and address old-origin storage recovery before moving the app.

@@ -1,10 +1,18 @@
-# german-flashcards
+# LS9 Flashcards
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-German flashcards as a local-first PWA (Vite + TypeScript). A Firebase build signs in with Google. Each account’s schedule and deck live in Firestore project `flashcards-ls9-prod`. That client is checked in Pages and is not published until issue #15 records the #14 second-device readback. A visit can also study on this device without an account. The app does not store a review event history.
+A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German vocabulary deck. It supports frequency tiers, SM-2-style review, card editing, CSV import, and offline study. The longer-term goal is multiple decks on different subjects; the current app assigns one deck per account and has no deck picker.
 
-The private repo [german-flashcards-data](https://github.com/licensedsaucer9-web/german-flashcards-data) stays in place as a frozen recovery snapshot. The app no longer asks for a token or writes that repo. Revoke its write token only after the devices you still use are on a published Firebase build. Keep `PUBLIC_SITE_DEPLOY_KEY` for the Pages deploy.
+**Release state, 2026-10-04:** the Google/Firebase client is implemented and the real-data test rehearsal passed on two devices. Production migration and publication remain unfinished. The public root still serves the previous GitHub-sync build; CI checks the production Firebase build without publishing it. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
+
+The project is named **LS9 Flashcards**. The [rename record](docs/rename.md)
+lists the new repositories and URLs. Original storage/configuration identifiers
+remain in use so existing progress is preserved.
+
+On a Firebase build, Google sign-in gives each account its own schedule in Firestore; new accounts receive personal decks. Device-only study remains available. The app stores current SRS state, without review history, an interval multiplier, or FSRS. See [the architecture](docs/architecture.md) for storage and sync guarantees.
+
+The private [german-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) repo remains the legacy data source until final cutover, then stays as a frozen recovery snapshot. Current source has no GitHub data writer or token form; older published/installed builds still do. Revoke the data-write token only after every active device has moved and its pending work is recovered. Keep `PUBLIC_SITE_DEPLOY_KEY` for Pages deployment.
 
 ## Deck tiers
 
@@ -42,11 +50,11 @@ Cards you add yourself have no rank and start in tier 3; the card editor has a t
 
 ## Account
 
-A Firebase build offers **Continue with Google** and **Study on this device**. A Google account gets its own deck, seeded from the bundled word list, and its own schedule. Signing in does not upload cards already on the device unless you confirm that copy in Settings. Two accounts cannot read each other’s progress. The published site does not serve this build yet.
+A Firebase build offers **Continue with Google** and **Study on this device**. New accounts get personal decks seeded from the bundled list; mapped legacy accounts share their assigned vocabulary deck. Each account has its own schedule. Signing in does not upload device-study data unless you confirm a copy; mapped legacy profiles use the separate recovery flow below. Two accounts cannot read each other’s progress. The public root does not serve this build yet.
 
 A profile name on an older install is local data only. It does not select a cloud account. The first launch of this build removes the saved GitHub token (`german-flashcards.github` and `german-flashcards.github.shas`) from this browser.
 
-An older device that still has reviews which never reached Firestore can copy one confirmed local profile after sign-in: **Settings → Recover a legacy profile on this device**. The mapping file stays on your machine. See [the migration rehearsal](docs/firebase-migration.md).
+An older device with unsynced legacy work can copy a confirmed local profile after sign-in: **Settings → Recover a legacy profile on this device**. This requires the old app's origin and storage context; the isolated rehearsal uses separate storage. Keep the mapping private. See [the migration runbook](docs/firebase-migration.md).
 
 ## Develop
 
@@ -56,52 +64,60 @@ npm run dev      # Vite dev server
 npm run build    # type-check + production build
 npm run preview  # serve the build on 127.0.0.1:4173
 npm test         # unit tests; no emulator and no Chromium
+npm run test:account-ui  # account UI with synthetic auth and real IndexedDB in Chromium
 npm run test:rules  # Firestore rules, cloud sync, and migration on the emulator (Java 21)
 ```
 
-`npm test` covers SRS, CSV, tiers, Firestore document shapes, account helpers, record sync, and the migration files. It does not call Firebase or GitHub. `npm run test:rules` needs Java 21 and Chromium (`node node_modules/playwright-core/cli.js install chromium`, or `CHROME=/path/to/chromium`).
+`npm test` covers SRS, CSV, tiers, Firestore document shapes, account helpers, record sync, and the migration files. It does not call live Firebase or GitHub. Browser checks need Chromium (`node node_modules/playwright-core/cli.js install chromium`, or `CHROME=/path/to/chromium`); `npm run test:rules` also needs Java 21.
 
-`npm run dev` and `npm run build` without `VITE_SYNC_BACKEND=firebase` stay on this device: no Google sign-in and no cloud sync. For a local preview of the staged Firebase client:
+`npm run dev` and `npm run build` without `VITE_SYNC_BACKEND=firebase` stay on this device: no Google sign-in and no cloud sync. For the isolated test-project preview:
 
 ```bash
-BASE=/german-flashcards-site/ VITE_SYNC_BACKEND=firebase npm run build
-BASE=/german-flashcards-site/ npm run preview
+npm run rehearsal:build
+BASE=/ls9-flashcards-site/auth-spike/rehearsal/ npm run preview -- --outDir dist-rehearsal --port 4178 --strictPort
 ```
+
+Open `http://127.0.0.1:4178/ls9-flashcards-site/auth-spike/rehearsal/`. This preview guards legacy import and uses separate storage. Real login requires an authorized hostname and a completed test assignment; guest study is available. See [the rehearsal guide](docs/firebase-rehearsal.md).
+
+An ordinary `VITE_SYNC_BACKEND=firebase` build defaults to production. Do not sign an unmigrated owner into it before the Admin import has preassigned the legacy deck. Build/project configuration is in [Firebase setup](docs/firebase-setup.md).
 
 ## Public site
 
-The app is published at <https://licensedsaucer9-web.github.io/german-flashcards-site/>.
+The app is published at <https://licensedsaucer9-web.github.io/ls9-flashcards-site/>.
 Scan this code with your iPhone camera to open the app in Safari:
 
-![QR code for the German Flashcards app](docs/app-qr.png)
+![QR code for LS9 Flashcards](docs/app-qr.png)
 
-This source repository and the [review-data repository](https://github.com/licensedsaucer9-web/german-flashcards-data)
-stay private. The public `german-flashcards-site` repository contains only the
+This source repository and the [review-data repository](https://github.com/licensedsaucer9-web/ls9-flashcards-data)
+stay private. The public `ls9-flashcards-site` repository contains only the
 built site. Its `gh-pages` branch is the Pages source.
 
 On a pull request and on a push to `master`, the private repository tests the
-app, builds a Firebase client with `BASE=/german-flashcards-site/` and
+app, builds a Firebase client with `BASE=/ls9-flashcards-site/` and
 `VITE_SYNC_BACKEND=firebase` into `dist-firebase`, and checks that the bundle
 names `flashcards-ls9-prod`, contains no GitHub token or private key, and
-still installs offline. The publish steps do not run, so that client does not
-replace the public site, until issue #15 records the #14 second-device
-readback. Restoring publish copies `dist-firebase` with `rsync --delete`. The
-private repository secret `PUBLIC_SITE_DEPLOY_KEY` is a write-enabled SSH
+still installs offline. CI also checks account UI, rules/cloud migration,
+and the isolated rehearsal build. Both publish steps remain disabled. The
+test second-device readback is recorded; production migration and device
+recovery are still required before the authorized publication milestone.
+Restoring publish copies `dist-firebase` with `rsync --delete`, removing
+temporary preview directories. The private repository secret
+`PUBLIC_SITE_DEPLOY_KEY` is a write-enabled SSH
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-## Move an older iPhone Home Screen installation
+## Upgrade an older iPhone Home Screen installation
 
-Do this only after the Firebase client is published. Until then the public URL still serves the previous build. The new site has a different URL. Treat it as a new installation. An older Home Screen icon can still hold local reviews and a saved token; this build clears that token and does not upload those reviews until you sign in and confirm the copy.
+Do this after production import/device recovery and publication are recorded. This rollout keeps the current public URL. Check Safari and each installed Home Screen app separately; they can hold different local work. Keep each source installation until its pending progress is recovered and verified.
 
-1. Open the new public URL in Safari, choose **Continue with Google**, and compare the imported schedule with the device you already trust.
-2. Add the site to the Home Screen as its own icon. Keep the old icon until that comparison matches.
-3. On each older device that still has reviews, sign in with the same Google account and use **Recover a legacy profile on this device** if those reviews are not already in the account.
+1. Open the public URL in Safari, confirm the Firebase build, choose **Continue with Google**, and compare the imported schedule with a trusted device.
+2. Open the existing Home Screen installation and confirm it has received the Firebase build. If it still serves an older build or uses a different old URL, preserve it and follow the same-context recovery procedure before replacing its icon.
+3. For each storage context with outstanding legacy work, use the confirmed mapping and **Recover a legacy profile on this device**, then verify its Firestore acknowledgement and second-device readback.
 4. Turn on Airplane Mode, review one card, and leave the app. Reopen it. The grade is still there and the status stays **Saved on this device** until you are online again. Then wait for **Synced**, and open a second device signed into the same account.
 
-Remove the old icon after those checks. Revoke the data-repo write token only after every device you still use is on a published Firebase build.
+Replace an old icon only after those checks. Revoke the data-repo write token only after every active device is on the Firebase build and its pending work is acknowledged.
 
-If the public cutover is wrong before anyone has studied on Firebase, republish the previous `master` build. After Firebase progress exists, publish a Firebase build only. This source no longer contains a GitHub writer, so a new build cannot push `german-flashcards-data`.
+Before production Firebase study exists, keep or restore the previously published artifact if cutover fails. Current `master` is not that legacy writer. Once production Firebase progress exists, rollback uses a Firebase-compatible client and retains its data.
 
 ## iPhone backup check
 
@@ -114,16 +130,20 @@ To check a new release on an iPhone:
 3. Turn Airplane Mode off and return to Flashcards. Wait for **Synced**, then open a second signed-in device and confirm the review. Use **Sync now** in Settings to retry manually.
 4. To check deletion without losing a real card, create a disposable card, wait for **Synced**, then delete it. After the second device syncs, the test card should remain absent.
 
-A private Admin SDK export of Firestore is described in [docs/firebase-setup.md](docs/firebase-setup.md). It does not need the Blaze plan and it does not run by itself. The frozen data repo remains a separate recovery snapshot: [verify an existing backup without changing it](https://github.com/licensedsaucer9-web/german-flashcards-data#verify-an-existing-backup-without-changing-it).
+A private Admin SDK export of Firestore is described in [Firebase setup](docs/firebase-setup.md#private-firestore-backup). It does not need Blaze and is not automatic. There is no Firestore-dump restore command yet; recovery rehearsal and backup cadence remain rollout work. The legacy data repo can be [verified without changing it](https://github.com/licensedsaucer9-web/ls9-flashcards-data#verify-an-existing-backup-without-changing-it), but cannot back up later Firebase reviews.
 
 ## Other documentation
 
-- [Firebase setup](docs/firebase-setup.md) records the production project and the private Admin SDK export command.
-- [Firebase migration plan](docs/firebase-migration-plan.md) is the original rollout plan. Where a closed issue disagrees with it, the issue result wins.
-- [Firebase migration rehearsal](docs/firebase-migration.md) covers the local snapshot importer and recovery of each device's unsynced legacy profile.
-- [TEST.md](TEST.md) is the manual click path for review, import, installability, and sign-in.
-- [REVIEW.md](REVIEW.md) is an earlier review. Its GitHub-token notes describe the build this cutover replaced.
-- [plan.md](plan.md) and [plans_review.md](plans_review.md) document completed reliability work; [proposed_plan.md](proposed_plan.md) and [proposed_plan_review.md](proposed_plan_review.md) preserve feature proposals. Their historical observations are labeled at the top of each file.
+- [Rollout plan](docs/firebase-rollout-plan.md): completed milestones, remaining production gates, and later product direction.
+- [Architecture](docs/architecture.md): account/deck boundaries, persistence, merge rules, and current limits.
+- [Rename record](docs/rename.md): repository/URL mapping and compatibility for old installations.
+- [Firebase setup](docs/firebase-setup.md): projects, build configuration, rules, private operator files, and backup command.
+- [Migration runbook](docs/firebase-migration.md): immutable snapshot export, baseline, Admin import, and confirmed device recovery.
+- [Rehearsal runbook](docs/firebase-rehearsal.md): isolated test preview, preflight, and preview checks.
+- [Live import evidence](docs/issue-24-status.md): saved aggregate #24 readback and zero-write repeat results.
+- [TEST.md](TEST.md): manual acceptance and automated check commands.
+
+Completed plans, superseded proposals, and old reviews have been removed from the working tree; Git history retains them. Remaining proposal ideas are summarized in the single rollout plan.
 
 ## License
 
