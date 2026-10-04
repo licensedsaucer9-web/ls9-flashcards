@@ -6,6 +6,13 @@ A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German
 
 **Release state, 2026-10-04:** LS9 Flashcards is live at its new URL with the renamed legacy GitHub-sync client. The Google/Firebase client is implemented and the real-data test rehearsal passed on two devices. Production Firebase migration and publication remain unfinished; CI checks that build without publishing it. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
 
+**Prod v1 scope:** ship the current single-deck app with reliable Google sync,
+offline study, safe device migration and tested recovery. The
+[tracking issue #33](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/33)
+and [Prod v1 milestone](https://github.com/licensedsaucer9-web/ls9-flashcards/milestone/2)
+link the seven delivery gates. Multi-deck support and scheduler changes remain
+outside this release.
+
 The project is named **LS9 Flashcards**. The [rename record](docs/rename.md)
 lists the new repositories and URLs. Original storage/configuration identifiers
 remain in use so existing progress is preserved.
