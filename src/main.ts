@@ -138,7 +138,7 @@ function showDatabaseNotice(event: 'versionchange' | 'blocked'): void {
     document.body.appendChild(banner)
   }
   banner.textContent = event === 'blocked'
-    ? 'A database upgrade is waiting on another tab. Close other German Flashcards tabs and reload.'
+    ? 'A database upgrade is waiting on another tab. Close other LS9 Flashcards tabs and reload.'
     : 'This tab closed its database so another tab can upgrade. Reload to continue.'
 }
 
@@ -242,10 +242,11 @@ async function renderHome() {
   main.innerHTML = `
     <section class="screen">
       <header class="topbar">
-        <h1>German</h1>
+        <h1>LS9 Flashcards</h1>
         <span class="badge" id="sync-line">${esc(syncLineText())}</span>
       </header>
       <div class="due-hero">
+        ${import.meta.env.VITE_LEGACY_COMPAT === 'true' ? '<p class="note">LS9 Flashcards has a <a href="https://licensedsaucer9-web.github.io/ls9-flashcards-site/">new address</a>. Keep this installation until its pending reviews are backed up and recovered.</p>' : ''}
         <p class="kicker">Due now · ${esc(tierLabel(settings.tier))}</p>
         <div class="due-count ${ready ? '' : 'caught-up'}" data-due-count>${due.length}</div>
         <p class="due-label">${
@@ -882,7 +883,7 @@ async function renderGithubSettings() {
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">GitHub sync</p>
-        <p class="note">Backup: the repo holds the shared word list in <code>${esc(gh.path)}</code> and one file per profile in <code>users/</code>, so every browser (including iPhone Safari) shares progress without two profiles overwriting each other. Paste a <strong>personal access token</strong> (<code>github_pat_</code> or <code>ghp_</code>), not your GitHub password. Fine-grained PAT: Contents read/write on <code>german-flashcards-data</code> only. Token stays in this browser.</p>
+        <p class="note">Backup: the repo holds the shared word list in <code>${esc(gh.path)}</code> and one file per profile in <code>users/</code>, so every browser (including iPhone Safari) shares progress without two profiles overwriting each other. Paste a <strong>personal access token</strong> (<code>github_pat_</code> or <code>ghp_</code>), not your GitHub password. Fine-grained PAT: Contents read/write on <code>ls9-flashcards-data</code> only. Token stays in this browser.</p>
         <form class="form" id="gh-form" style="padding:0" autocomplete="off">
           <label>Owner
             <input name="owner" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(gh.owner)}" />

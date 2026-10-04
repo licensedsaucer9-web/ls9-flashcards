@@ -23,9 +23,9 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png', 'pwa-512-maskable.png'],
       manifest: {
-        name: 'German Flashcards',
-        short_name: 'DE Cards',
-        description: 'Personal German SRS flashcards',
+        name: 'LS9 Flashcards',
+        short_name: 'LS9 Cards',
+        description: 'Personal flashcards with spaced repetition and offline study',
         theme_color: '#0e1116',
         background_color: '#0e1116',
         display: 'standalone',

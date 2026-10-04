@@ -9,7 +9,7 @@ const SHA_KEY = 'german-flashcards.github.shas'
 const USERS_DIR = 'users'
 
 export const DEFAULT_OWNER = 'licensedsaucer9-web'
-export const DEFAULT_REPO = 'german-flashcards-data'
+export const DEFAULT_REPO = 'ls9-flashcards-data'
 
 export function defaultGithubConfig(): GithubConfig {
   return { token: '', owner: DEFAULT_OWNER, repo: DEFAULT_REPO, path: 'data.json', branch: 'main' }
@@ -26,10 +26,12 @@ export function loadGithubConfig(): GithubConfig {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return defaultGithubConfig()
     const o = JSON.parse(raw) as Partial<GithubConfig>
+    const owner = String(o.owner ?? '').trim() || DEFAULT_OWNER
+    const repo = String(o.repo ?? '').trim() || DEFAULT_REPO
     return {
       token: sanitizeToken(String(o.token ?? '')),
-      owner: String(o.owner ?? '').trim() || DEFAULT_OWNER,
-      repo: String(o.repo ?? '').trim() || DEFAULT_REPO,
+      owner,
+      repo: owner === DEFAULT_OWNER && repo === 'german-flashcards-data' ? DEFAULT_REPO : repo,
       path: String(o.path ?? 'data.json').trim() || 'data.json',
       branch: String(o.branch ?? 'main').trim() || 'main',
     }

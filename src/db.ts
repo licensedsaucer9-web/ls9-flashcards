@@ -18,7 +18,7 @@ const DB_VERSION = 1
 
 export class DatabaseBlockedError extends Error {
   constructor() {
-    super('Another tab is blocking a database upgrade. Close other German Flashcards tabs and reload.')
+    super('Another tab is blocking a database upgrade. Close other LS9 Flashcards tabs and reload.')
     this.name = 'DatabaseBlockedError'
   }
 }
