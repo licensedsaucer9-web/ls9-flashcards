@@ -177,6 +177,10 @@ a {
   width: 100%;
 }
 
+#google-sign-in[hidden] {
+  display: none;
+}
+
 .primary:active {
   transform: scale(0.98);
   filter: brightness(0.92);
