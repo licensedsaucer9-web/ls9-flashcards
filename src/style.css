@@ -109,6 +109,8 @@ a {
 
 .topbar h1 {
   font-size: 1.25rem;
+  flex-shrink: 0;
+  white-space: nowrap;
   margin: 0;
   font-weight: 650;
   letter-spacing: -0.02em;
