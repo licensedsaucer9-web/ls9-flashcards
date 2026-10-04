@@ -7,6 +7,12 @@ production CI step. Use the OAuth test project first. The checklist in section
 rehearsal as done, and it does not enable the published site. A private
 Firestore backup command is in [firebase-setup.md](firebase-setup.md).
 
+The real #24 snapshot import into `flashcards-ls9-auth-test` completed on
+2026-10-04: [source/revision evidence, aggregate counts, exact readback, and
+zero-write repeat](issue-24-status.md). This completes the snapshot-import
+portion only; device recovery, second-device verification, and production
+cutover remain separate milestones.
+
 Rollback before any Firebase study is leaving the previous `master` build
 published. After Firebase progress exists, publish a Firebase build only. This
 repo no longer contains `src/github.ts`, so a new build cannot write the data
@@ -191,9 +197,10 @@ changes before the write refuse the copy.
 
 ## 5. Record the real rehearsal before #15
 
-- [ ] Record the private export's commit and reviewed test-project UID mapping.
-- [ ] Inspect the dry-run's record differences and apply to the isolated test project.
-- [ ] Verify imported counts, exact SRS/settings values, and seed tombstones in readback.
+- [x] Record the private export's commit and reviewed test-project UID mapping (#22).
+- [x] Inspect the dry-run's record differences and apply to the isolated test project (#24).
+- [x] Verify imported counts, exact SRS/settings values, and tombstone expectations
+      in readback (#24; the source snapshot has zero tombstones).
 - [ ] Copy pending local work on every previously used device/storage context.
 - [ ] Open a clean second client as Joakim. Confirm the same card schedules,
       direction, session size, tier, custom words, and deletions through #13 sync.
