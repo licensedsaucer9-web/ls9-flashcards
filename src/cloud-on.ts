@@ -68,6 +68,16 @@ function showAuthError(error: unknown): void {
   else hooks?.toast(message)
 }
 
+function updateGoogleSessionControls(): void {
+  const authenticated = Boolean(auth?.currentUser)
+  const signInButton = document.getElementById('google-sign-in')
+  if (signInButton) signInButton.hidden = authenticated
+  const sessionNote = document.getElementById('google-session')
+  if (sessionNote) sessionNote.hidden = !authenticated
+  const signOutButton = document.getElementById('sign-out-account')
+  if (signOutButton) signOutButton.hidden = !authenticated
+}
+
 function cancelChoice(id: string): void {
   const release = choiceRelease
   choiceRelease = null
@@ -210,6 +220,7 @@ function startGoogleSignIn(): void {
     showAuthError({ code: 'missing-config' })
     return
   }
+  if (auth.currentUser) return
   if (popupBusy) {
     if (Date.now() - popupStartedAt < 800) return
     recoverPopup?.()
@@ -303,8 +314,7 @@ async function initAccount(config: { apiKey: string; authDomain: string; project
   await new Promise<void>((resolve, reject) => {
     let first = true
     onAuthStateChanged(auth!, (user) => {
-      const signOutButton = document.getElementById('sign-out-account')
-      if (signOutButton) signOutButton.hidden = !user
+      updateGoogleSessionControls()
       void (async () => {
         if (user) await adoptUser(user)
         else await adoptGuest()
@@ -335,6 +345,7 @@ async function showWelcome(googleReady: boolean): Promise<void> {
         <p class="kicker">Welcome</p>
         ${rehearsalNote()}
         <p class="due-label">Study with spaced repetition. Sign in and this account’s cards follow you. You can also study on this device without an account.</p>
+        <p class="note" id="google-session" hidden>Signed in to Google</p>
         <div class="stack">
           <button class="primary" type="button" id="google-sign-in" ${googleReady ? '' : 'disabled'}>Continue with Google</button>
           <button class="secondary" type="button" id="guest-study">Study on this device</button>
@@ -344,6 +355,7 @@ async function showWelcome(googleReady: boolean): Promise<void> {
       </div>
     </section>
   `
+  updateGoogleSessionControls()
   bindSignOutButton()
   document.getElementById('guest-study')?.addEventListener('click', () => {
     localStorage.setItem(GUEST_KEY, '1')
@@ -353,10 +365,6 @@ async function showWelcome(googleReady: boolean): Promise<void> {
   document.getElementById('google-sign-in')?.addEventListener('click', () => {
     if (!googleReady || !auth) {
       showAuthError({ code: 'missing-config' })
-      return
-    }
-    if (auth.currentUser) {
-      void adoptUser(auth.currentUser)
       return
     }
     startGoogleSignIn()
@@ -469,6 +477,7 @@ export function accountPanelHtml(): string {
         <p class="kicker" style="margin:0">Account</p>
         <p class="note">Studying on this device. Signing in does not upload these cards unless you agree.</p>
         <p class="note" id="sync-line">${esc(accountSyncText())}</p>
+        <p class="note" id="google-session" hidden>Signed in to Google</p>
         <button class="primary" type="button" id="google-sign-in">Continue with Google</button>
         <button class="danger" type="button" id="sign-out-account" ${auth?.currentUser ? '' : 'hidden'}>Sign out of Google</button>
         <p class="note" id="auth-error">${esc(pendingError)}</p>
@@ -491,12 +500,9 @@ export function accountPanelHtml(): string {
 
 export function bindAccountPanel(panelHooks: AccountHooks): void {
   hooks = panelHooks
+  updateGoogleSessionControls()
   bindMigrationPanel()
   document.getElementById('google-sign-in')?.addEventListener('click', () => {
-    if (auth?.currentUser) {
-      void adoptUser(auth.currentUser)
-      return
-    }
     startGoogleSignIn()
   })
   document.getElementById('sync-now-account')?.addEventListener('click', () => {

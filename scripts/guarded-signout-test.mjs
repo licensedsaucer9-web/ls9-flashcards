@@ -35,6 +35,8 @@ const fakeAuth = `
   }
   export class GoogleAuthProvider {}
   export async function signInWithPopup() {
+    window.signInCalls = (window.signInCalls || 0) + 1;
+    if (window.failSignIn) throw Object.assign(new Error('Synthetic popup cancellation'), { code: 'auth/popup-closed-by-user' });
     localStorage.setItem(key, '1'); auth.currentUser = user; emit();
   }
   export async function signOut() {
@@ -61,6 +63,7 @@ try {
         if (id === authModule) return fakeAuth
         if (id.endsWith('/src/provision.ts')) return `
           export async function provisionAccount(_db, _uid, options) {
+            window.provisionCalls = (window.provisionCalls || 0) + 1;
             if (options.requiredLegacyDeckId !== 'legacy-german') throw new Error('Missing rehearsal guard');
             if (localStorage.getItem(${JSON.stringify(importedKey)})) return { deckId: 'legacy-german', personal: false };
             throw Object.assign(new Error('Synthetic import guard'), { code: 'rehearsal/import-required' });
@@ -125,15 +128,29 @@ try {
     await page.waitForFunction((key) => !localStorage.getItem(key), authKey)
     await page.waitForFunction(() => document.getElementById('sign-out-account')?.hidden)
     assert.equal(await page.evaluate(async () => (await import('/src/study-lock.ts')).captureStudyLock().uid), null)
+    assert.equal(await page.locator('#google-sign-in').isVisible(), true, 'sign-out restores the sign-in action')
+    assert.equal(await page.locator('#google-session').isVisible(), false)
+  }
+  async function assertGuardedSession(page) {
+    assert.equal(await page.locator('#google-sign-in').isVisible(), false, 'authenticated users must not see Continue with Google')
+    assert.equal(await page.locator('#google-session').isVisible(), true)
+    assert.equal(await page.locator('#google-session').textContent(), 'Signed in to Google')
+    assert.equal(await page.locator('#sign-out-account').isVisible(), true)
+    assert.match(await page.locator('#auth-error').textContent(), /waiting for its verified import/)
   }
 
   // The issue's exact path: a fresh welcome, Google login, import guard, sign-out.
   const fresh = await newPage()
   await fresh.waitForSelector('#guest-study')
   assert.equal(await fresh.locator('#sign-out-account').isVisible(), false)
+  assert.equal(await fresh.locator('#google-session').isVisible(), false)
   await fresh.click('#google-sign-in')
   await fresh.waitForFunction(() => document.getElementById('auth-error')?.textContent.includes('waiting for its verified import'))
-  assert.equal(await fresh.locator('#sign-out-account').isVisible(), true)
+  await assertGuardedSession(fresh)
+  const calls = await fresh.evaluate(() => ({ signIn: window.signInCalls, provision: window.provisionCalls }))
+  await fresh.evaluate(() => document.getElementById('google-sign-in').click())
+  assert.deepEqual(await fresh.evaluate(() => ({ signIn: window.signInCalls, provision: window.provisionCalls })), calls,
+    'a stale sign-in click must not open Google or retry the import guard')
   const guestDb = await seedLocalWork(fresh)
   const before = await snapshot(fresh, guestDb)
   assert(before.settings[0].localRevision > before.settings[0].acknowledgedRevision)
@@ -148,10 +165,13 @@ try {
   // A restored, still-guarded session must also expose sign-out and allow retry.
   const restored = await newPage(true)
   await restored.waitForSelector('#sign-out-account')
+  await assertGuardedSession(restored)
   await restored.evaluate(() => { window.failSignOut = true })
   await restored.click('#sign-out-account')
   await restored.waitForFunction(() => document.getElementById('auth-error')?.textContent.includes('Google sign-out failed'))
   assert.equal(await restored.locator('#sign-out-account').isEnabled(), true)
+  assert.equal(await restored.locator('#google-sign-in').isVisible(), false)
+  assert.equal(await restored.locator('#google-session').isVisible(), true)
   assert.equal(await restored.evaluate((key) => localStorage.getItem(key), authKey), '1')
   await restored.evaluate(() => { window.failSignOut = false })
   await restored.click('#sign-out-account')
@@ -165,10 +185,50 @@ try {
   const settingsDb = await seedLocalWork(settings)
   await settings.goto('http://127.0.0.1:4181/#/settings')
   await settings.waitForSelector('#sign-out-account')
+  await assertGuardedSession(settings)
   const settingsBefore = await snapshot(settings, settingsDb)
   await settings.click('#sign-out-account')
   await assertSignedOut(settings)
   assert.deepEqual(await snapshot(settings, settingsDb), settingsBefore, 'settings sign-out preserves local study data')
+
+  // Popup cancellation leaves a useful sign-in action; its next attempt reaches
+  // the guarded state, and signing out permits another Google sign-in.
+  const cancelled = await newPage()
+  await cancelled.waitForSelector('#guest-study')
+  await cancelled.evaluate(() => { window.failSignIn = true })
+  await cancelled.click('#google-sign-in')
+  await cancelled.waitForFunction(() => document.getElementById('auth-error')?.textContent.includes('auth/popup-closed-by-user'))
+  assert.equal(await cancelled.locator('#google-sign-in').isVisible(), true)
+  assert.equal(await cancelled.locator('#google-sign-in').isEnabled(), true)
+  assert.equal(await cancelled.locator('#google-sign-in').textContent(), 'Continue with Google')
+  assert.equal(await cancelled.locator('#google-session').isVisible(), false)
+  assert.equal(await cancelled.locator('#sign-out-account').isVisible(), false)
+  await cancelled.evaluate(() => { window.failSignIn = false })
+  await cancelled.click('#google-sign-in')
+  await cancelled.waitForFunction(() => document.getElementById('auth-error')?.textContent.includes('waiting for its verified import'))
+  await assertGuardedSession(cancelled)
+  await cancelled.click('#sign-out-account')
+  await assertSignedOut(cancelled)
+  await cancelled.click('#google-sign-in')
+  await cancelled.waitForFunction(() => document.getElementById('auth-error')?.textContent.includes('waiting for its verified import'))
+  await assertGuardedSession(cancelled)
+
+  // A verified import still releases welcome and binds the account normally.
+  const verified = await newPage(false, true, true)
+  await verified.evaluate(async () => {
+    document.body.innerHTML = '<main id="main"></main>'
+    const cloud = await import('/src/cloud-on.ts')
+    const hooks = { setTabs() {}, toast() {}, ensureSeed: async () => 0, onIdentityChanged() {} }
+    void cloud.prepareAccount(hooks).then(() => {
+      document.getElementById('main').innerHTML = cloud.accountPanelHtml()
+      cloud.bindAccountPanel(hooks)
+    })
+  })
+  await verified.waitForSelector('#google-sign-in')
+  await verified.click('#google-sign-in')
+  await verified.waitForSelector('#sync-now-account')
+  assert.equal(await verified.locator('#google-sign-in').count(), 0)
+  assert.equal(await verified.evaluate(async () => (await import('/src/study-lock.ts')).captureStudyLock().uid), 'synthetic-user')
 
   // Ordinary account sign-out must retain its pending-change confirmation.
   const account = await newPage(true, true, true)
@@ -198,7 +258,7 @@ try {
 
   assert.deepEqual(pageErrors, [], 'no unhandled browser errors')
   assert.deepEqual(externalRequests, [], 'the test must not access live Firebase or Google')
-  console.log('guarded-signout: fresh/restored welcome, retry, local Settings, data preservation, account confirmation: ok')
+  console.log('account-ui: fresh/restored guard state, popup cancellation/retry, verified import, sign-out, local Settings, data preservation, account confirmation: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()
