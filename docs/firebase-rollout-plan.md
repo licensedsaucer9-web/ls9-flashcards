@@ -1,8 +1,9 @@
-# Firebase rollout plan
+# Prod v1 release plan
 
-Updated 2026-10-04 against application source `bdf9b15`. This is the repository's
-only active plan. Implementation and the real-data test rehearsal are complete;
-production migration, device recovery, publication, and backup recovery remain.
+Updated 2026-10-04 against master `860fcb967853fd12dd420468e8938e486b3db57e`.
+This remains the repository's only active plan, now organized as the Prod v1
+milestone. Firebase implementation and the real-data test rehearsal are complete;
+production migration, device recovery, publication and verified recovery remain.
 
 ## Completed work
 
@@ -46,78 +47,182 @@ The procedures live in [Firebase setup](firebase-setup.md),
 [the isolated rehearsal runbook](firebase-rehearsal.md). This plan owns the
 remaining sequence and completion gates.
 
-## 1. Prepare production and recover every active device
+## Prod v1 scope and completion
 
-1. Inventory every browser/install still used, distinguishing iPhone Safari
-   from the installed Home Screen app. Identify device-only reviews, edits,
-   custom cards, settings, and deletions.
-2. Prove a recovery build can access each actual legacy IndexedDB context.
-   The isolated test preview uses separate storage; localhost cannot read an
-   iPhone's data. If a preview cannot access an installed app's storage,
-   prepare a same-context recovery/bridge release before moving that device.
-3. Arrange the production Admin credential and separately confirm the
-   production UID mapping. Inspect existing account/deck state and resolve
-   assignment conflicts without discarding data. Deploy restrictive production
-   rules when that milestone is authorized, before full-app production access.
-4. Coordinate a short pause in legacy edits/reviews and keep legacy cloud writes
-   paused once final migration starts. Fetch a fresh remote data commit, export
-   it immutably, prepare its baseline, inspect the production dry-run, then
-   import and verify exact server readback before the owner's first full-app
-   production login. The test snapshot is not the final production snapshot.
-5. Recover each confirmed local profile into its mapped production account
-   using the same origin and storage context. Retain its source database.
-   Require Firestore acknowledgement and a clean second-client comparison of
-   the merged result, including device-only changes.
-6. Recheck the legacy source commit before cutover. If it advanced, reconcile
-   and verify the new snapshot before proceeding.
+Joakim confirmed on 2026-10-04: **ship the current single-deck app reliably**.
+The milestone is [Prod v1](https://github.com/licensedsaucer9-web/ls9-flashcards/milestone/2); the tracking issue is
+[#33](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/33). Target release
+identity: `v1.0.0`. Completion follows the gates below. This section plans work; it does not authorize
+production operations or start an implementation queue.
 
-**Complete when:** production snapshot identity, exact readback, and every
-active device's recovery result are recorded privately, with an aggregate
-rollout summary. Any unrecovered device remains an unfinished item.
+Included: the existing German seed/tier system and SM-2-style scheduling,
+editing/CSV import, device-only study, Google login/account controls,
+offline-first Firestore sync, safe legacy/device migration and verified recovery.
+Each account retains one assigned deck. Mapped legacy accounts intentionally
+share vocabulary while schedules/settings stay private; new accounts receive
+personal decks.
 
-## 2. Publish and verify live use
+Excluded: multiple decks/subjects, new sharing roles, interval controls, review
+history/FSRS, a visual redesign and optional session wording changes. Those are
+later product work, not prerequisites for this reliability release.
 
-After stage 1 is recorded and publication is authorized:
+Prod v1 is complete only when the final production import and all active device
+recoveries have exact saved evidence, the verified Firebase artifact is publicly
+served, existing-user and fresh-user physical-device acceptance passes, the old
+writer is retired, backup cadence and isolated real-dump restoration work, and
+the tested final source/artifact is recorded and released as `v1.0.0`.
+Closed implementation tickets, Admin completion markers and CI success alone
+do not establish those operational results.
 
-1. Restore both master-only publication conditions and publish the tested
-   `dist-firebase` artifact. Record its source and public-site commits. Keep
-   pull requests from publishing or deploying rules.
-2. Confirm the production schedule on desktop, iPhone Safari, and the installed
-   Home Screen app. Check real Google login, cancellation, sign-out/sign-in,
-   and the account controls; merged UI checks alone do not prove physical
-   device behavior.
-3. Grade offline, suspend/close, reopen offline, reconnect, and verify the grade
-   on a second client. Require accurate **Saved on this device / Synced**
-   status. Use the [manual acceptance guide](../TEST.md).
-4. Use a fresh Google account on the public URL. Verify automatic provisioning,
-   second-device restoration, and separation from the legacy account's deck
-   and schedule. The guarded test preview cannot establish this new-user gate.
+## Delivery order
 
-**Complete when:** existing-account restoration, fresh-user onboarding,
-account isolation, and offline/reconnect checks have recorded production
-results, and every active installation runs the Firebase build.
+| Issue | Deliverable | Depends on |
+| --- | --- | --- |
+| [#34](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/34) | prove same-context recovery for every active legacy installation | Can start now |
+| [#35](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/35) | add guarded Firestore dump restore and rehearse recovery | Can start now |
+| [#36](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/36) | prepare production identity, rules and final cutover preflight | #34 |
+| [#37](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/37) | import the final production snapshot and recover every active device | #34, #35, #36 |
+| [#38](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/38) | publish a verified Firebase release candidate at the public URL | #37 |
+| [#39](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/39) | verify production login, account isolation and offline study on real devices | #38 |
+| [#40](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/40) | establish backups, retire the legacy writer and release v1.0.0 | #35, #37, #39 |
 
-## 3. Retire the old writer and establish recovery
+Start **#34 and #35 independently**. #35 is the first unconditional coding
+issue. Production credentials/read-only preparation can be gathered alongside
+them, but #36 is not ready until #34 has proven device recovery routes.
+The critical sequence is **#34 → #36 → #37 → #38 → #39 → #40**, with **#35
+blocking #37 and #40**. New release blockers get small linked issues in this
+same milestone; feature expansion stays outside it.
 
-1. Revoke the legacy data-write token after all active devices have moved and
-   their pending work is acknowledged. Keep the data repository as a frozen
-   recovery snapshot and retain the Pages deployment key.
-2. Run a private production Firestore export; validate its checksum and
-   account/deck/document counts. Select and document a backup cadence and
-   durable private storage.
-3. Confirm or implement a restore procedure for that Firestore dump and
-   rehearse it in an isolated project. The current CLI exports backups but
-   has no Firestore-dump restore command; the legacy importer accepts a
-   different format. An export alone is not recovery-tested.
-4. Remove temporary OAuth/rehearsal previews when they are no longer needed.
-   Retire the old-URL compatibility site only after every active old
-   installation/storage context has been recovered and verified.
-   Update README, setup, and test documentation to describe the deployed
-   result and record final rollout completion.
+### 1. Prove each installation's recovery route — #34
 
-**Complete when:** token retirement, backup cadence, and isolated restoration
-have recorded results. After Firebase study exists, rollback retains that data
-and publishes a Firebase-compatible client.
+Privately inventory every active origin/browser/Home Screen storage context and
+its pending legacy work. Show that the proposed recovery client can read that
+actual source without changing it. An isolated preview or localhost is not
+proof for an old installed iPhone context. If needed, prepare a minimal guarded
+same-context bridge preserving original storage/install identity; otherwise use
+the demonstrated existing recovery path. Rehearse pending-data preservation,
+repeat copies and newer-target behavior. Prepare artifacts/runbook steps, not
+production publication.
+
+**Complete when:** every active context has a proven actionable route and saved
+aggregate readiness evidence. Unreachable/unknown contexts remain blockers.
+
+### 2. Implement and rehearse dump restoration — #35
+
+Add a guarded restore path for the existing checksummed `kind: firestore`
+backup format. Validate supported schema, records/paths, assignments and
+project/credential pairing before network writes. Default to dry-run, require
+explicit apply/target, reject unreviewed conflicts or newer target state, and
+cover interruption/resume/idempotence with exact readback in an isolated
+emulator/throwaway target. Do not overwrite the existing real rehearsal dataset.
+Document that this restores Firestore data, not Google Auth identities, local
+pending IndexedDB work, deployed rules or hosting.
+
+**Complete when:** a full verified recovery round trip and failure cases pass,
+with an actionable runbook, limitations and measured restore time. An export
+or dry-run alone is insufficient.
+
+### 3. Prepare production preflight — #36
+
+Arrange the separate private production credential and confirmed production
+UID mapping via auth-only access. Inspect assignments/server state read-only
+and resolve conflicts in a reviewed plan; do not open the owner's ordinary
+production app before preassignment. Bind restrictive rules/build/host/base-path
+configuration to revisions/checksums. Prepare the write pause, fresh remote
+snapshot, immutable export, baseline, production dry-run, pre-change backup and
+rollback artifact. Specify the final source/server rechecks and revised-input
+procedure if they advance.
+
+**Complete when:** a concrete inspectable readiness package has no unresolved
+mapping/assignment/device-route blocker. This issue does not deploy rules,
+apply a production import or publish.
+
+### 4. Import and recover production data — #37
+
+After explicit authorization of the prepared rules/import/recovery operations,
+pause legacy review/edit/cloud writes. Re-fetch and verify the final source
+commit/server state. Deploy tested restrictive rules before full-app access,
+preassign/import the owner before ordinary login, and verify every committed
+card/progress/settings/clock/tombstone/membership plus exact counts. An unchanged
+repeat must preserve newer target data and avoid unnecessary writes.
+
+Recover every inventoried active context through its proven route; a required
+limited bridge publication is a distinct authorized recovery action while
+general Pages publication stays disabled. Keep source databases/installations.
+Require Firestore acknowledgement plus independent second-client comparison
+of each context's device-only work. Keep legacy cloud writes paused and recheck
+the source commit before general cutover. Save a verified post-recovery backup.
+
+**Complete when:** exact production snapshot/merge/readback fingerprints and
+all device recovery results are recorded. Any unrecovered context, advanced
+source or failed comparison leaves this gate open.
+
+### 5. Publish the tested candidate — #38
+
+Prepare identifiable release-candidate/source/artifact metadata and run all
+existing CI gates: unit/account UI, emulator rules/sync/migration, staged
+Firebase artifact, installability/offline reload and rehearsal checks. Keep
+both master publish steps disabled until #37 is recorded and publication of
+that concrete artifact is explicitly authorized. Then restore both master-only,
+non-PR conditions together and publish only `dist-firebase`. Pages CI must
+not deploy rules.
+
+Record source/public-site commits and served build/backend/project/base-path,
+manifest/install and service-worker update evidence. Do not delete a recovery
+route still needed by a storage context. Before Firebase study exists retain
+the legacy artifact; afterwards rollback retains new data and uses a compatible
+Firebase client.
+
+**Complete when:** the tested Firebase candidate is served correctly and every
+active installation has received or moved safely to it. Public usability
+acceptance remains #39.
+
+### 6. Record actual production acceptance — #39
+
+Use desktop, iPhone Safari and the installed Home Screen contexts with recorded
+device/browser/OS versions, URL, date and candidate/build. Confirm migrated
+settings/due counts/private progress and actual login/cancel/restored-session/
+sign-out controls. Use a fresh Google account at the public root to prove
+personal provisioning, restoration on another device and private schedule/
+settings isolation. The old test preview cannot prove that new-user flow.
+
+Exercise offline grade → suspend/close → reopen offline → reconnect → second
+client, with accurate **Saved on this device / Synced**, foreground retry and
+**Sync now**. Check current tier/session/study behavior, disposable editing/CSV/
+deletion, device-only study/confirmed copy and mobile install/form controls.
+Record private detailed comparisons and public aggregate outcomes. Fix any
+release blockers and repeat the affected checks on the candidate that ships.
+
+**Complete when:** Joakim records existing-user/fresh-user/device/offline
+production passes with no unresolved release blocker. #25 or UI test success
+does not replace this current-build evidence.
+
+### 7. Establish operations and finalize v1.0.0 — #40
+
+Revoke the legacy data-write token only after every active context uses Firebase
+and all pending work is acknowledged/read back. Preserve the data repo as a
+frozen recovery snapshot and retain `PUBLIC_SITE_DEPLOY_KEY`. Establish a
+working daily backup cadence, or a separately accepted alternative, with
+durable private storage independent of the primary machine, retention and
+observable last-success/failure evidence.
+
+Restore a real private production dump into an isolated recovery target,
+without modifying production or the existing rehearsal dataset. Compare
+exact private data, assignments/memberships/clocks/tombstones and aggregate
+checksums/counts; record observed time and agreed recovery targets. Retire
+temporary previews/old-URL writers only when no active context depends on them.
+A retained compatibility path must be documented, Firebase-compatible and
+have no legacy data writer.
+
+Update README/runbooks to the actual deployed result and known clock/sync
+limits. Finalize `1.0.0` metadata, verify the exact final artifact with CI and
+a public-device smoke check, then tag/release `v1.0.0` with upgrade/rollback
+notes. These are owner-authorized operations, not effects of this planning PR.
+
+**Complete when:** production data/device/publication/QA, token retirement,
+backup cadence and isolated real-dump recovery evidence are all linked in #33;
+only then close the milestone.
+
 
 ## After the rollout
 
