@@ -72,10 +72,10 @@ npm run build    # type-check + production build
 npm run preview  # serve the build on 127.0.0.1:4173
 npm test         # unit tests; no emulator and no Chromium
 npm run test:account-ui  # account UI with synthetic auth and real IndexedDB in Chromium
-npm run test:rules  # Firestore rules, cloud sync, and migration on the emulator (Java 21)
+npm run test:rules  # Firestore rules, cloud sync, migration, and dump restore on the emulator (Java 21)
 ```
 
-`npm test` covers SRS, CSV, tiers, Firestore document shapes, account helpers, record sync, and the migration files. It does not call live Firebase or GitHub. Browser checks need Chromium (`node node_modules/playwright-core/cli.js install chromium`, or `CHROME=/path/to/chromium`); `npm run test:rules` also needs Java 21.
+`npm test` covers SRS, CSV, tiers, Firestore document shapes, account helpers, record sync, the migration files, and Firestore dump restore. It does not call live Firebase or GitHub. Browser checks need Chromium (`node node_modules/playwright-core/cli.js install chromium`, or `CHROME=/path/to/chromium`); `npm run test:rules` also needs Java 21.
 
 `npm run dev` and `npm run build` without `VITE_SYNC_BACKEND=firebase` stay on this device: no Google sign-in and no cloud sync. For the isolated test-project preview:
 
@@ -137,7 +137,7 @@ To check a new release on an iPhone:
 3. Turn Airplane Mode off and return to Flashcards. Wait for **Synced**, then open a second signed-in device and confirm the review. Use **Sync now** in Settings to retry manually.
 4. To check deletion without losing a real card, create a disposable card, wait for **Synced**, then delete it. After the second device syncs, the test card should remain absent.
 
-A private Admin SDK export of Firestore is described in [Firebase setup](docs/firebase-setup.md#private-firestore-backup). It does not need Blaze and is not automatic. There is no Firestore-dump restore command yet; recovery rehearsal and backup cadence remain rollout work. The legacy data repo can be [verified without changing it](https://github.com/licensedsaucer9-web/ls9-flashcards-data#verify-an-existing-backup-without-changing-it), but cannot back up later Firebase reviews.
+A private Admin SDK export of Firestore is described in [Firebase setup](docs/firebase-setup.md#private-firestore-backup). It does not need Blaze and is not automatic. The matching [restore command](docs/firebase-setup.md#restore-a-firestore-dump) writes that dump only to an isolated target and does not restore Auth, this device's IndexedDB, rules, or hosting. Backup cadence remains rollout work. The legacy data repo can be [verified without changing it](https://github.com/licensedsaucer9-web/ls9-flashcards-data#verify-an-existing-backup-without-changing-it), but cannot back up later Firebase reviews.
 
 ## Other documentation
 

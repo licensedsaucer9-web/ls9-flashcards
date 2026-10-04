@@ -10,8 +10,10 @@ when reviewing completed work; do not rerun `--apply` just to inspect evidence.
 These are local operator commands, never a Cloud Function or production CI
 step. Rehearse live operations only against `flashcards-ls9-auth-test`.
 Production commands require their separate authorized milestone. Pages builds
-`dist-firebase` but both publication steps remain disabled. A Firestore backup
-command and its recovery limitations are in [Firebase setup](firebase-setup.md).
+`dist-firebase` but both publication steps remain disabled. Firestore backup
+and the guarded dump restore, including what a dump does not recover, are in
+[Firebase setup](firebase-setup.md). Restore refuses the production project
+and the real-data rehearsal project.
 
 Before production Firebase study exists, rollback keeps or restores the
 previously published artifact. Current `master` has no GitHub writer. After

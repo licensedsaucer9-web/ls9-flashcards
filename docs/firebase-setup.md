@@ -106,10 +106,42 @@ too. Files are mode 600 and existing outputs are never overwritten. Check
 the checksum and aggregate document counts privately.
 
 This `kind: firestore` dump differs from the GitHub snapshot accepted by
-`migrate import`. There is no CLI restore command for it yet. The emulator
-suite exercises the export writer, not production backup restoration.
-A restore procedure, isolated recovery rehearsal, cadence, and durable storage
-are required before calling backup/recovery complete.
+`migrate import`. Restoring it does not recreate Google Auth identities,
+browser IndexedDB or pending device work, deployed security rules, or hosting.
+Confirm UID ownership separately; do not invent identity mappings. Backup
+cadence and durable storage remain rollout work. Production restore is not
+authorized by this command.
+
+## Restore a Firestore dump
+
+`npm run migrate -- restore` validates the checksum, supported paths, record
+shapes, clocks, tombstones, and account/deck membership before it opens a
+client. The default is a read-only dry run. `--apply` creates documents that
+are missing and leaves identical documents unchanged. A target document that
+differs, is newer, or is not in the dump fails closed before the first write.
+There is no overwrite mode. Repeat the same dump, project, and credential
+with a new `--report` file to resume after an interruption. An unchanged
+repeat does not add documents.
+
+Stdout is one JSON line: aggregate counts, the dump checksum, and
+`elapsedMs`. Path-level differences go only to `--report` (mode 600). Keep
+both files private. The command refuses `flashcards-ls9-prod` and
+`flashcards-ls9-auth-test`. Use the emulator or another empty demo project.
+
+```bash
+umask 077
+npm run migrate -- restore \
+  --dump "$MIGRATION_DIR/exports/firestore-$BACKUP_STAMP.json" \
+  --project demo-restore-rehearsal \
+  --credential service-account.json \
+  --report "$MIGRATION_DIR/exports/firestore-$BACKUP_STAMP.restore.json" \
+  --emulator
+```
+
+Add `--apply` only after that dry run reports creates and zero conflicts,
+newer documents, and extras. Record `elapsedMs` and the checksum outside
+Git. For a live throwaway project, pass that project's credential and omit
+`--emulator`. The credential's `project_id` must equal `--project`.
 
 ## OAuth spike reference
 

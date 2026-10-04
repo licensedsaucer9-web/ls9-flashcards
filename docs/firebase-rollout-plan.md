@@ -116,7 +116,10 @@ explicit apply/target, reject unreviewed conflicts or newer target state, and
 cover interruption/resume/idempotence with exact readback in an isolated
 emulator/throwaway target. Do not overwrite the existing real rehearsal dataset.
 Document that this restores Firestore data, not Google Auth identities, local
-pending IndexedDB work, deployed rules or hosting.
+pending IndexedDB work, deployed rules or hosting. The command and those
+limits are in the setup runbook (`npm run migrate -- restore`); it refuses
+`flashcards-ls9-prod` and `flashcards-ls9-auth-test`. Production restore stays
+unauthorized.
 
 **Complete when:** a full verified recovery round trip and failure cases pass,
 with an actionable runbook, limitations and measured restore time. An export
