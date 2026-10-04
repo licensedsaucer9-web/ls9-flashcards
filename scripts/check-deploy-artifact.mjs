@@ -9,6 +9,8 @@ if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(artifactDir)) {
 }
 const root = fileURLToPath(new URL(`../${artifactDir}/`, import.meta.url))
 const base = process.env.BASE || '/'
+const expectedProject = process.env.EXPECTED_FIREBASE_PROJECT || 'flashcards-ls9-prod'
+assert(['flashcards-ls9-prod', 'flashcards-ls9-auth-test'].includes(expectedProject), 'unsupported expected Firebase project')
 assert(base.startsWith('/') && base.endsWith('/'), `invalid BASE: ${base}`)
 
 const html = await readFile(join(root, 'index.html'), 'utf8')
@@ -44,5 +46,8 @@ async function checkFiles(directory) {
 }
 
 await checkFiles(root)
-assert(scripts.some((source) => source.includes('flashcards-ls9-prod')), 'public bundle must name the production Firebase project')
-console.log(`Checked ${artifactDir} uses ${base}, names flashcards-ls9-prod, and contains no token, private key, or source map`)
+assert(scripts.some((source) => source.includes(expectedProject)), 'bundle must name the expected Firebase project')
+if (expectedProject === 'flashcards-ls9-auth-test') {
+  assert(scripts.every((source) => !source.includes('flashcards-ls9-prod')), 'test preview must not contain production Firebase configuration')
+}
+console.log(`Checked ${artifactDir} uses ${base}, names ${expectedProject}, and contains no token, private key, or source map`)

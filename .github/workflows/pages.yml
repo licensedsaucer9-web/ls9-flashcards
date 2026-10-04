@@ -53,6 +53,17 @@ jobs:
           preview_pid=$!
           trap 'kill "$preview_pid"' EXIT
           node scripts/installable.mjs
+      - name: Build isolated test-project rehearsal preview
+        run: npm run rehearsal:build
+      - name: Check rehearsal installability and offline reload
+        env:
+          BASE: /german-flashcards-site/auth-spike/rehearsal/
+          APP_URL: http://127.0.0.1:4178/german-flashcards-site/auth-spike/rehearsal/
+        run: |
+          npm run preview -- --outDir dist-rehearsal --port 4178 --strictPort &
+          preview_pid=$!
+          trap 'kill "$preview_pid"' EXIT
+          node scripts/installable.mjs
       # Held until issue #15 records the #14 second-device readback.
       # Restore this condition together with the publish step below:
       # github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
