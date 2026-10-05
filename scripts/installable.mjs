@@ -16,6 +16,59 @@ async function dismissWelcome(page) {
   await page.waitForSelector('[data-due-count]')
 }
 
+// The recovery bridge does not seed the legacy database. This profile is
+// disposable, so one synthetic due card lets the review controls run.
+async function plantDueCardWhenEmpty(page) {
+  const planted = await page.evaluate(async () => {
+    const start = document.querySelector('#start')
+    if (!start || !start.disabled) return false
+    const listed = await indexedDB.databases()
+    const names = listed.map((entry) => entry.name).filter((name) => typeof name === 'string')
+    const name = names.find((entry) => entry === 'german-flashcards' || entry === 'german-flashcards-rehearsal') || names[0]
+    if (!name) throw new Error('empty study view has no IndexedDB database')
+    const now = Date.now()
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open(name, 1)
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains('cards')) request.result.createObjectStore('cards', { keyPath: 'id' })
+        if (!request.result.objectStoreNames.contains('settings')) request.result.createObjectStore('settings', { keyPath: 'id' })
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    try {
+      const tx = db.transaction('cards', 'readwrite')
+      tx.objectStore('cards').put({
+        id: 'install-check',
+        de: 'Haus',
+        en: 'house',
+        article: 'das',
+        example_de: 'Das Haus ist alt.',
+        example_en: 'The house is old.',
+        tags: [],
+        tier: 1,
+        created_at: now,
+        updated_at: now,
+        srs: { ease: 2.5, interval: 0, reps: 0, due: now - 1000 },
+      })
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve()
+        tx.onabort = () => reject(tx.error)
+        tx.onerror = () => reject(tx.error)
+      })
+    } finally {
+      db.close()
+    }
+    return name
+  })
+  if (!planted) return
+  console.log(`installable: planted one synthetic due card in disposable ${planted}`)
+  await page.reload({ waitUntil: 'load' })
+  await dismissWelcome(page)
+  const disabled = await page.locator('#start').isDisabled()
+  if (disabled) throw new Error(`synthetic due card in ${planted} did not enable review`)
+}
+
 const userDataDir = await mkdtemp(join(tmpdir(), 'de-pwa-'))
 const context = await chromium.launchPersistentContext(userDataDir, {
   executablePath: CHROME,
@@ -76,6 +129,7 @@ try {
     throw new Error(`installability errors: ${JSON.stringify(blocking, null, 2)}`)
   }
 
+  await plantDueCardWhenEmpty(page)
   await page.click('#start')
   await page.waitForSelector('#card')
   await page.locator('#card').tap()

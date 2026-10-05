@@ -1,6 +1,6 @@
 # Architecture and data guarantees
 
-This describes the implementation on `master` as of 2026-10-04.
+This describes the implementation on `master` as of 2026-10-05.
 For what is deployed and what remains, use the
 [rollout plan](firebase-rollout-plan.md).
 
@@ -14,8 +14,14 @@ Ordinary Firebase builds use the public production configuration in
 `src/firebase-web.ts`. An explicit override needs all four
 `VITE_FIREBASE_*` values; partial configuration does not fall through to
 production. The rehearsal builder selects the test project explicitly and
-uses `VITE_REHEARSAL_PREVIEW=true`. Web configuration is public; Admin SDK
-credentials belong only to local operator commands.
+uses `VITE_REHEARSAL_PREVIEW=true`. `npm run recovery-bridge:build` writes
+`dist-recovery-bridge` with `VITE_RECOVERY_BRIDGE=true` and base
+`/german-flashcards-site/`. That artifact keeps the original storage prefix
+and the installed app's manifest identity, refuses an account that is not a
+completed legacy assignment, and is not a Pages publish input. A signed-out
+open reads the legacy database and does not seed or import into it. Web
+configuration is public; Admin SDK credentials belong only to local operator
+commands.
 
 ## Identity and storage
 

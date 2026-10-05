@@ -63,7 +63,10 @@ try {
   await store.atomic(['users/uid-alice'], () => [{ ...completeAccount, migrationStatus: 'pending' }])
   await assert.rejects(provisionAccount(aliceStore, 'uid-alice', { requiredLegacyDeckId: mapping.deckId }),
     (error) => error.code === 'rehearsal/import-required')
+  await assert.rejects(provisionAccount(aliceStore, 'uid-alice', { requiredLegacyDeckId: mapping.deckId, refusal: 'bridge' }),
+    (error) => error.code === 'recovery/legacy-required')
   assert.equal((await store.get('users/uid-alice')).migrationStatus, 'pending', 'rehearsal must not complete a pending import')
+  assert.equal(await store.get('decks/uid-alice'), null, 'the recovery bridge must not create a personal deck')
   await store.atomic(['users/uid-alice'], () => [completeAccount])
   assert.equal(await store.get('decks/uid-alice'), null, 'import preassigns the shared deck, not a personal deck')
   const progressRef = 'users/uid-alice/progress/custom-1'
@@ -117,10 +120,47 @@ try {
     tx.objectStore('settings').put(settings)
     await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onabort = () => reject(tx.error) })
     opened.close()
+  }, { cards: sourceCards, settings: sourceSettings })
+  const copiedPending = await alice.evaluate(async ({ mapping: activeMapping, cards, settings }) => {
+    const db = await import('/src/db.ts')
+    const records = await import('/src/record-sync.ts')
+    const result = await db.copyMappedLegacyProfile('alice', activeMapping, activeMapping.projectId, activeMapping.deckId)
+    const account = await db.getSettings()
+    const request = indexedDB.open('german-flashcards:alice', 1)
+    const source = await new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const tx = source.transaction(['cards', 'settings'], 'readonly')
+    const read = (pending) => new Promise((resolve, reject) => {
+      pending.onsuccess = () => resolve(pending.result)
+      pending.onerror = () => reject(pending.error)
+    })
+    const [storedCards, storedSettings] = await Promise.all([
+      read(tx.objectStore('cards').getAll()),
+      read(tx.objectStore('settings').get('settings')),
+    ])
+    source.close()
+    return {
+      state: result.state,
+      dirty: records.hasDirty(account.pending),
+      local: account.localRevision,
+      acknowledged: account.acknowledgedRevision,
+      storedCards,
+      storedSettings,
+    }
+  }, { mapping, cards: sourceCards, settings: sourceSettings })
+  assert.equal(copiedPending.state, 'copied')
+  assert.equal(copiedPending.dirty, true, 'copied work stays pending until Firestore acknowledges it')
+  assert.ok(copiedPending.local > copiedPending.acknowledged, 'the copy must not acknowledge its own revision')
+  assert.deepEqual(copiedPending.storedCards.sort((a, b) => a.id.localeCompare(b.id)), sourceCards.sort((a, b) => a.id.localeCompare(b.id)))
+  assert.deepEqual(copiedPending.storedSettings, sourceSettings, 'the copy leaves the source database unchanged')
+  assert.deepEqual(await store.get(progressRef), before, 'the local copy does not write Firestore by itself')
+  await alice.evaluate(async () => {
     const panel = await import('/src/migration-panel.ts')
     document.body.innerHTML = panel.migrationPanelHtml()
     panel.bindMigrationPanel()
-  }, { cards: sourceCards, settings: sourceSettings })
+  })
   await alice.locator('summary').click()
   await alice.locator('#migration-map').setInputFiles({ name: 'fixture-map.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(mapping)) })
   await alice.waitForFunction(() => document.querySelector('#migration-profile').value === 'alice')

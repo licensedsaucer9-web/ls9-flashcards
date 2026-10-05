@@ -2,8 +2,13 @@ import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 const rehearsal = process.env.VITE_REHEARSAL_PREVIEW === 'true'
+const recoveryBridge = process.env.VITE_RECOVERY_BRIDGE === 'true'
 if (rehearsal && process.env.VITE_FIREBASE_PROJECT_ID !== 'flashcards-ls9-auth-test') {
   throw new Error('Rehearsal builds require the explicit OAuth test-project configuration')
+}
+if (recoveryBridge && rehearsal) throw new Error('The recovery bridge cannot use rehearsal storage')
+if (recoveryBridge && process.env.BASE !== '/german-flashcards-site/') {
+  throw new Error('The recovery bridge must be built at the old installation path')
 }
 
 function accountBackend(): Plugin {

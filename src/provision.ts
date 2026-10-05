@@ -1,5 +1,5 @@
 import { doc, getDocFromServer, runTransaction, type Firestore, type Transaction } from 'firebase/firestore'
-import { planAccountProvision } from './account-plan.ts'
+import { legacyAssignmentRefusal, planAccountProvision } from './account-plan.ts'
 import { newUserAccount } from './firestore-docs.ts'
 
 type AccountSnap = { exists(): boolean; data(): unknown }
@@ -44,17 +44,17 @@ async function readOrCreate(
 export async function provisionAccount(
   db: Firestore,
   uid: string,
-  options: { requiredLegacyDeckId?: string } = {},
+  options: { requiredLegacyDeckId?: string; refusal?: 'bridge' } = {},
 ): Promise<{ deckId: string; personal: boolean }> {
   if (options.requiredLegacyDeckId) {
-    // The rehearsal cannot invent a personal deck before the Admin import.
+    // Rehearsal and the recovery bridge cannot invent a personal deck.
     // Read online and perform no writes, including for a restored auth session.
     const snap = await getDocFromServer(doc(db, 'users', uid))
-    const data = snap.data()
-    if (!snap.exists() || data?.deckId !== options.requiredLegacyDeckId || data?.schemaVersion !== 1 || data?.migrationStatus !== 'complete') {
-      throw Object.assign(new Error('The test account needs a verified legacy import'), { code: 'rehearsal/import-required' })
-    }
-    return { deckId: data.deckId, personal: false }
+    const data = snap.exists() ? snap.data() : null
+    const refusal = legacyAssignmentRefusal(data, options.requiredLegacyDeckId, options.refusal === 'bridge' ? 'bridge' : 'rehearsal')
+    if (refusal) throw Object.assign(new Error(refusal.message), { code: refusal.code })
+    const deckId = (data as { deckId: string }).deckId
+    return { deckId, personal: false }
   }
   try {
     const deckId = await readOrCreate(db, uid, true)

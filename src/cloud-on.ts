@@ -29,7 +29,7 @@ import { bindStudyDatabase, captureStudyLock } from './study-lock.ts'
 import { getSyncStatus, syncNow } from './sync.ts'
 import { bindMigrationPanel, migrationPanelHtml } from './migration-panel.ts'
 import { accountDatabaseName, currentLocalDatabaseName } from './user.ts'
-import { rehearsalNote, rehearsalPreview, storagePrefix } from './rehearsal.ts'
+import { recoveryBridge, rehearsalNote, rehearsalPreview, storagePrefix } from './rehearsal.ts'
 
 const GUEST_KEY = `${storagePrefix}.device-study`
 
@@ -61,7 +61,9 @@ function showAuthError(error: unknown): void {
     ? 'Google sign-in is not configured on this build. Cards on this device were left as they are.'
     : code === 'rehearsal/import-required'
       ? 'This test account is waiting for its verified import. You can study on this device until then.'
-      : `Sign-in stopped (${code}). Cards on this device were left as they are.`
+      : code === 'recovery/legacy-required'
+        ? 'This recovery bridge only opens a verified legacy account. Cards on this device were left as they are.'
+        : `Sign-in stopped (${code}). Cards on this device were left as they are.`
   pendingError = message
   const el = document.getElementById('auth-error')
   if (el) el.textContent = message
@@ -169,8 +171,10 @@ async function adoptUser(user: User): Promise<void> {
   }
   let personal = false
   try {
-    const provisioned = await provisionAccount(firestore, user.uid,
-      { requiredLegacyDeckId: rehearsalPreview ? 'legacy-german' : undefined })
+    const provisioned = await provisionAccount(firestore, user.uid, {
+      requiredLegacyDeckId: rehearsalPreview || recoveryBridge ? 'legacy-german' : undefined,
+      refusal: recoveryBridge ? 'bridge' : undefined,
+    })
     personal = provisioned.personal
   } catch (error) {
     if (ticket !== ticketId) return
@@ -292,6 +296,7 @@ function readConfig(): { apiKey: string; authDomain: string; projectId: string; 
   if (apiKey || authDomain || projectId || appId) {
     if (!apiKey || !authDomain || !projectId || !appId) return null
     if (rehearsalPreview && projectId !== 'flashcards-ls9-auth-test') return null
+    if (recoveryBridge && (rehearsalPreview || projectId === 'flashcards-ls9-auth-test')) return null
     return { apiKey, authDomain, projectId, appId }
   }
   if (rehearsalPreview) return null
@@ -428,7 +433,8 @@ export async function prepareAccount(next: AccountHooks): Promise<void> {
   hooks = next
   // A profile list names german-flashcards:<slug> while the schedule still
   // lives in the original database. Import before the sign-in offer looks.
-  await importLegacyData(currentLocalDatabaseName())
+  // The recovery bridge reads that source and must not rewrite it on open.
+  if (!recoveryBridge) await importLegacyData(currentLocalDatabaseName())
   bindStudyDatabase({ uid: null, dbName: currentLocalDatabaseName() })
   const config = readConfig()
   if (!config) {

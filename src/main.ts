@@ -37,7 +37,7 @@ import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
 import { sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
 import { tierCounts, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
-import { rehearsalPreview } from './rehearsal.ts'
+import { recoveryBridge, rehearsalPreview } from './rehearsal.ts'
 import {
   bootSync,
   onSyncStatus,
@@ -828,7 +828,8 @@ async function render() {
 }
 
 function clearLegacyGithubToken(): void {
-  if (rehearsalPreview) return
+  // A recovery open must leave the installation's stored keys untouched.
+  if (rehearsalPreview || recoveryBridge) return
   try {
     localStorage.removeItem('german-flashcards.github')
     localStorage.removeItem('german-flashcards.github.shas')
@@ -843,7 +844,12 @@ async function boot() {
   await prepareAccount(accountHooks)
   markAccountBooted()
   let added = 0
-  if (accountSignIn) {
+  // Signed-out study on the bridge is the legacy source. Seeding and the
+  // one-time profile import write that database, so this open only reads it.
+  // After sign-in the study lock is the account database, which sync may seed.
+  if (recoveryBridge) {
+    if (captureStudyLock().uid) await bootSync()
+  } else if (accountSignIn) {
     if (captureStudyLock().uid) await bootSync()
     else added = await ensureSeed()
   } else {
