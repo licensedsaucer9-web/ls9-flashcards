@@ -104,6 +104,14 @@ the demonstrated existing recovery path. Rehearse pending-data preservation,
 repeat copies and newer-target behavior. Prepare artifacts/runbook steps, not
 production publication.
 
+The routes are prepared in the [migration runbook](firebase-migration.md).
+Same-origin Safari uses the existing recovery client. An old-scope Home Screen
+installation needs the unpublished `dist-recovery-bridge` artifact. No private
+device inventory was available for that preparation. The published aggregate is
+2 installation classes, 1 existing-client route, 1 bridge route, 2 unreachable,
+0 proven reads, and 2 blockers. Those classes are not devices. An omitted
+install stays a blocker and is not included in the count.
+
 **Complete when:** every active context has a proven actionable route and saved
 aggregate readiness evidence. Unreachable/unknown contexts remain blockers.
 

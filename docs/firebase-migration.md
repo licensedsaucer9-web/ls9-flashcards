@@ -177,13 +177,56 @@ verification and collection of every device's local work are separate steps.
 
 ## 4. Recover each device's unsynced local profile
 
-Use a Firebase recovery build **on the same browser origin and storage context
+Use a Firebase recovery client **on the same browser origin and storage context
 as the old app**, with the mapped account preassigned and restrictive rules
 deployed before access. A localhost preview cannot read an iPhone's IndexedDB.
-The isolated rehearsal intentionally uses different storage and cannot recover
-root-app profiles. Check Safari and the installed Home Screen app separately.
-If a preview cannot access the actual old installation's storage, the rollout
-needs a same-context recovery/bridge release before that device moves.
+The isolated rehearsal uses the `german-flashcards-rehearsal` prefix and cannot
+recover root-app profiles. Check Safari and the installed Home Screen app
+separately. IndexedDB is per origin, so Safari on
+`licensedsaucer9-web.github.io` can open `german-flashcards` and
+`german-flashcards:<profile>` from either the old or new site path. An
+installed Home Screen app keeps a separate store and only runs pages inside
+`https://licensedsaucer9-web.github.io/german-flashcards-site/`. The new site
+scope cannot enter that store.
+
+| Context | Route |
+| --- | --- |
+| Safari, same origin, reachable | Existing recovery client. |
+| Home Screen app whose scope is the old site, reachable | Unpublished bridge below. Open the existing icon after the authorized publication. |
+| Other origin, other Home Screen scope, unknown install, or a context this session cannot open | Blocker. Keep it in the inventory. |
+
+Build the bridge locally. This command does not publish it, and Pages does not
+publish `dist-recovery-bridge`:
+
+```bash
+npm run recovery-bridge:build
+```
+
+The artifact is `dist-recovery-bridge/`. Its base, manifest scope, and start URL
+are `/german-flashcards-site/`. The manifest keeps the installed name
+**LS9 Flashcards** / **LS9 Cards** and has no separate `id`. Storage stays
+`german-flashcards`. The bundle names `flashcards-ls9-prod`, refuses
+`flashcards-ls9-auth-test`, and refuses rehearsal storage. Sign-in reads the
+account and does not create a personal deck. A missing, pending, unmapped, or
+wrong-deck account stops with the device records left as they are. The bridge
+also leaves `german-flashcards.github` and `german-flashcards.github.shas`
+untouched. Publishing this directory onto the compatibility site is a separate
+authorized recovery operation. Until that operation, the old icon keeps the
+compatibility client.
+
+When publication is authorized, copy `dist-recovery-bridge/` onto the
+compatibility site so the existing icon loads it. Do not publish it as the new
+public app and do not create a second Home Screen icon. Rollback restores the
+compatibility site's recorded `gh-pages` revision
+`1dbc26214bb3bfe1e132edc94688bd3137c1e996` from the rename record. Neither the
+bridge nor that rollback deletes IndexedDB. Keep the source installation until
+its pending work is acknowledged and compared from a second client.
+
+The published aggregate from this preparation, with no private device inventory
+on hand, is 2 installation classes, 1 existing-client route, 1 bridge route,
+2 unreachable, 0 proven reads, and 2 blockers. It counts classes, not phones
+or browsers. Add each real install in private storage and publish a new count
+only. A class or device without a saved same-context read remains a blocker.
 
 Sign in as the already mapped account. Shared legacy accounts do not run the
 generic first-login guest copy. In Settings:

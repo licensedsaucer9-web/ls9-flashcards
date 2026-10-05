@@ -118,7 +118,7 @@ from pull requests and does not deploy Firestore rules.
 Do this after production import/device recovery and publication are recorded. The new public URL is the Firebase cutover destination; the old URL currently serves the compatibility client described in [the rename record](docs/rename.md). Check Safari and each installed Home Screen app separately; they can hold different local work. Keep each source installation until its pending progress is recovered and verified.
 
 1. Open the public URL in Safari, confirm the Firebase build, choose **Continue with Google**, and compare the imported schedule with a trusted device.
-2. Open the existing Home Screen installation and confirm it has received the Firebase build. If it still serves an older build or uses a different old URL, preserve it and follow the same-context recovery procedure before replacing its icon.
+2. Open the existing Home Screen installation and confirm it has received the Firebase build. If it still serves an older build or uses a different old URL, preserve it and follow the same-context recovery procedure before replacing its icon. The prepared bridge stays unpublished until that recovery operation; see the migration runbook.
 3. For each storage context with outstanding legacy work, use the confirmed mapping and **Recover a legacy profile on this device**, then verify its Firestore acknowledgement and second-device readback.
 4. Turn on Airplane Mode, review one card, and leave the app. Reopen it. The grade is still there and the status stays **Saved on this device** until you are online again. Then wait for **Synced**, and open a second device signed into the same account.
 
