@@ -51,4 +51,5 @@ assert(bundle.includes('recovery/legacy-required'), 'bridge must refuse an unver
 assert(bundle.includes('german-flashcards'), 'bridge must keep the original storage prefix')
 assert(!bundle.includes('german-flashcards-rehearsal'), 'bridge must not open rehearsal storage')
 assert(!bundle.includes('flashcards-ls9-auth-test'), 'bridge must not embed the rehearsal project')
+execFileSync(process.execPath, ['scripts/recovery-bridge-open-test.mjs'], { cwd: root, stdio: 'inherit' })
 console.log('Recovery bridge: /german-flashcards-site/, original storage, production web config, unpublished')

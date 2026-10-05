@@ -18,7 +18,8 @@ uses `VITE_REHEARSAL_PREVIEW=true`. `npm run recovery-bridge:build` writes
 `dist-recovery-bridge` with `VITE_RECOVERY_BRIDGE=true` and base
 `/german-flashcards-site/`. That artifact keeps the original storage prefix
 and the installed app's manifest identity, refuses an account that is not a
-completed legacy assignment, and is not a Pages publish input. Web
+completed legacy assignment, and is not a Pages publish input. A signed-out
+open reads the legacy database and does not seed or import into it. Web
 configuration is public; Admin SDK credentials belong only to local operator
 commands.
 

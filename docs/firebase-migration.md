@@ -210,9 +210,11 @@ are `/german-flashcards-site/`. The manifest keeps the installed name
 account and does not create a personal deck. A missing, pending, unmapped, or
 wrong-deck account stops with the device records left as they are. The bridge
 also leaves `german-flashcards.github` and `german-flashcards.github.shas`
-untouched. Publishing this directory onto the compatibility site is a separate
-authorized recovery operation. Until that operation, the old icon keeps the
-compatibility client.
+untouched. A normal open, before sign-in or **Copy**, only reads the legacy
+database: it does not seed missing cards, import a profile, or change cards,
+settings, revisions, or pending markers. Publishing this directory onto the
+compatibility site is a separate authorized recovery operation. Until that
+operation, the old icon keeps the compatibility client.
 
 When publication is authorized, copy `dist-recovery-bridge/` onto the
 compatibility site so the existing icon loads it. Do not publish it as the new
@@ -222,11 +224,16 @@ compatibility site's recorded `gh-pages` revision
 bridge nor that rollback deletes IndexedDB. Keep the source installation until
 its pending work is acknowledged and compared from a second client.
 
-The published aggregate from this preparation, with no private device inventory
-on hand, is 2 installation classes, 1 existing-client route, 1 bridge route,
-2 unreachable, 0 proven reads, and 2 blockers. It counts classes, not phones
-or browsers. Add each real install in private storage and publish a new count
-only. A class or device without a saved same-context read remains a blocker.
+This preparation does not complete #34. No private device inventory was
+available, and no actual legacy database was read. The published aggregate is
+2 installation classes, 1 existing-client route, 1 bridge route, 2 unreachable,
+0 proven reads, and 2 blockers. Those rows come from
+`unreachedInstallationClasses()` and keep the two public URL classes visible.
+They are a class count, not a census of active installations. #34 stays open.
+#36 stays blocked on #34 until a private inventory and a saved same-context
+read exist for every active installation. Add each real install in private
+storage and publish a new count only. A class or device without a saved
+same-context read remains a blocker.
 
 Sign in as the already mapped account. Shared legacy accounts do not run the
 generic first-login guest copy. In Settings:
@@ -283,6 +290,11 @@ It calls no production service.
 `npm run test:rules` needs Java 21. It also imports synthetic records using the
 Admin SDK into `demo-german-flashcards`, then restores them in clean Chromium
 contexts using the full #13 sync path. It checks schedule isolation, seed
-tombstones, the confirmed Settings copy, source preservation, dirty-marker
-backfill, retries, and account/deck guards. It uses no service account file.
-The live operator command is never invoked by CI.
+tombstones, the confirmed Settings copy, source preservation after that copy,
+dirty-marker backfill, retries, and account/deck guards. It uses no service
+account file. The live operator command is never invoked by CI.
+
+`npm run recovery-bridge:build` checks the unpublished artifact, then opens it
+on a synthetic legacy profile with external requests blocked and without
+sign-in or **Copy**. The source cards, settings, revisions, pending markers,
+and token key must match that profile.

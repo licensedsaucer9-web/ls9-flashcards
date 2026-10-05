@@ -433,7 +433,8 @@ export async function prepareAccount(next: AccountHooks): Promise<void> {
   hooks = next
   // A profile list names german-flashcards:<slug> while the schedule still
   // lives in the original database. Import before the sign-in offer looks.
-  await importLegacyData(currentLocalDatabaseName())
+  // The recovery bridge reads that source and must not rewrite it on open.
+  if (!recoveryBridge) await importLegacyData(currentLocalDatabaseName())
   bindStudyDatabase({ uid: null, dbName: currentLocalDatabaseName() })
   const config = readConfig()
   if (!config) {

@@ -66,8 +66,10 @@ export function publicReadiness(rows: ReadinessRow[]): PublicReadiness {
 }
 
 /**
- * Installation classes named by the public URL record. They are not a device
- * census. Each row stays unreachable until a same-context read is saved.
+ * Installation classes named by the public URL record. These rows keep an
+ * unfinished route visible. They are not a census of active installations,
+ * and they do not meet #34 until a private inventory and a saved same-context
+ * read exist. Each row stays unreachable until that read is saved.
  */
 export function unreachedInstallationClasses(): ReadinessRow[] {
   return [

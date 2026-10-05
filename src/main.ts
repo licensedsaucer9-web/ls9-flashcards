@@ -844,7 +844,12 @@ async function boot() {
   await prepareAccount(accountHooks)
   markAccountBooted()
   let added = 0
-  if (accountSignIn) {
+  // Signed-out study on the bridge is the legacy source. Seeding and the
+  // one-time profile import write that database, so this open only reads it.
+  // After sign-in the study lock is the account database, which sync may seed.
+  if (recoveryBridge) {
+    if (captureStudyLock().uid) await bootSync()
+  } else if (accountSignIn) {
     if (captureStudyLock().uid) await bootSync()
     else added = await ensureSeed()
   } else {
