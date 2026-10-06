@@ -91,6 +91,9 @@ try {
   }
   await page.goto(BASE, { waitUntil: 'load' })
   await dismissWelcome(page)
+  const releaseResponse = await fetch(new URL('release.json', BASE))
+  assert(releaseResponse.ok, 'missing build identity')
+  const release = await releaseResponse.json()
 
   const manifestLink = await page.locator('link[rel="manifest"]').getAttribute('href')
   assert(manifestLink, 'no manifest link')
@@ -150,7 +153,18 @@ try {
   await page.reload({ waitUntil: 'load' })
   await dismissWelcome(page)
 
-  console.log('installable: manifest + SW + offline reload + Chrome installability errors empty')
+  await page.goto(new URL('#/settings', BASE).href)
+  await page.waitForSelector('#app-version')
+  assert(await page.locator('#app-version').getAttribute('data-version') === release.version, 'offline Settings version differs from artifact')
+  assert(await page.locator('#app-version').getAttribute('data-source') === release.sourceCommit, 'offline Settings source differs from artifact')
+  const offlineRelease = await page.evaluate(async () => {
+    const response = await fetch(new URL('release.json', document.baseURI))
+    if (!response.ok) throw new Error('offline build identity unavailable')
+    return response.json()
+  })
+  assert(JSON.stringify(offlineRelease) === JSON.stringify(release), 'worker serves a different offline build identity')
+
+  console.log('installable: manifest + SW + offline reload/build identity + Chrome installability errors empty')
   console.log('mobile: grade bar in thumb zone, tabbar hidden in review')
   console.log(JSON.stringify({ manifest: manifest.short_name, sw, installabilityErrors: list }, null, 2))
 } finally {

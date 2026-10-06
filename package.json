@@ -1,12 +1,14 @@
 {
   "name": "ls9-flashcards",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0-rc.1",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "release:build": "node --experimental-strip-types scripts/build-release-candidate.mjs",
+    "release:verify": "node scripts/check-release-candidate.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "auth-spike:dev": "vite --config spikes/firebase-auth/vite.config.ts --host 127.0.0.1",
     "auth-spike:build": "tsc -p spikes/firebase-auth/tsconfig.json && vite build --config spikes/firebase-auth/vite.config.ts",
@@ -16,7 +18,7 @@
     "rehearsal:preflight": "node --experimental-strip-types scripts/rehearsal-preflight.mjs",
     "rehearsal:check": "node scripts/rehearsal-preview-test.mjs",
     "test:account-ui": "node scripts/guarded-signout-test.mjs",
-    "test": "node --experimental-strip-types scripts/srs-csv-test.mjs && node --experimental-strip-types scripts/edge-cases-test.mjs && node --experimental-strip-types scripts/tiers-test.mjs && node --experimental-strip-types scripts/firestore-docs-test.mjs && node --experimental-strip-types scripts/account-test.mjs && node --experimental-strip-types scripts/record-sync-test.mjs && node --experimental-strip-types scripts/migration-test.mjs && node --experimental-strip-types scripts/restore-test.mjs && node --experimental-strip-types scripts/recovery-bridge-test.mjs && node --experimental-strip-types scripts/preflight-test.mjs",
+    "test": "node --experimental-strip-types scripts/srs-csv-test.mjs && node --experimental-strip-types scripts/edge-cases-test.mjs && node --experimental-strip-types scripts/tiers-test.mjs && node --experimental-strip-types scripts/firestore-docs-test.mjs && node --experimental-strip-types scripts/account-test.mjs && node --experimental-strip-types scripts/record-sync-test.mjs && node --experimental-strip-types scripts/migration-test.mjs && node --experimental-strip-types scripts/restore-test.mjs && node --experimental-strip-types scripts/recovery-bridge-test.mjs && node --experimental-strip-types scripts/preflight-test.mjs && node scripts/release-test.mjs",
     "test:rules": "firebase emulators:exec --only firestore --project demo-german-flashcards \"node scripts/firestore-rules-test.mjs && node --experimental-strip-types scripts/cloud-sync-emulator-test.mjs && node --experimental-strip-types scripts/migration-emulator-test.mjs && node --experimental-strip-types scripts/restore-emulator-test.mjs\"",
     "migrate": "node --experimental-strip-types scripts/migrate.mjs"
   },

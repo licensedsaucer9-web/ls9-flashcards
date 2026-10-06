@@ -1,6 +1,6 @@
 # Prod v1 release plan
 
-Updated 2026-10-04 against master `860fcb967853fd12dd420468e8938e486b3db57e`.
+Updated 2026-10-06; production preparation builds on master `63b1ee0`.
 This remains the repository's only active plan, now organized as the Prod v1
 milestone. Firebase implementation and the real-data test rehearsal are complete;
 production migration, device recovery, publication and verified recovery remain.
@@ -195,6 +195,19 @@ both master publish steps disabled until #37 is recorded and publication of
 that concrete artifact is explicitly authorized. Then restore both master-only,
 non-PR conditions together and publish only `dist-firebase`. Pages CI must
 not deploy rules.
+
+The coding preparation uses package version `1.0.0-rc.1`, a bundled/offline
+Settings identity, `release.json`, and a checksummed `release-candidate.json`.
+`npm run release:build` requires clean committed source and paired publication gates;
+CI retains the tested `dist-firebase` artifact after all existing gates. The
+read-only `release:verify -- --served --site-commit FULL_SHA` command can compare
+a later authorized publication with the exact candidate and record both
+source and public-site revisions. See the [candidate runbook](firebase-setup.md#prepare-and-verify-a-release-candidate).
+Both publish steps remain disabled, and retained auth/recovery paths are
+excluded from the future root cleanup. This preparation does not finish #38:
+#37, explicit publication authorization, served evidence and actual installation
+update/move results remain required. Closing a preparation PR must not close
+this operational gate.
 
 Record source/public-site commits and served build/backend/project/base-path,
 manifest/install and service-worker update evidence. Do not delete a recovery
