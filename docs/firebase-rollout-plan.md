@@ -147,6 +147,16 @@ snapshot, immutable export, baseline, production dry-run, pre-change backup and
 rollback artifact. Specify the final source/server rechecks and revised-input
 procedure if they advance.
 
+The local command is `npm run migrate -- preflight`, documented in the setup
+runbook. It records the source revision, the rules and `firebase.json`
+checksums, project `flashcards-ls9-prod`, both base paths, the authorized
+hosts, the held Pages publish steps, and the prepared rules command with
+`executed: false`. Stdout lists blockers and checksums. A private `--out`
+file repeats the fingerprint, the recheck rule, and the backup and rollback
+notes. The package stays blocked while device routes are unproven and while
+the production credential, confirmed UID mapping, read-only inspection, and
+verified pre-change backup are absent. This preparation leaves #36 open.
+
 **Complete when:** a concrete inspectable readiness package has no unresolved
 mapping/assignment/device-route blocker. This issue does not deploy rules,
 apply a production import or publish.
