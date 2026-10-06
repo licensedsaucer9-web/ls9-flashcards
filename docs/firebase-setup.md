@@ -131,11 +131,18 @@ command with `executed: false`:
 npx firebase deploy --only firestore:rules --project flashcards-ls9-prod
 ```
 
-Reuse the package only when the data-repo commit, this source revision, the
-rules checksum, and the server counts are unchanged. When any of those
-change, create a new export, baseline, dry run, and preflight before an
-authorized apply. This command leaves legacy writes running. The recorded
-compatibility-site rollback revision is
+Reuse the package only when the data-repo commit, this source revision, and
+the rules checksum are unchanged, and a fresh read-only capture matches the
+saved reviewed server evidence. Compare the relevant document IDs, values,
+clocks, assignments, and memberships with that capture, or compare a canonical
+checksum of that state. Leave the capture time out of the checksum. Collection
+counts are an additional check. Matching counts do not show that the server is
+unchanged. The importer keeping a newer server value does not mean the
+reviewed dry run still describes the target. An unavailable server comparison
+or checksum blocks reuse. A difference invalidates the reviewed dry run:
+create a new export, baseline, dry run, and preflight, and review that
+evidence before an authorized apply. This command leaves legacy writes running.
+The recorded compatibility-site rollback revision is
 `1dbc26214bb3bfe1e132edc94688bd3137c1e996`. After Firebase study exists, roll
 back with a Firebase-compatible client and keep that data. The production
 backup command is the one in the previous section; preflight leaves it
@@ -144,8 +151,10 @@ unrun.
 `service-account-prod.json` and `migration-map-prod.json` are the expected
 private filenames. The command checks only whether those names exist outside
 Git. A present file is not a confirmed production UID, and file contents stay
-out of stdout. Device routes stay blocked until #34 has a private inventory
-and a saved same-context read, so this package stays `ready: false`.
+out of stdout. This command does not read production, so the server
+fingerprint stays unavailable and blocks reuse. Device routes stay blocked
+until #34 has a private inventory and a saved same-context read, so this
+package stays `ready: false`.
 
 ```bash
 umask 077

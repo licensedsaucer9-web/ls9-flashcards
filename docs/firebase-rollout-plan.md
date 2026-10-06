@@ -154,8 +154,13 @@ hosts, the held Pages publish steps, and the prepared rules command with
 `executed: false`. Stdout lists blockers and checksums. A private `--out`
 file repeats the fingerprint, the recheck rule, and the backup and rollback
 notes. The package stays blocked while device routes are unproven and while
-the production credential, confirmed UID mapping, read-only inspection, and
-verified pre-change backup are absent. This preparation leaves #36 open.
+the production credential, confirmed UID mapping, read-only inspection,
+server fingerprint, and verified pre-change backup are absent. Reuse also
+requires a fresh read-only match of document IDs, values, clocks,
+assignments, and memberships, or a canonical checksum of that state.
+Collection counts are an additional check. A difference invalidates the
+reviewed dry run and requires refreshed evidence before an authorized apply.
+This preparation leaves #36 open.
 
 **Complete when:** a concrete inspectable readiness package has no unresolved
 mapping/assignment/device-route blocker. This issue does not deploy rules,

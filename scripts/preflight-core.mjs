@@ -42,8 +42,11 @@ export function configurationFingerprint({ rulesText, firebaseJsonText, workflow
     legacySiteRevision: LEGACY_SITE_REVISION,
     rulesDeploy: rulesDeployPlan(webProjectId),
     recheck: {
-      reuse: 'Reuse this package only when the data-repo commit, this source revision, the rules checksum, and the server counts are unchanged.',
-      advance: 'If any of those change, create a new export, baseline, dry run, and preflight before an authorized apply.',
+      reuse: 'Reuse this package only when the data-repo commit, this source revision, and the rules checksum are unchanged, and a fresh read-only server comparison matches the saved reviewed capture.',
+      server: 'Compare the relevant document IDs, values, clocks, assignments, and memberships with that capture, or compare a canonical checksum of that state. Leave the capture time out of the checksum. Collection counts are an additional check and do not establish that the server is unchanged.',
+      preserve: 'The importer retaining a newer server value does not show that the reviewed dry run still describes the target.',
+      unavailable: 'An unavailable server comparison or checksum blocks reuse.',
+      advance: 'A difference invalidates the reviewed dry run. Refresh the export, baseline, dry run, and preflight, and review that evidence before an authorized apply.',
     },
     preservation: {
       writePause: 'Pause legacy review, edit, and cloud writes before the authorized import. This preflight does not pause them.',
@@ -93,7 +96,11 @@ export function deviceRouteSummary() {
   return { contexts: summary.contexts, proven: summary.proven, blockers: summary.blockers }
 }
 
-export function productionReadiness({ fingerprint, credentialPresent, mappingPresent, uidsConfirmed, inspection, backupVerified }) {
+function serverFingerprintPresent(value) {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
+}
+
+export function productionReadiness({ fingerprint, credentialPresent, mappingPresent, uidsConfirmed, inspection, backupVerified, serverFingerprint = null }) {
   const deviceRoutes = deviceRouteSummary()
   const blockers = []
   if (!credentialPresent) blockers.push('production-credential')
@@ -101,6 +108,7 @@ export function productionReadiness({ fingerprint, credentialPresent, mappingPre
   if (!uidsConfirmed) blockers.push('production-uids')
   if (!inspection) blockers.push('production-inspection')
   else if (inspection.conflicts > 0 || inspection.missingAccounts > 0 || inspection.deckState !== 'matching') blockers.push('assignment-conflicts')
+  if (!serverFingerprintPresent(serverFingerprint)) blockers.push('server-fingerprint')
   if (!backupVerified) blockers.push('production-backup')
   if (deviceRoutes.proven < deviceRoutes.contexts || deviceRoutes.blockers > 0) blockers.push('device-routes')
   return {

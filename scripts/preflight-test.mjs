@@ -28,6 +28,30 @@ assert.equal(fingerprint.rulesSha256, sha256Text(rules))
 assert.equal(fingerprint.firebaseJsonSha256, sha256Text(firebaseJson))
 assert.deepEqual(fingerprint.rulesDeploy, rulesDeployPlan('flashcards-ls9-prod'))
 assert.equal(fingerprint.rulesDeploy.executed, false)
+const recheck = JSON.stringify(fingerprint.recheck)
+assert.match(fingerprint.recheck.reuse, /data-repo commit/)
+assert.match(fingerprint.recheck.reuse, /source revision/)
+assert.match(fingerprint.recheck.reuse, /rules checksum/)
+assert.match(fingerprint.recheck.server, /document IDs/)
+assert.match(fingerprint.recheck.server, /values/)
+assert.match(fingerprint.recheck.server, /clocks/)
+assert.match(fingerprint.recheck.server, /assignments/)
+assert.match(fingerprint.recheck.server, /memberships/)
+assert.match(fingerprint.recheck.server, /canonical checksum/)
+assert.match(fingerprint.recheck.server, /additional check/)
+assert.match(fingerprint.recheck.preserve, /newer server value/)
+assert.match(fingerprint.recheck.unavailable, /unavailable/)
+assert.match(fingerprint.recheck.unavailable, /blocks reuse/)
+assert.match(fingerprint.recheck.advance, /invalidates the reviewed dry run/)
+assert.equal(/server counts are unchanged/.test(recheck), false)
+const runbook = readFileSync(new URL('../docs/firebase-setup.md', import.meta.url), 'utf8')
+assert.equal(runbook.includes('server counts are unchanged'), false)
+assert.match(runbook, /document IDs, values,\s+clocks, assignments, and memberships/)
+assert.match(runbook, /canonical\s+checksum/)
+assert.match(runbook, /additional check/)
+assert.match(runbook, /newer server value/)
+assert.match(runbook, /unavailable server comparison/)
+assert.match(runbook, /invalidates the reviewed dry run/)
 assert.throws(() => rulesDeployPlan('flashcards-ls9-auth-test'), /flashcards-ls9-prod/)
 assert.throws(() => configurationFingerprint({
   rulesText: rules, firebaseJsonText: firebaseJson, workflowText: held.replace('if: ${{ false }}', 'if: ${{ true }}'),
@@ -39,7 +63,7 @@ const blocked = productionReadiness({
 })
 assert.equal(blocked.ready, false)
 assert.deepEqual(blocked.blockers, [
-  'production-credential', 'production-mapping', 'production-uids', 'production-inspection', 'production-backup', 'device-routes',
+  'production-credential', 'production-mapping', 'production-uids', 'production-inspection', 'server-fingerprint', 'production-backup', 'device-routes',
 ])
 assert.deepEqual(blocked.deviceRoutes, { contexts: 2, proven: 0, blockers: 2 })
 const encoded = JSON.stringify(blocked)
@@ -74,8 +98,14 @@ const missing = await inspectAssignments(memoryStore({}), mapping)
 assert.equal(missing.missingAccounts, 1)
 assert.equal(missing.deckState, 'absent')
 
+const withoutFingerprint = productionReadiness({
+  fingerprint, credentialPresent: true, mappingPresent: true, uidsConfirmed: true, inspection: clean, backupVerified: true,
+})
+assert.equal(withoutFingerprint.ready, false)
+assert.equal(withoutFingerprint.blockers.includes('server-fingerprint'), true)
 const ready = productionReadiness({
   fingerprint, credentialPresent: true, mappingPresent: true, uidsConfirmed: true, inspection: clean, backupVerified: true,
+  serverFingerprint: 'b'.repeat(64),
 })
 assert.equal(ready.ready, false, 'unproven device routes keep the package blocked')
 assert.deepEqual(ready.blockers, ['device-routes'])
@@ -86,6 +116,7 @@ const stdout = execFileSync(process.execPath, ['--experimental-strip-types', 'sc
 })
 const summary = JSON.parse(stdout)
 assert.equal(summary.ready, false)
+assert.equal(summary.blockers.includes('server-fingerprint'), true)
 assert.equal(summary.rulesDeployExecuted, false)
 assert.equal(summary.publicationHeld, true)
 assert.equal(summary.projectId, 'flashcards-ls9-prod')
@@ -101,6 +132,8 @@ try {
   })
   const body = JSON.parse(readFileSync(report, 'utf8'))
   assert.equal(body.rulesDeploy.executed, false)
+  assert.match(body.recheck.server, /canonical checksum/)
+  assert.equal(body.readiness.blockers.includes('server-fingerprint'), true)
   assert.equal(body.rulesDeploy.command.includes('firebase deploy --only firestore:rules'), true)
   assert.equal(statSync(report).mode & 0o777, 0o600)
 } finally {

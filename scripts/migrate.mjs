@@ -68,6 +68,7 @@ async function main() {
       uidsConfirmed: false,
       inspection: null,
       backupVerified: false,
+      serverFingerprint: null,
     })
     if (values.out) {
       const destination = privatePath(values.out)
