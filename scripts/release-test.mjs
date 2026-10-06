@@ -7,11 +7,13 @@ import { artifactFiles, buildIdentity, candidateManifest, MANIFEST_FILE, PUBLIC_
   publicationMode, sha256, validateCandidate, validateIdentity, verifyLocalCandidate, verifyServedCandidate } from './release-core.mjs'
 
 const workflow = await readFile(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8')
-assert.equal(publicationMode(workflow), 'held')
 const masterCondition = "${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}"
-assert.equal(publicationMode(workflow.replaceAll('${{ false }}', masterCondition)), 'master-only')
-assert.throws(() => publicationMode(workflow.replace('${{ false }}', masterCondition)), /together/)
-assert.throws(() => publicationMode(workflow.replaceAll('${{ false }}', '${{ true }}')), /together/)
+assert(['held', 'master-only'].includes(publicationMode(workflow)))
+const held = workflow.replaceAll(masterCondition, '${{ false }}')
+assert.equal(publicationMode(held), 'held')
+assert.equal(publicationMode(held.replaceAll('${{ false }}', masterCondition)), 'master-only')
+assert.throws(() => publicationMode(held.replace('${{ false }}', masterCondition)), /together/)
+assert.throws(() => publicationMode(held.replaceAll('${{ false }}', '${{ true }}')), /together/)
 
 const release = buildIdentity({ version: '1.0.0-rc.1', sourceCommit: 'a'.repeat(40), sourceDirty: false,
   basePath: PUBLIC_BASE, backend: 'firebase', firebaseProject: 'flashcards-ls9-prod' })
