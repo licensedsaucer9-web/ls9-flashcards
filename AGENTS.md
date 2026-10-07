@@ -9,9 +9,11 @@
   establish those operational results.
 
 - Run live rehearsal operations only against `flashcards-ls9-auth-test`.
-  Production imports, rules deployment, and publishing remain held until their
-  separate cutover milestones are authorized. Preserve both disabled production
-  publish steps in `.github/workflows/pages.yml`.
+  Joakim authorized the 2026-10-07 release: no studied-data import and no
+  legacy device recovery. Master publishes `dist-firebase` through the paired
+  master-only conditions in `.github/workflows/pages.yml`. Do not publish a
+  flag-off build in its place, and do not deploy Firestore rules from that
+  workflow.
 - Keep credentials, UID mappings, exports, baselines, and record-level reports
   outside Git, under `GERMAN_FLASHCARDS_PRIVATE_DIR`. Never print credentials or
   commit private operator files. Do not dump UID mappings or record-level values

@@ -4,7 +4,7 @@
 
 A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German vocabulary deck. It supports frequency tiers, SM-2-style review, card editing, CSV import, and offline study. The longer-term goal is multiple decks on different subjects; the current app assigns one deck per account and has no deck picker.
 
-**Release state, 2026-10-04:** LS9 Flashcards is live at its new URL with the renamed legacy GitHub-sync client. The Google/Firebase client is implemented and the real-data test rehearsal passed on two devices. Production Firebase migration and publication remain unfinished; CI checks that build without publishing it. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
+**Release state, 2026-10-07:** Joakim authorized publication of the Firebase client. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived (#34, #36, and #37 closed). Master CI publishes `dist-firebase` to the public site after the test gates. Login and offline acceptance on real devices remain #39. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
 
 **Prod v1 scope:** ship the current single-deck app with reliable Google sync,
 offline study, safe device migration and tested recovery. The
@@ -104,12 +104,10 @@ app, builds a Firebase client with `BASE=/ls9-flashcards-site/` and
 `VITE_SYNC_BACKEND=firebase` into `dist-firebase`, and checks that the bundle
 names `flashcards-ls9-prod`, contains no GitHub token or private key, and
 still installs offline. CI also checks account UI, rules/cloud migration,
-and the isolated rehearsal build. Both publish steps remain disabled. The
-test second-device readback is recorded; production migration and device
-recovery are still required before the authorized publication milestone.
-Restoring publish copies `dist-firebase` with `rsync --delete`, removing
-obsolete root files while retaining `auth-spike/` and `auth-spike-prod/` recovery
-and rehearsal paths until their retirement is authorized. The private repository secret
+and the isolated rehearsal build. A push to `master` then publishes
+`dist-firebase` with `rsync --delete`, removing obsolete root files while
+retaining `auth-spike/` and `auth-spike-prod/`. Pull requests do not publish.
+The private repository secret
 `PUBLIC_SITE_DEPLOY_KEY` is a write-enabled SSH
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
@@ -118,8 +116,8 @@ The prepared candidate version is `1.0.0-rc.1`. **Settings → Install** shows
 the running version and source revision, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI
-retains this artifact after all checks, including `.nojekyll`. This prepares a
-candidate and does not establish production readiness or publication. See the
+retains this artifact after all checks, including `.nojekyll`. Master
+publication uses that same `dist-firebase` build. See the
 [candidate procedure](docs/firebase-setup.md#prepare-and-verify-a-release-candidate).
 
 ## Upgrade an older iPhone Home Screen installation

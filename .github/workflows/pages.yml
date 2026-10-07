@@ -84,13 +84,12 @@ jobs:
           include-hidden-files: true # .nojekyll, after the private-file check
           if-no-files-found: error
           retention-days: 14
-      # Held until #37 records production data/device recovery and Joakim
-      # explicitly authorizes publication of this concrete tested candidate.
-      # Restore this condition together with the publish step below:
-      # github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+      # Authorized 2026-10-07. Publish the Firebase client on master only.
+      # Studied-data import and legacy device recovery are waived. Both gates
+      # stay paired. Pages CI does not deploy Firestore rules.
       # Publish dist-firebase only. Do not publish a flag-off dist/ in its place.
       - name: Check out public site
-        if: ${{ false }}
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}
         uses: actions/checkout@v4
         with:
           repository: licensedsaucer9-web/ls9-flashcards-site
@@ -98,7 +97,7 @@ jobs:
           path: public-site
           ssh-key: ${{ secrets.PUBLIC_SITE_DEPLOY_KEY }}
       - name: Publish tested files
-        if: ${{ false }}
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}
         run: |
           rsync -a --delete --exclude='.git/' --exclude='auth-spike/' --exclude='auth-spike-prod/' dist-firebase/ public-site/
           git -C public-site add -A
