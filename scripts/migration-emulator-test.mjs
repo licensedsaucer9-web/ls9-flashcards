@@ -58,7 +58,7 @@ try {
   const aliceStore = env.authenticatedContext('uid-alice').firestore()
   // Rehearsal opens only a complete legacy assignment, without provisioning writes.
   assert.deepEqual(await provisionAccount(aliceStore, 'uid-alice', { requiredLegacyDeckId: mapping.deckId }),
-    { deckId: 'legacy-deck', personal: false })
+    { deckId: 'legacy-deck', personal: false, created: false })
   const completeAccount = await store.get('users/uid-alice')
   await store.atomic(['users/uid-alice'], () => [{ ...completeAccount, migrationStatus: 'pending' }])
   await assert.rejects(provisionAccount(aliceStore, 'uid-alice', { requiredLegacyDeckId: mapping.deckId }),

@@ -37,3 +37,7 @@ export function bindAccountPanel(hooks: AccountHooks): void {
 export async function syncAccountNow(): Promise<void> {}
 
 export function noteLocalChange(): void {}
+
+export function takeFreshPersonalDeck(): boolean {
+  return false
+}

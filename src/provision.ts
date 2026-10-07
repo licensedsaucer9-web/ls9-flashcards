@@ -23,16 +23,16 @@ async function readOrCreate(
   db: Firestore,
   uid: string,
   createDeck: boolean,
-): Promise<string> {
+): Promise<{ deckId: string; created: boolean }> {
   const userRef = doc(db, 'users', uid)
   const deckRef = doc(db, 'decks', uid)
   return runTransaction(db, async (tx: Transaction) => {
     const existing = existingDeckId(await tx.get(userRef))
     const plan = planAccountProvision(existing, uid)
-    if (!plan.createPersonal) return plan.deckId
+    if (!plan.createPersonal) return { deckId: plan.deckId, created: false }
     if (createDeck) tx.set(deckRef, { memberUids: [uid] })
     tx.set(userRef, newUserAccount(uid))
-    return plan.deckId
+    return { deckId: plan.deckId, created: true }
   })
 }
 
@@ -45,7 +45,7 @@ export async function provisionAccount(
   db: Firestore,
   uid: string,
   options: { requiredLegacyDeckId?: string; refusal?: 'bridge' } = {},
-): Promise<{ deckId: string; personal: boolean }> {
+): Promise<{ deckId: string; personal: boolean; created: boolean }> {
   if (options.requiredLegacyDeckId) {
     // Rehearsal and the recovery bridge cannot invent a personal deck.
     // Read online and perform no writes, including for a restored auth session.
@@ -54,16 +54,16 @@ export async function provisionAccount(
     const refusal = legacyAssignmentRefusal(data, options.requiredLegacyDeckId, options.refusal === 'bridge' ? 'bridge' : 'rehearsal')
     if (refusal) throw Object.assign(new Error(refusal.message), { code: refusal.code })
     const deckId = (data as { deckId: string }).deckId
-    return { deckId, personal: false }
+    return { deckId, personal: false, created: false }
   }
   try {
-    const deckId = await readOrCreate(db, uid, true)
-    return { deckId, personal: deckId === uid }
+    const opened = await readOrCreate(db, uid, true)
+    return { deckId: opened.deckId, personal: opened.deckId === uid, created: opened.created }
   } catch (error) {
     // Creating the personal deck is an update when that deck document already
     // exists, and the rules reject updates. Create the account row only.
     if (!permissionDenied(error)) throw error
-    const deckId = await readOrCreate(db, uid, false)
-    return { deckId, personal: deckId === uid }
+    const opened = await readOrCreate(db, uid, false)
+    return { deckId: opened.deckId, personal: opened.deckId === uid, created: opened.created }
   }
 }
