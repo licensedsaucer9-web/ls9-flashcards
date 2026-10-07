@@ -196,7 +196,7 @@ that concrete artifact is explicitly authorized. Then restore both master-only,
 non-PR conditions together and publish only `dist-firebase`. Pages CI must
 not deploy rules.
 
-The coding preparation uses package version `1.0.0-rc.1`, a bundled/offline
+The published version is `1.0.0`, with a bundled/offline
 Settings identity, `release.json`, and a checksummed `release-candidate.json`.
 `npm run release:build` requires clean committed source and paired publication gates;
 CI retains the tested `dist-firebase` artifact after all existing gates. The
@@ -261,6 +261,14 @@ Update README/runbooks to the actual deployed result and known clock/sync
 limits. Finalize `1.0.0` metadata, verify the exact final artifact with CI and
 a public-device smoke check, then tag/release `v1.0.0` with upgrade/rollback
 notes. These are owner-authorized operations, not effects of this planning PR.
+
+Version `1.0.0` is the published Firebase client. Joakim's production login,
+isolation, and offline readback are recorded on #39. The legacy data repo is
+the frozen pre-Firebase snapshot. `firestore-backup.timer` writes a private
+daily dump on this machine, keeps 14 copies, and records aggregate
+success or failure. An off-machine copy of that directory is still required
+before this gate can call the cadence durable. Isolated restore drills use
+the emulator and the guarded restore, never production or the auth-test project.
 
 **Complete when:** production data/device/publication/QA, token retirement,
 backup cadence and isolated real-dump recovery evidence are all linked in #33;
