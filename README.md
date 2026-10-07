@@ -4,7 +4,7 @@
 
 A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German vocabulary deck. It supports frequency tiers, SM-2-style review, card editing, CSV import, and offline study. The longer-term goal is multiple decks on different subjects; the current app assigns one deck per account and has no deck picker.
 
-**Release state, 2026-10-07:** Joakim authorized publication of the Firebase client. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived (#34, #36, and #37 closed). Master CI publishes `dist-firebase` to the public site after the test gates. Login and offline acceptance on real devices remain #39. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
+**Release state, 2026-10-07:** Version `1.0.0` is the Firebase client at the public URL. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
 
 **Prod v1 scope:** ship the current single-deck app with reliable Google sync,
 offline study, safe device migration and tested recovery. The
@@ -19,7 +19,7 @@ remain in use so existing progress is preserved.
 
 On a Firebase build, Google sign-in gives each account its own schedule in Firestore; new accounts receive personal decks. Device-only study remains available. The app stores current SRS state, without review history, an interval multiplier, or FSRS. See [the architecture](docs/architecture.md) for storage and sync guarantees.
 
-The private [ls9-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) repo remains the legacy data source until final cutover, then stays as a frozen recovery snapshot. Current source has no GitHub data writer or token form; the published legacy client still does. Revoke the data-write token only after every active device has moved and its pending work is recovered. Keep `PUBLIC_SITE_DEPLOY_KEY` for Pages deployment.
+The private [ls9-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) repo is a frozen recovery snapshot of the legacy deck. This source has no GitHub data writer or token form. Keep `PUBLIC_SITE_DEPLOY_KEY` for Pages deployment.
 
 ## Deck tiers
 
@@ -112,7 +112,7 @@ The private repository secret
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-The prepared candidate version is `1.0.0-rc.1`. **Settings → Install** shows
+The release version is `1.0.0`. **Settings → Install** shows
 the running version and source revision, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI
@@ -122,7 +122,7 @@ publication uses that same `dist-firebase` build. See the
 
 ## Upgrade an older iPhone Home Screen installation
 
-Do this after production import/device recovery and publication are recorded. The new public URL is the Firebase cutover destination; the old URL currently serves the compatibility client described in [the rename record](docs/rename.md). Check Safari and each installed Home Screen app separately; they can hold different local work. Keep each source installation until its pending progress is recovered and verified.
+The current app is the Firebase client at the new public URL. An old Home Screen icon still opens the compatibility address until that icon is deleted and added again from the new URL. Studied progress from the old client is not imported.
 
 1. Open the public URL in Safari, confirm the Firebase build, choose **Continue with Google**, and compare the imported schedule with a trusted device.
 2. Open the existing Home Screen installation and confirm it has received the Firebase build. If it still serves an older build or uses a different old URL, preserve it and follow the same-context recovery procedure before replacing its icon. The prepared bridge stays unpublished until that recovery operation; see the migration runbook.
@@ -144,7 +144,7 @@ To check a new release on an iPhone:
 3. Turn Airplane Mode off and return to Flashcards. Wait for **Synced**, then open a second signed-in device and confirm the review. Use **Sync now** in Settings to retry manually.
 4. To check deletion without losing a real card, create a disposable card, wait for **Synced**, then delete it. After the second device syncs, the test card should remain absent.
 
-A private Admin SDK export of Firestore is described in [Firebase setup](docs/firebase-setup.md#private-firestore-backup). It does not need Blaze and is not automatic. The matching [restore command](docs/firebase-setup.md#restore-a-firestore-dump) writes that dump only to an isolated target and does not restore Auth, this device's IndexedDB, rules, or hosting. Backup cadence remains rollout work. The legacy data repo can be [verified without changing it](https://github.com/licensedsaucer9-web/ls9-flashcards-data#verify-an-existing-backup-without-changing-it), but cannot back up later Firebase reviews.
+A private Firestore export is described in [Firebase setup](docs/firebase-setup.md#private-firestore-backup). It does not need Blaze. A user timer runs it daily and keeps 14 dumps. The matching [restore command](docs/firebase-setup.md#restore-a-firestore-dump) writes that dump only to an isolated target and does not restore Auth, this device's IndexedDB, rules, or hosting. The legacy data repo can be [verified without changing it](https://github.com/licensedsaucer9-web/ls9-flashcards-data#verify-an-existing-backup-without-changing-it), but cannot back up later Firebase reviews.
 
 ## Other documentation
 

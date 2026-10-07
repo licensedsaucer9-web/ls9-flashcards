@@ -85,8 +85,7 @@ and clears preview/bridge/emulator overrides. It refuses test/device/bridge
 artifacts, an unversioned package, wrong project/base, or dirty source as
 candidates. Both publication conditions must remain held or use the same exact
 master-only/non-PR guard after a later authorized change. Ordinary development
-builds still work and mark local changes. The prepared package version is
-`1.0.0-rc.1`; this does not claim final `v1.0.0` acceptance.
+builds still work and mark local changes. The package version is `1.0.0`.
 
 `dist-firebase/release.json` identifies version, full source commit, backend,
 project, base, mode, emulator flag and public-site repository. The same values
@@ -191,12 +190,20 @@ membership/cards, and a SHA-256 of the serialized body. Keep its log private
 too. Files are mode 600 and existing outputs are never overwritten. Check
 the checksum and aggregate document counts privately.
 
+On this machine the daily command is `node --experimental-strip-types
+scripts/firestore-backup.mjs`. It reads production through the logged-in
+Firebase CLI, writes the same private dump, and records aggregate counts,
+checksum, and elapsed time in `backup-status.json`. The user timer
+`firestore-backup.timer` runs that command at 08:30 and keeps 14 dumps.
+Stdout is the status object. A failed run writes `ok: false` and a non-zero
+exit. These files stay on the primary machine.
+
 This `kind: firestore` dump differs from the GitHub snapshot accepted by
 `migrate import`. Restoring it does not recreate Google Auth identities,
 browser IndexedDB or pending device work, deployed security rules, or hosting.
-Confirm UID ownership separately; do not invent identity mappings. Backup
-cadence and durable storage remain rollout work. Production restore is not
-authorized by this command.
+Confirm UID ownership separately; do not invent identity mappings. Production
+restore is not authorized by this command. Restore drills use an isolated
+emulator project, not `flashcards-ls9-prod` or `flashcards-ls9-auth-test`.
 
 ## Production preflight
 

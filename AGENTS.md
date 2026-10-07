@@ -4,9 +4,11 @@
   behavior. `docs/firebase-rollout-plan.md` is the only active plan; setup,
   migration, and rehearsal guides are runbooks, not separate roadmaps.
 - The real-data test rehearsal (#22–#25) is complete as of 2026-10-04.
-  Production migration, device recovery, publication, token retirement, and
-  backup restoration remain outstanding. Closed implementation issues do not
-  establish those operational results.
+  Publication and the `1.0.0` device checks are recorded. The legacy data repo
+  is archived. A daily private Firestore backup runs on this machine, and one
+  isolated emulator restore of a production dump has been verified. An
+  off-machine copy of those dumps is still outstanding. Closed implementation
+  issues do not establish that copy.
 
 - Run live rehearsal operations only against `flashcards-ls9-auth-test`.
   Joakim authorized the 2026-10-07 release: no studied-data import and no
