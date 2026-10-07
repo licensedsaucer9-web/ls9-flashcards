@@ -59,6 +59,92 @@ hostname authorization was not established by the original spike. Google
 provider/consent configuration belongs in Firebase Console; use only the
 basic sign-in scopes. See [Google sign-in setup](https://firebase.google.com/docs/auth/web/google-signin).
 
+## Prepare and verify a release candidate
+
+This is coding preparation for #38. Production data/device recovery (#37)
+and publication of a concrete tested candidate need their recorded gates and
+separate authorization. Both Pages publish steps stay disabled. These commands
+build or read public artifacts; they do not deploy rules, import data, sign into
+Google or publish.
+
+Use Node 22 and a clean, committed source checkout. Keep operator credentials
+and real records out of the build environment. Dependencies remain locked:
+
+```bash
+npm ci
+npm test
+npm run test:account-ui
+npm run test:rules # Java 21; isolated demo Firestore emulator
+npm run release:build
+npm run release:verify
+```
+
+The builder pins actual Git HEAD, requires no source changes before/after
+the build, selects the production public web config and `/ls9-flashcards-site/`,
+and clears preview/bridge/emulator overrides. It refuses test/device/bridge
+artifacts, an unversioned package, wrong project/base, or dirty source as
+candidates. Both publication conditions must remain held or use the same exact
+master-only/non-PR guard after a later authorized change. Ordinary development
+builds still work and mark local changes. The prepared package version is
+`1.0.0-rc.1`; this does not claim final `v1.0.0` acceptance.
+
+`dist-firebase/release.json` identifies version, full source commit, backend,
+project, base, mode, emulator flag and public-site repository. The same values
+are compiled into the app. Settings → Install shows version and short source
+commit even offline; the worker also caches `release.json`.
+`release-candidate.json` binds that identity to a sorted SHA-256 inventory of
+all deployable files, excluding the inventory itself to avoid a checksum cycle.
+Local verification rejects changes, omissions and extra files. These hashes
+bind bytes to a reviewed candidate; they do not prove migration or device
+acceptance, and do not sign an untrusted artifact.
+
+Run installability against the built candidate with a disposable browser profile
+and device study; do not sign the unmigrated owner into production. In two terminals:
+
+```bash
+BASE=/ls9-flashcards-site/ npm run preview -- --outDir dist-firebase --strictPort
+APP_URL=http://127.0.0.1:4173/ls9-flashcards-site/ node scripts/installable.mjs
+```
+
+CI runs these checks, the isolated test rehearsal and unpublished recovery
+bridge checks, then verifies and uploads `firebase-candidate-SOURCE_SHA`.
+The upload includes `.nojekyll` after the artifact's private-file checks and
+expires after 14 days. Save the verified archive durably outside Git if the
+operational gate will take longer. Preserve its inventory fingerprint and CI
+run/check results. A rebuilt PR or master commit is a different candidate and
+needs its own checks; do not mix files from different builds.
+
+After #37 and explicit authorization, publication must use the exact tested
+`dist-firebase` bytes, with both existing master-only/non-PR conditions restored
+together. Keep the prepared `auth-spike/` and `auth-spike-prod/` exclusions in
+root cleanup while recovery/compatibility routes are needed. The separate old
+URL also remains until its contexts are recovered. Pages does not deploy rules;
+a candidate build/merge does not authorize any production change.
+
+After the candidate is actually served, keep the matching local artifact and
+record the public `gh-pages` commit. The read-only check is:
+
+```bash
+npm run release:verify -- --served --site-commit FULL_PUBLIC_SITE_COMMIT
+```
+
+It checks that public branch before/after comparison, fetches the served
+inventory and every public candidate file, and rejects stale/different/missing
+bytes. `.nojekyll` is verified locally as a deployment marker; Pages need not
+serve dotfiles. The output records version, source/site commits, artifact
+fingerprint, verified file count and served URL, without UIDs or record values.
+Save the receipt with operational evidence. No public-site commit is invented
+in the build: publication creates it later.
+
+Then verify running Settings version/source on desktop, Safari and each Home
+Screen installation after its worker update and after reopening offline.
+Record date, device/browser/OS, URL, source/site revisions and update outcome.
+A successful HTTP comparison does not prove every installed client updated;
+#38 stays open until those results exist, and production usability is #39.
+Retain a known-good artifact. After Firebase study exists, rollback uses a
+compatible Firebase client and retains its data, rather than restoring the
+legacy writer over it.
+
 ## Rules and private operator files
 
 `firestore.rules` is the source of the restrictive client rules. CI tests

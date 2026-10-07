@@ -49,6 +49,14 @@ testing. Check its visible revision: merged source changes do not automatically
 publish that preview. An ordinary `VITE_SYNC_BACKEND=firebase` build defaults
 to production; do not sign an unmigrated owner into it before the Admin import.
 
+For candidate preparation from clean committed source, use `npm run release:build`
+and `npm run release:verify`. In Settings → Install, record the displayed version
+and source revision, then reload offline and confirm they remain the same. The
+installability test also verifies the offline Settings and cached `release.json`
+identity against the artifact. See [the candidate runbook](docs/firebase-setup.md#prepare-and-verify-a-release-candidate)
+for checksum/CI evidence and later read-only served verification. Production
+publication and physical installation updates remain #38's operational gate.
+
 ## 1. Tiers
 
 1. Home shows **Deck tier** chips with word and due counts. Tier 1 is selected

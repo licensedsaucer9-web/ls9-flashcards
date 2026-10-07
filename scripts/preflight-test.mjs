@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { publicationMode } from './release-core.mjs'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,7 +18,11 @@ import {
 const revision = 'a'.repeat(40)
 const rules = 'rules_version = "2";\n'
 const firebaseJson = '{"firestore":{"rules":"firestore.rules"}}\n'
-const held = readFileSync(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8')
+const workflow = readFileSync(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8')
+publicationMode(workflow) // Reject partial/unguarded publication, including after the authorized cutover.
+// Readiness preflight still requires held publication. Test that phase with a
+// held fixture even after a future authorized workflow change.
+const held = workflow.replaceAll("${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}", '${{ false }}')
 assert.equal(publicationHeld(held), true, 'both Pages publish steps stay disabled')
 assert.equal(publicationHeld(held.replace('name: Publish tested files\n        if: ${{ false }}', 'name: Publish tested files\n        if: ${{ true }}')), false)
 
@@ -111,33 +116,43 @@ assert.equal(ready.ready, false, 'unproven device routes keep the package blocke
 assert.deepEqual(ready.blockers, ['device-routes'])
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const stdout = execFileSync(process.execPath, ['--experimental-strip-types', 'scripts/migrate.mjs', 'preflight'], {
-  cwd: root, encoding: 'utf8',
-})
-const summary = JSON.parse(stdout)
-assert.equal(summary.ready, false)
-assert.equal(summary.blockers.includes('server-fingerprint'), true)
-assert.equal(summary.rulesDeployExecuted, false)
-assert.equal(summary.publicationHeld, true)
-assert.equal(summary.projectId, 'flashcards-ls9-prod')
-assert.equal(summary.rulesSha256, sha256Text(readFileSync(new URL('../firestore.rules', import.meta.url))))
-assert.equal(stdout.includes('AIza'), false)
-assert.equal(stdout.includes('service-account'), false)
-
-const directory = mkdtempSync(join(tmpdir(), 'preflight-'))
-const report = join(directory, 'preflight.json')
-try {
-  execFileSync(process.execPath, ['--experimental-strip-types', 'scripts/migrate.mjs', 'preflight', '--out', report], {
-    cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+if (publicationMode(workflow) === 'master-only') {
+  // A new readiness package must still refuse an already enabled publish
+  // workflow. That expected refusal must not break the authorized release CI.
+  const result = spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/migrate.mjs', 'preflight'], {
+    cwd: root, encoding: 'utf8',
   })
-  const body = JSON.parse(readFileSync(report, 'utf8'))
-  assert.equal(body.rulesDeploy.executed, false)
-  assert.match(body.recheck.server, /canonical checksum/)
-  assert.equal(body.readiness.blockers.includes('server-fingerprint'), true)
-  assert.equal(body.rulesDeploy.command.includes('firebase deploy --only firestore:rules'), true)
-  assert.equal(statSync(report).mode & 0o777, 0o600)
-} finally {
-  rmSync(directory, { recursive: true, force: true })
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /Pages publication is enabled/)
+} else {
+  const stdout = execFileSync(process.execPath, ['--experimental-strip-types', 'scripts/migrate.mjs', 'preflight'], {
+    cwd: root, encoding: 'utf8',
+  })
+  const summary = JSON.parse(stdout)
+  assert.equal(summary.ready, false)
+  assert.equal(summary.blockers.includes('server-fingerprint'), true)
+  assert.equal(summary.rulesDeployExecuted, false)
+  assert.equal(summary.publicationHeld, true)
+  assert.equal(summary.projectId, 'flashcards-ls9-prod')
+  assert.equal(summary.rulesSha256, sha256Text(readFileSync(new URL('../firestore.rules', import.meta.url))))
+  assert.equal(stdout.includes('AIza'), false)
+  assert.equal(stdout.includes('service-account'), false)
+
+  const directory = mkdtempSync(join(tmpdir(), 'preflight-'))
+  const report = join(directory, 'preflight.json')
+  try {
+    execFileSync(process.execPath, ['--experimental-strip-types', 'scripts/migrate.mjs', 'preflight', '--out', report], {
+      cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    const body = JSON.parse(readFileSync(report, 'utf8'))
+    assert.equal(body.rulesDeploy.executed, false)
+    assert.match(body.recheck.server, /canonical checksum/)
+    assert.equal(body.readiness.blockers.includes('server-fingerprint'), true)
+    assert.equal(body.rulesDeploy.command.includes('firebase deploy --only firestore:rules'), true)
+    assert.equal(statSync(report).mode & 0o777, 0o600)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 }
 
-console.log('preflight: fingerprint, held publication, read-only conflicts, device-route blocker: ok')
+console.log('preflight: fingerprint, publication guard, read-only conflicts, device-route blocker: ok')

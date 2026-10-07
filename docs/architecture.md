@@ -1,6 +1,6 @@
 # Architecture and data guarantees
 
-This describes the implementation on `master` as of 2026-10-05.
+This describes the implementation as of 2026-10-06.
 For what is deployed and what remains, use the
 [rollout plan](firebase-rollout-plan.md).
 
@@ -22,6 +22,26 @@ completed legacy assignment, and is not a Pages publish input. A signed-out
 open reads the legacy database and does not seed or import into it. Web
 configuration is public; Admin SDK credentials belong only to local operator
 commands.
+
+Every app build embeds its package version, full Git source commit, dirty-source
+flag, backend/project, base path, build mode and emulator flag. The same public
+identity is emitted as `release.json` and precached by the service worker.
+Settings reads the bundled identity without network access, so an installed
+offline client reports the version it is actually running. A source change
+alters the bundled identity and worker precache revision.
+
+`release:build` requires a clean committed source tree and matching publication
+gates (currently both held; future authorized gates must both be master-only),
+explicitly selects production public configuration, clears preview/emulator
+modes, runs type/build/artifact checks, then writes `release-candidate.json`.
+That manifest binds the identity and sorted SHA-256 file inventory; local
+verification rejects added, missing or modified files. It is an artifact
+fingerprint, not a signature or a proof that the release gates passed. CI
+retains the candidate only after its other tests pass. Post-publication
+read-only verification compares served bytes and the public `gh-pages` commit,
+with before/after branch checks. The site commit is recorded then, rather than
+invented at build time: embedding a commit inside itself would change that
+commit. Production data/device acceptance remains separate.
 
 ## Identity and storage
 

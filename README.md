@@ -108,10 +108,19 @@ and the isolated rehearsal build. Both publish steps remain disabled. The
 test second-device readback is recorded; production migration and device
 recovery are still required before the authorized publication milestone.
 Restoring publish copies `dist-firebase` with `rsync --delete`, removing
-temporary preview directories. The private repository secret
+obsolete root files while retaining `auth-spike/` and `auth-spike-prod/` recovery
+and rehearsal paths until their retirement is authorized. The private repository secret
 `PUBLIC_SITE_DEPLOY_KEY` is a write-enabled SSH
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
+
+The prepared candidate version is `1.0.0-rc.1`. **Settings → Install** shows
+the running version and source revision, including offline. From a clean source
+checkout, `npm run release:build` prepares `dist-firebase` with production
+configuration; `npm run release:verify` checks its exact file inventory. CI
+retains this artifact after all checks, including `.nojekyll`. This prepares a
+candidate and does not establish production readiness or publication. See the
+[candidate procedure](docs/firebase-setup.md#prepare-and-verify-a-release-candidate).
 
 ## Upgrade an older iPhone Home Screen installation
 
