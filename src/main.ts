@@ -13,6 +13,7 @@ import {
   noteLocalChange,
   onAccountSync,
   prepareAccount,
+  takeFreshPersonalDeck,
 } from './account.ts'
 import type { AccountHooks } from './account-hooks.ts'
 import {
@@ -31,6 +32,7 @@ import {
   putSettings,
 } from './db.ts'
 import { seedCards } from './seed.ts'
+import { seedBeforeFirstSync } from './sign-in-flow.ts'
 import { newSrs, review } from './srs.ts'
 import { importCsv } from './csv.ts'
 import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
@@ -236,7 +238,9 @@ async function renderHome() {
               : 'cards waiting'
             : next
               ? `Caught up · next ${formatDue(next.srs.due)}`
-              : 'No cards yet'
+              : openingEmptyDeck
+                ? 'Opening your deck…'
+                : 'No cards yet'
         }</p>
         <div class="session-box">
           <p class="kicker" style="margin:0">Deck tier</p>
@@ -806,6 +810,7 @@ async function renderSettings() {
 }
 
 let renderChain: Promise<void> = Promise.resolve()
+let openingEmptyDeck = false
 
 function scheduleRender(): void {
   renderChain = renderChain.then(() => render()).catch((error: unknown) => {
@@ -849,11 +854,23 @@ async function boot() {
   // Signed-out study on the bridge is the legacy source. Seeding and the
   // one-time profile import write that database, so this open only reads it.
   // After sign-in the study lock is the account database, which sync may seed.
+  const signedIn = Boolean(captureStudyLock().uid)
   if (recoveryBridge) {
-    if (captureStudyLock().uid) await bootSync()
+    if (signedIn) await bootSync()
   } else if (accountSignIn) {
-    if (captureStudyLock().uid) await bootSync()
-    else added = await ensureSeed()
+    // A deck created with this sign-in has nothing on the server yet. Paint
+    // the built-in words before the cloud read, which can stall after the
+    // Google sheet returns on a phone. An existing account still syncs first
+    // so a server tombstone is applied before any missing seed is inserted.
+    if (signedIn) {
+      if (seedBeforeFirstSync(takeFreshPersonalDeck())) {
+        try {
+          added = await ensureSeed()
+        } catch {
+          openingEmptyDeck = true
+        }
+      } else openingEmptyDeck = true
+    } else added = await ensureSeed()
   } else {
     await importLegacyData()
     added = await ensureSeed()
@@ -861,6 +878,13 @@ async function boot() {
   scheduleRender()
   await renderChain
   if (added > 0) toast(`Added ${added} new cards`)
+  if (!recoveryBridge && accountSignIn && captureStudyLock().uid) {
+    void bootSync().finally(() => {
+      openingEmptyDeck = false
+      const now = parseRoute().name
+      if (now === 'home' || now === 'deck') scheduleRender()
+    })
+  }
   window.addEventListener('hashchange', () => {
     scheduleRender()
   })

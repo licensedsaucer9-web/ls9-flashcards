@@ -25,6 +25,7 @@ import { publicFirebaseWeb } from './firebase-web.ts'
 import { copyGuestDatabase, getSettings, importLegacyData, localDatabaseHasWork } from './db.ts'
 import { esc } from './dom.ts'
 import { provisionAccount } from './provision.ts'
+import { cancelPopupWhenPageReturns, deckOpenFailure, retryableDeckOpen } from './sign-in-flow.ts'
 import { bindStudyDatabase, captureStudyLock } from './study-lock.ts'
 import { getSyncStatus, syncNow } from './sync.ts'
 import { bindMigrationPanel, migrationPanelHtml } from './migration-panel.ts'
@@ -48,7 +49,100 @@ let popupBusy = false
 let popupStartedAt = 0
 let popupGeneration = 0
 let recoverPopup: (() => void) | null = null
+let freshPersonalDeck = false
+let deckOpenFailed = false
 const prompted = new Set<string>()
+
+function iosHomeScreen(): boolean {
+  return typeof navigator !== 'undefined'
+    && 'standalone' in navigator
+    && (navigator as Navigator & { standalone?: boolean }).standalone === true
+}
+
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer = 0
+  const timeout = new Promise<never>((_, reject) => {
+    timer = window.setTimeout(() => {
+      reject(Object.assign(new Error('The deck did not open in time'), { code: 'deadline-exceeded' }))
+    }, ms)
+  })
+  return Promise.race([work, timeout]).finally(() => window.clearTimeout(timer))
+}
+
+export function takeFreshPersonalDeck(): boolean {
+  const fresh = freshPersonalDeck
+  freshPersonalDeck = false
+  return fresh
+}
+
+function showOpeningDeck(): void {
+  deckOpenFailed = false
+  document.getElementById('open-deck-retry')?.remove()
+  const session = document.getElementById('google-session')
+  if (session) {
+    session.hidden = false
+    session.textContent = 'Opening your deck…'
+  }
+  const error = document.getElementById('auth-error')
+  if (error) error.textContent = ''
+  pendingError = ''
+}
+
+function bindDeckRetry(): void {
+  const button = document.getElementById('open-deck-retry')
+  button?.addEventListener('click', () => {
+    const user = auth?.currentUser
+    if (!user) return
+    ;(button as HTMLButtonElement).disabled = true
+    void adoptUser(user)
+  })
+}
+
+function showDeckOpenFailure(error: unknown): void {
+  const code = authCode(error)
+  const message = deckOpenFailure(code)
+  deckOpenFailed = true
+  pendingError = message
+  signedInNote()
+  const el = document.getElementById('auth-error')
+  if (el) el.textContent = message
+  else hooks?.toast(message)
+  if (!document.getElementById('open-deck-retry')) {
+    const stack = document.querySelector('#main .stack')
+    if (stack && auth?.currentUser) {
+      const button = document.createElement('button')
+      button.id = 'open-deck-retry'
+      button.className = 'primary'
+      button.type = 'button'
+      button.textContent = 'Open my deck'
+      stack.prepend(button)
+      bindDeckRetry()
+    }
+  }
+}
+
+async function openProvisionedAccount(user: User): Promise<{ personal: boolean; created: boolean }> {
+  if (!firestore) throw Object.assign(new Error('missing config'), { code: 'missing-config' })
+  const options = {
+    requiredLegacyDeckId: rehearsalPreview || recoveryBridge ? 'legacy-german' : undefined,
+    refusal: recoveryBridge ? 'bridge' as const : undefined,
+  }
+  const first = provisionAccount(firestore, user.uid, options)
+  try {
+    return await withTimeout(first, 12000)
+  } catch (error) {
+    if (!retryableDeckOpen(authCode(error))) throw error
+    // A timeout means the same create may still commit. Wait for that call so
+    // a brand-new deck is still recognized and can be painted from the seed.
+    if (authCode(error) === 'deadline-exceeded') return await withTimeout(first, 8000)
+    return await withTimeout(provisionAccount(firestore, user.uid, options), 12000)
+  }
+}
+
+function signedInNote(): void {
+  const session = document.getElementById('google-session')
+  if (session) session.textContent = 'Signed in to Google'
+}
 
 function authCode(error: unknown): string {
   if (error && typeof error === 'object' && 'code' in error) return String(error.code)
@@ -65,6 +159,7 @@ function showAuthError(error: unknown): void {
         ? 'This recovery bridge only opens a verified legacy account. Cards on this device were left as they are.'
         : `Sign-in stopped (${code}). Cards on this device were left as they are.`
   pendingError = message
+  signedInNote()
   const el = document.getElementById('auth-error')
   if (el) el.textContent = message
   else hooks?.toast(message)
@@ -165,20 +260,25 @@ async function adoptUser(user: User): Promise<void> {
   popupBusy = false
   recoverPopup = null
   const ticket = ++ticketId
+  showOpeningDeck()
   if (!firestore) {
     showAuthError({ code: 'missing-config' })
     return
   }
   let personal = false
+  let created = false
   try {
-    const provisioned = await provisionAccount(firestore, user.uid, {
-      requiredLegacyDeckId: rehearsalPreview || recoveryBridge ? 'legacy-german' : undefined,
-      refusal: recoveryBridge ? 'bridge' : undefined,
-    })
+    const provisioned = await openProvisionedAccount(user)
     personal = provisioned.personal
+    created = provisioned.created
   } catch (error) {
     if (ticket !== ticketId) return
-    showAuthError(error)
+    const code = authCode(error)
+    if (code === 'rehearsal/import-required' || code === 'recovery/legacy-required' || code === 'missing-config') {
+      showAuthError(error)
+      return
+    }
+    showDeckOpenFailure(error)
     return
   }
   if (ticket !== ticketId) return
@@ -192,14 +292,14 @@ async function adoptUser(user: User): Promise<void> {
   let chosen: CopyDecision | null = null
   // A preassigned shared deck is a legacy migration. Named profiles are
   // recovered through the reviewed mapping, not the generic guest prompt.
+  // A guest-database read that stalls must not leave the new account on the
+  // welcome screen; that device's cards stay where they are.
   if (personal && !alreadyDecided && !prompted.has(choiceId)) {
     prompted.add(choiceId)
     try {
-      if (await localDatabaseHasWork(guestName)) chosen = await askToCopy(personal)
-    } catch (error) {
-      if (ticket !== ticketId) return
-      showAuthError(error)
-      return
+      if (await withTimeout(localDatabaseHasWork(guestName), 4000)) chosen = await askToCopy(personal)
+    } catch {
+      chosen = null
     }
   }
   if (ticket !== ticketId) return
@@ -208,11 +308,17 @@ async function adoptUser(user: User): Promise<void> {
   await applyCopy(guestName, mode, ticket)
   if (ticket !== ticketId) return
   if (chosen) rememberCopyDecision(localStorage, user.uid, guestName, chosen)
+  freshPersonalDeck = created && personal
   pendingError = ''
+  deckOpenFailed = false
   welcomeRelease?.()
   welcomeRelease = null
-  if (booted) {
-    hooks?.onIdentityChanged()
+  if (booted && hooks) {
+    const paint = () => hooks?.onIdentityChanged()
+    if (freshPersonalDeck) {
+      freshPersonalDeck = false
+      void hooks.ensureSeed().then(paint, paint)
+    } else paint()
     void syncNow().catch(() => {
       /* Pending records stay on this account until the next try. */
     })
@@ -227,7 +333,13 @@ function startGoogleSignIn(): void {
   if (auth.currentUser) return
   if (popupBusy) {
     if (Date.now() - popupStartedAt < 800) return
-    recoverPopup?.()
+    if (recoverPopup) recoverPopup()
+    else if (!auth?.currentUser && Date.now() - popupStartedAt > 8000) {
+      popupBusy = false
+      showAuthError({ code: 'auth/popup-closed-by-user' })
+      const stuck = document.getElementById('google-sign-in')
+      if (stuck) stuck.textContent = 'Continue with Google'
+    }
     return
   }
   const mine = ++popupGeneration
@@ -240,7 +352,7 @@ function startGoogleSignIn(): void {
   let backgroundAt = 0
   let grace = 0
   const recover = () => {
-    if (!popupBusy || mine !== popupGeneration) return
+    if (!popupBusy || mine !== popupGeneration || auth?.currentUser) return
     window.clearTimeout(grace)
     watcher.abort()
     popupBusy = false
@@ -248,23 +360,27 @@ function startGoogleSignIn(): void {
     showAuthError({ code: 'auth/popup-closed-by-user' })
     if (button) button.textContent = 'Continue with Google'
   }
-  recoverPopup = recover
-  const markBackground = () => {
-    if (!backgroundAt) backgroundAt = Date.now()
+  // Only the installed iPhone app lacks a popup window. Safari's Google sheet
+  // backgrounds this page for the whole sign-in, so a return is not a cancel.
+  if (cancelPopupWhenPageReturns(iosHomeScreen())) {
+    recoverPopup = recover
+    const markBackground = () => {
+      if (!backgroundAt) backgroundAt = Date.now()
+    }
+    const markForeground = () => {
+      if (!popupBusy || document.visibilityState === 'hidden' || !backgroundAt) return
+      if (Date.now() - backgroundAt < 400) return
+      window.clearTimeout(grace)
+      grace = window.setTimeout(recover, 8000)
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') markBackground()
+      else markForeground()
+    }, { signal: watcher.signal })
+    window.addEventListener('blur', markBackground, { signal: watcher.signal })
+    window.addEventListener('focus', markForeground, { signal: watcher.signal })
+    window.addEventListener('pageshow', markForeground, { signal: watcher.signal })
   }
-  const markForeground = () => {
-    if (!popupBusy || document.visibilityState === 'hidden' || !backgroundAt) return
-    if (Date.now() - backgroundAt < 400) return
-    window.clearTimeout(grace)
-    grace = window.setTimeout(recover, 1200)
-  }
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') markBackground()
-    else markForeground()
-  }, { signal: watcher.signal })
-  window.addEventListener('blur', markBackground, { signal: watcher.signal })
-  window.addEventListener('focus', markForeground, { signal: watcher.signal })
-  window.addEventListener('pageshow', markForeground, { signal: watcher.signal })
   void signInWithPopup(auth, provider)
     .then(() => {
       if (mine !== popupGeneration) return
@@ -272,6 +388,14 @@ function startGoogleSignIn(): void {
     })
     .catch((error: unknown) => {
       if (!popupBusy) return
+      const code = authCode(error)
+      if (code === 'auth/popup-blocked' || code === 'auth/web-storage-unsupported') {
+        pendingError = deckOpenFailure(code)
+        const el = document.getElementById('auth-error')
+        if (el) el.textContent = pendingError
+        else hooks?.toast(pendingError)
+        return
+      }
       showAuthError(error)
     })
     .finally(() => {
@@ -353,6 +477,7 @@ async function showWelcome(googleReady: boolean): Promise<void> {
         <p class="note" id="google-session" hidden>Signed in to Google</p>
         <div class="stack">
           <button class="primary" type="button" id="google-sign-in" ${googleReady ? '' : 'disabled'}>Continue with Google</button>
+          ${deckOpenFailed ? '<button class="primary" type="button" id="open-deck-retry">Open my deck</button>' : ''}
           <button class="secondary" type="button" id="guest-study">Study on this device</button>
           <button class="danger" type="button" id="sign-out-account" ${auth?.currentUser ? '' : 'hidden'}>Sign out of Google</button>
         </div>
@@ -362,6 +487,7 @@ async function showWelcome(googleReady: boolean): Promise<void> {
   `
   updateGoogleSessionControls()
   bindSignOutButton()
+  bindDeckRetry()
   document.getElementById('guest-study')?.addEventListener('click', () => {
     localStorage.setItem(GUEST_KEY, '1')
     welcomeRelease?.()

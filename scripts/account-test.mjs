@@ -1,4 +1,5 @@
 import { planAccountProvision } from '../src/account-plan.ts'
+import { cancelPopupWhenPageReturns, deckOpenFailure, retryableDeckOpen, seedBeforeFirstSync } from '../src/sign-in-flow.ts'
 import { copyAlreadyDecided, rememberCopyDecision, sessionCopyMode } from '../src/copy-choice.ts'
 import { includeGuestVocabulary } from '../src/guest-copy.ts'
 import { bindStudyDatabase, captureStudyLock, clearStudyBinding, hasStudyBinding, studyLockCurrent } from '../src/study-lock.ts'
@@ -38,6 +39,16 @@ assert(copyAlreadyDecided(choices, 'uid-a', profile), 'the answer is stored for 
 assert(sessionCopyMode(true, 'vocabulary') === 'skip', 'a restored session does not copy the device database again')
 assert(!copyAlreadyDecided(choices, 'uid-b', profile), 'another account is still asked about this device')
 assert(!copyAlreadyDecided(choices, 'uid-a', 'german-flashcards'), 'another device database is still asked')
+
+assert(cancelPopupWhenPageReturns(true), 'an installed iPhone app can only see that the page returned')
+assert(!cancelPopupWhenPageReturns(false), 'Safari keeps the Google sheet open while this page is in the background')
+assert(seedBeforeFirstSync(true), 'a deck created with this sign-in is painted from the built-in seed')
+assert(!seedBeforeFirstSync(false), 'an existing account waits for its server deck before seeding')
+assert(retryableDeckOpen('unavailable') && retryableDeckOpen('deadline-exceeded'), 'a cold phone retries the first deck open')
+assert(retryableDeckOpen('firestore/unavailable'), 'a namespaced unavailable error is retried')
+assert(!retryableDeckOpen('permission-denied'), 'rules rejection is not a cold-start retry')
+assert(deckOpenFailure('deadline-exceeded').includes('did not open'), 'a signed-in phone is told the deck did not open')
+assert(deckOpenFailure('auth/popup-blocked').includes('Safari'), 'a blocked popup asks for Safari')
 rememberCopyDecision(choices, 'uid-a', 'german-flashcards', 'skip')
 assert(copyAlreadyDecided(choices, 'uid-a', profile), 'a second database keeps the first answer')
 const broken = { getItem: () => '{', setItem: () => {} }

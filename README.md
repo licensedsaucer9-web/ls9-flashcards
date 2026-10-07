@@ -91,7 +91,7 @@ An ordinary `VITE_SYNC_BACKEND=firebase` build defaults to production. Do not si
 ## Public site
 
 The app is published at <https://licensedsaucer9-web.github.io/ls9-flashcards-site/>.
-Scan this code with your iPhone camera to open the app in Safari:
+Scan this code with your iPhone camera to open the app in Safari. A link opened from Messages can finish Google sign-in and then stay on the welcome screen; use Safari for that address. Each Google account gets its own copy of the deck.
 
 ![QR code for LS9 Flashcards](docs/app-qr.png)
 
