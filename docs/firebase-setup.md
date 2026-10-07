@@ -1,7 +1,7 @@
 # Firebase setup and operations
 
-The Firebase client is implemented but production publication remains held.
-The real-data test rehearsal completed on 2026-10-04. Use the
+The Firebase client is the authorized production build as of 2026-10-07.
+A new account receives the built-in deck with no studied progress. Use the
 [rollout plan](firebase-rollout-plan.md) for remaining work and release gates,
 [the migration runbook](firebase-migration.md) for imports/device recovery,
 and [the rehearsal runbook](firebase-rehearsal.md) for the isolated test app.

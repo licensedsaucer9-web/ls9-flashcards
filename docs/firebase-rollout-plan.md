@@ -28,12 +28,12 @@ with macOS/Safari versions not recorded.
 
 ## Release state and operating boundaries
 
-The public root serves the renamed legacy GitHub-sync client. CI checks the
-Firebase production client in `dist-firebase`, but both publication steps in
-`.github/workflows/pages.yml` remain disabled. The test rehearsal result is
-also recorded on [#15](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/15#issuecomment-5980512458);
-it does not authorize production imports, production rules deployment, or
-publication.
+On 2026-10-07 Joakim waived legacy studied-data import and old-device
+recovery. #34, #36, and #37 are closed as not planned. A new production
+account gets the built-in 514-word deck with empty progress. Master CI
+publishes `dist-firebase` after its test gates. Firestore rules are deployed
+separately from Pages. The test rehearsal result is recorded on
+[#15](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/15#issuecomment-5980512458).
 
 Use `flashcards-ls9-auth-test` for live rehearsals. Keep credentials, mappings,
 exports, baselines, and record-level reports outside Git, under
@@ -203,10 +203,11 @@ CI retains the tested `dist-firebase` artifact after all existing gates. The
 read-only `release:verify -- --served --site-commit FULL_SHA` command can compare
 a later authorized publication with the exact candidate and record both
 source and public-site revisions. See the [candidate runbook](firebase-setup.md#prepare-and-verify-a-release-candidate).
-Both publish steps remain disabled, and retained auth/recovery paths are
-excluded from the future root cleanup. This preparation does not finish #38:
-#37, explicit publication authorization, served evidence and actual installation
-update/move results remain required. Closing a preparation PR must not close
+Publication of this candidate is authorized. Both master publish steps use
+`github.event_name != 'pull_request' && github.ref == 'refs/heads/master'`.
+Retained auth/recovery paths stay excluded from the root cleanup. Served
+evidence is still required before #38 closes. Real-device login and offline
+acceptance remain #39. Closing a preparation PR must not close
 this operational gate.
 
 Record source/public-site commits and served build/backend/project/base-path,
