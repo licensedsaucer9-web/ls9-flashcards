@@ -36,6 +36,15 @@ import { seedBeforeFirstSync } from './sign-in-flow.ts'
 import { newSrs, review } from './srs.ts'
 import { importCsv } from './csv.ts'
 import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
+import {
+  editorTagField,
+  editorWordType,
+  reviewFaces,
+  savedWordTypes,
+  tagsWithWordType,
+  wordTypeBadgeHtml,
+  wordTypeSpoken,
+} from './word-types.ts'
 import { sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
 import { tierCounts, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
@@ -333,19 +342,8 @@ async function renderReview() {
     const remaining = queue.length
     const done = sessionTotal - remaining
     const pct = Math.round((done / sessionTotal) * 100)
-    const deText = germanHead(card.article, card.de)
-    const g = genderClass(card.article)
-    const frontIsDe = settings.direction === 'de-en'
-    const front = frontIsDe ? deText : card.en
-    const backHead = frontIsDe ? card.en : deText
-    const articleLabel =
-      card.article !== 'none'
-        ? card.article
-        : card.tags.includes('adj')
-          ? 'adj'
-          : card.tags.includes('verb')
-            ? 'verb'
-            : 'word'
+    const faces = reviewFaces(card, settings.direction)
+    const wordClass = (name: string) => (name ? ` ${name}` : '')
 
     main.innerHTML = `
       <section class="screen review">
@@ -358,14 +356,14 @@ async function renderReview() {
         <div class="card-stage">
           <button class="flip ${flipped ? 'is-flipped' : ''}" id="card" type="button" aria-label="Flip card">
             <div class="flip-inner">
-              <div class="face front gender-${g}">
-                ${frontIsDe ? `<span class="article ${g}">${esc(articleLabel)}</span>` : `<span class="prompt">English</span>`}
-                <div class="word ${frontIsDe ? g : ''}">${esc(front)}</div>
+              <div class="${faces.front.className}">
+                ${faces.front.kickerHtml}
+                <div class="word${wordClass(faces.front.wordClass)}">${esc(faces.front.wordText)}</div>
                 <p class="hint">${flipped ? '' : 'Tap to flip'}</p>
               </div>
-              <div class="face back gender-${g}">
-                ${frontIsDe ? `<span class="prompt">English</span>` : `<span class="article ${g}">${esc(articleLabel)}</span>`}
-                <div class="word ${frontIsDe ? '' : g}">${esc(backHead)}</div>
+              <div class="${faces.back.className}">
+                ${faces.back.kickerHtml}
+                <div class="word${wordClass(faces.back.wordClass)}">${esc(faces.back.wordText)}</div>
                 ${
                   card.example_de
                     ? `<p class="example"><strong>${esc(card.example_de)}</strong>${
@@ -500,7 +498,10 @@ async function renderDeck() {
                   return `<li>
                     <a class="card-row" href="#/card/${esc(c.id)}">
                       <div class="left">
-                        <div class="de ${genderClass(c.article)}">${esc(germanHead(c.article, c.de))}</div>
+                        <div class="de-line">
+                          <div class="de ${genderClass(c.article)}">${esc(germanHead(c.article, c.de))}</div>
+                          ${wordTypeBadgeHtml(c)}
+                        </div>
                         <div class="en">${esc(c.en)}</div>
                       </div>
                       <span class="row-badges">
@@ -539,6 +540,18 @@ function tierOptions(card: Card | undefined): string {
   return TIERS.map((t) => `<option value="${t}" ${t === current ? 'selected' : ''}>Tier ${t}</option>`).join('')
 }
 
+function wordTypeOptions(selected: string): string {
+  const options: [string, string][] = [
+    ['noun', 'Noun'],
+    ['verb', 'Verb'],
+    ['adj', 'Adjective'],
+    ['other', 'Other'],
+  ]
+  return options
+    .map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`)
+    .join('')
+}
+
 async function renderEdit(id: string | null) {
   setTabbar('deck')
   const existing = id ? await getCard(id) : undefined
@@ -548,6 +561,8 @@ async function renderEdit(id: string | null) {
     return
   }
   const c = existing
+  const typeChoice = c ? editorWordType(c.tags, c.article) : 'noun'
+  const extraTypes = c ? savedWordTypes(c.tags).slice(1).map(wordTypeSpoken) : []
   main.innerHTML = `
     <section class="screen scroll">
       <header class="topbar">
@@ -565,6 +580,14 @@ async function renderEdit(id: string | null) {
         <label>Article
           <select name="article">${articleOptions(c?.article ?? 'der')}</select>
         </label>
+        <label>Word type
+          <select name="wordType">${wordTypeOptions(typeChoice)}</select>
+        </label>
+        ${
+          extraTypes.length
+            ? `<p class="note">Also ${esc(extraTypes.join(' and '))}. Choosing a different type replaces the extra labels.</p>`
+            : ''
+        }
         <label>Example (DE)
           <textarea name="example_de">${esc(c?.example_de ?? '')}</textarea>
         </label>
@@ -572,7 +595,7 @@ async function renderEdit(id: string | null) {
           <textarea name="example_en">${esc(c?.example_en ?? '')}</textarea>
         </label>
         <label>Tags (comma separated)
-          <input name="tags" type="text" value="${esc((c?.tags ?? []).join(', '))}" />
+          <input name="tags" type="text" value="${esc(editorTagField(c?.tags ?? []))}" />
         </label>
         <label>Tier
           <select name="tier">${tierOptions(c)}</select>
@@ -596,10 +619,7 @@ async function renderEdit(id: string | null) {
     const article = String(fd.get('article') ?? 'none') as Article
     const example_de = String(fd.get('example_de') ?? '').trim()
     const example_en = String(fd.get('example_en') ?? '').trim()
-    const tags = String(fd.get('tags') ?? '')
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean)
+    const tags = tagsWithWordType(String(fd.get('tags') ?? ''), String(fd.get('wordType') ?? 'other'), c?.tags ?? [])
     const tier = Math.min(3, Math.max(1, Number(fd.get('tier')) || 3)) as Tier
     if (!de || !en) {
       toast('German and English are required')
@@ -668,7 +688,7 @@ async function renderImport() {
         <h1>CSV import</h1>
         <span></span>
       </header>
-      <p class="note">Columns: <code>de,en,article,example_de</code>. Article is der, die, das, or none. Duplicates of an existing de+en pair are skipped.</p>
+      <p class="note">Columns: <code>de,en,article,example_de</code>. An optional <code>type</code> column can be noun, verb, adjective, or other. Article is der, die, das, or none. A noun is assumed when the article is set and type is left blank. Duplicates of an existing de+en pair are skipped.</p>
       <div class="drop" id="drop">
         <span>Drop a .csv file here</span>
         <label class="file-btn">Choose file
@@ -676,7 +696,7 @@ async function renderImport() {
         </label>
       </div>
       <label>Or paste CSV
-        <textarea id="paste" placeholder="de,en,article,example_de"></textarea>
+        <textarea id="paste" placeholder="de,en,article,example_de,type"></textarea>
       </label>
       <button class="primary" id="run">Import</button>
       <div id="result"></div>
