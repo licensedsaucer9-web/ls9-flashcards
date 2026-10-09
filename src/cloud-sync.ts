@@ -33,7 +33,12 @@ function cardContent(card: Card): CardContent {
 }
 
 function publicSettings(settings: CloudSnapshot['settings']): PublicSettings {
-  return { direction: settings.direction, sessionSize: settings.sessionSize, tier: settings.tier }
+  return {
+    direction: settings.direction,
+    sessionSize: settings.sessionSize,
+    tier: settings.tier,
+    wordTypes: settings.wordTypes,
+  }
 }
 
 async function pushLoaded(

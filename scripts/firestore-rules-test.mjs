@@ -104,6 +104,26 @@ try {
     setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ direction: 'fr-de' })),
     'unknown direction',
   )
+  await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings()))
+  await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: [] })))
+  await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: ['verb', 'noun'] })))
+  await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: ['noun', 'verb', 'adj'] })))
+  await denied(
+    setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: ['adverb'] })),
+    'unknown word type',
+  )
+  await denied(
+    setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: ['noun', 'nope'] })),
+    'mixed unknown word type',
+  )
+  await denied(
+    setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: 'noun' })),
+    'word type must be a list',
+  )
+  await denied(
+    setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: ['noun', 'noun'] })),
+    'duplicate word type',
+  )
 
   await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'progress', SEED), progress()))
   await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'progress', CUSTOM), progress({ ease: 1.3, interval: 0, reps: 0 })))

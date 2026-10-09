@@ -878,7 +878,8 @@ p code {
 
 /* --- tiers and profiles --- */
 
-.chip.tier-chip {
+.chip.tier-chip,
+.chip.type-chip {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -888,10 +889,15 @@ p code {
   line-height: 1.15;
 }
 
-.chip.tier-chip small {
+.chip.tier-chip small,
+.chip.type-chip small {
   font-size: 0.68rem;
   font-weight: 500;
   opacity: 0.72;
+}
+
+.due-hero > .secondary {
+  width: 100%;
 }
 
 .badge.tier {

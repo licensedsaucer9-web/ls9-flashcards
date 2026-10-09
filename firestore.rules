@@ -46,14 +46,22 @@ service cloud.firestore {
         && request.resource.data.migrationStatus == 'new';
     }
 
+    function validWordTypes(types) {
+      return types is list
+        && types.size() <= 3
+        && types.size() == types.toSet().size()
+        && types.hasOnly(['noun', 'verb', 'adj']);
+    }
+
     function validSettings() {
-      return request.resource.data.keys().hasOnly(['direction', 'sessionSize', 'tier', 'settingsUpdatedAt'])
+      return request.resource.data.keys().hasOnly(['direction', 'sessionSize', 'tier', 'settingsUpdatedAt', 'wordTypes'])
         && request.resource.data.direction in ['de-en', 'en-de']
         && whole(request.resource.data.sessionSize)
         && request.resource.data.sessionSize >= 0
         && request.resource.data.sessionSize <= 500
         && request.resource.data.tier in [1, 2, 3]
-        && clock(request.resource.data.settingsUpdatedAt);
+        && clock(request.resource.data.settingsUpdatedAt)
+        && (!('wordTypes' in request.resource.data) || validWordTypes(request.resource.data.wordTypes));
     }
 
     function validProgress(cardId) {

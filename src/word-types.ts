@@ -1,9 +1,10 @@
-import type { Article, Direction } from './types.ts'
+import type { Article, Direction, Tier, WordType } from './types.ts'
 import { esc, germanHead } from './dom.ts'
 
+export type { WordType }
+
 /** Fixed display order. Matches the noun / verb / adjective chips. */
-export const WORD_TYPES = ['noun', 'verb', 'adj'] as const
-export type WordType = (typeof WORD_TYPES)[number]
+export const WORD_TYPES: readonly WordType[] = ['noun', 'verb', 'adj']
 export type WordTypeChoice = WordType | 'other'
 
 const RESERVED = new Set<string>([...WORD_TYPES, 'other'])
@@ -45,6 +46,102 @@ export function wordTypes(card: WordTypeCard): WordType[] {
   if (tags.some((tag) => tag.trim().toLowerCase() === 'other')) return []
   if (card.article && card.article !== 'none') return ['noun']
   return []
+}
+
+/**
+ * Canonical filter. Unknown values are dropped. Duplicates collapse.
+ * Missing, empty, and non-lists all mean every type.
+ */
+export function normalizeWordTypes(value: unknown): WordType[] {
+  if (!Array.isArray(value)) return []
+  const present = new Set<WordType>()
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const parsed = parseWordTypeToken(item)
+    if (parsed && parsed !== 'other') present.add(parsed)
+  }
+  return WORD_TYPES.filter((type) => present.has(type))
+}
+
+/** Strict list for rules and migration: canonical tokens, no duplicates, any order. */
+export function validWordTypeList(value: unknown): value is WordType[] {
+  if (!Array.isArray(value) || value.length > WORD_TYPES.length) return false
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (item !== 'noun' && item !== 'verb' && item !== 'adj') return false
+    if (seen.has(item)) return false
+    seen.add(item)
+  }
+  return true
+}
+
+export function sameWordTypes(a: unknown, b: unknown): boolean {
+  const left = normalizeWordTypes(a)
+  const right = normalizeWordTypes(b)
+  return left.length === right.length && left.every((type, index) => type === right[index])
+}
+
+/** Empty selection matches every card, including untyped ones. Otherwise any selected type matches. */
+export function inSelectedWordTypes(card: WordTypeCard, selected: readonly WordType[]): boolean {
+  const chosen = normalizeWordTypes(selected)
+  if (chosen.length === 0) return true
+  const types = wordTypes(card)
+  return chosen.some((type) => types.includes(type))
+}
+
+/** Picking a type while All is on starts a selection. Removing the last type returns to All. */
+export function toggleWordType(selected: readonly WordType[], type: WordType): WordType[] {
+  const current = normalizeWordTypes(selected)
+  if (!current.includes(type)) return normalizeWordTypes([...current, type])
+  return current.filter((item) => item !== type)
+}
+
+export type WordTypeCount = { words: number; due: number }
+export type WordTypeCounts = Record<'all' | WordType, WordTypeCount>
+
+/** One pass. A card with several types counts in each of them, and once in All. */
+export function countWordTypes(cards: readonly (WordTypeCard & { due?: boolean })[]): WordTypeCounts {
+  const blank = (): WordTypeCount => ({ words: 0, due: 0 })
+  const out: WordTypeCounts = { all: blank(), noun: blank(), verb: blank(), adj: blank() }
+  for (const card of cards) {
+    const due = card.due === true
+    out.all.words += 1
+    if (due) out.all.due += 1
+    for (const type of wordTypes(card)) {
+      out[type].words += 1
+      if (due) out[type].due += 1
+    }
+  }
+  return out
+}
+
+const TYPE_PLURALS: Record<WordType, string> = {
+  noun: 'nouns',
+  verb: 'verbs',
+  adj: 'adjectives',
+}
+
+function englishList(items: readonly string[]): string {
+  if (items.length <= 1) return items[0] ?? 'cards'
+  if (items.length === 2) return `${items[0]} or ${items[1]}`
+  return `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`
+}
+
+/** Shown when the selected types have nothing due. Empty selection is not a filter. */
+export function noDueWordTypeMessage(selected: readonly WordType[], tier: Tier): string {
+  const names = normalizeWordTypes(selected).map((type) => TYPE_PLURALS[type])
+  return `No ${englishList(names)} due in Tier ${tier}`
+}
+
+const TYPE_CHIP_LABELS: Record<WordType, string> = {
+  noun: 'Nouns',
+  verb: 'Verbs',
+  adj: 'Adjectives',
+}
+
+/** Empty when every type is included, so the tier label can stay as it was. */
+export function wordTypeSelectionLabel(selected: readonly WordType[]): string {
+  return normalizeWordTypes(selected).map((type) => TYPE_CHIP_LABELS[type]).join(', ')
 }
 
 export function wordTypeLabel(type: WordType): string {

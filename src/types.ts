@@ -2,6 +2,8 @@ export type Article = 'der' | 'die' | 'das' | 'none'
 export type Grade = 'again' | 'wrong_gender' | 'hard' | 'good' | 'easy'
 export type Direction = 'de-en' | 'en-de'
 export type Tier = 1 | 2 | 3
+/** Classes a review can be limited to. An empty list means every class, including untyped cards. */
+export type WordType = 'noun' | 'verb' | 'adj'
 
 /** Nominal cumulative deck sizes. Tier 1 is the first 100 words, tier 2 the first 250, tier 3 the rest. */
 export const TIER_CUMULATIVE: Record<Tier, number> = { 1: 100, 2: 250, 3: Number.MAX_SAFE_INTEGER }
@@ -44,6 +46,11 @@ export interface Settings {
   sessionSize: number
   /** Highest tier included in reviews. Higher tiers include the lower ones. */
   tier: Tier
+  /**
+   * Word classes included in reviews. Empty means all of them, including cards
+   * with no class. Older settings rows omit this and mean the same thing.
+   */
+  wordTypes: WordType[]
   deletedIds: Record<string, number>
   /** Local writes are numbered in the same transaction as their data. */
   localRevision: number
@@ -75,7 +82,7 @@ export interface PendingRecords {
 }
 
 /** The settings that travel between devices. */
-export type PublicSettings = Pick<Settings, 'direction' | 'sessionSize' | 'tier'>
+export type PublicSettings = Pick<Settings, 'direction' | 'sessionSize' | 'tier' | 'wordTypes'>
 
 /** The fields that make up a card's vocabulary, without any user's progress. */
 export type CardContent = Pick<
