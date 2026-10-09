@@ -48,7 +48,7 @@ export function validateIdentity(info, { candidate = false } = {}) {
   if (info.backend === 'firebase') assert(typeof info.firebaseProject === 'string' && /^[a-zA-Z0-9-]+$/.test(info.firebaseProject))
   else assert(info.firebaseProject === null && info.mode === 'device', 'device builds cannot claim Firebase')
   if (candidate) {
-    assert(/^1\.0\.0(?:-rc\.[1-9]\d*)?$/.test(info.version), 'candidate needs a Prod v1 version')
+    assert(/^[1-9]\d*\.\d+\.\d+(?:-rc\.[1-9]\d*)?$/.test(info.version), 'candidate needs a release version (1.0.0 or later)')
     assert(!info.sourceDirty, 'release candidate requires a clean source tree')
     assert(!info.emulators && info.mode === 'production', 'release candidate cannot use a test, bridge or emulator mode')
     assert.equal(info.backend, 'firebase', 'release candidate must use Firebase')

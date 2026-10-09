@@ -4,7 +4,7 @@
 
 A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German vocabulary deck. It supports frequency tiers, SM-2-style review, card editing, CSV import, and offline study. The longer-term goal is multiple decks on different subjects; the current app assigns one deck per account and has no deck picker.
 
-**Release state, 2026-10-07:** Version `1.0.0` is the Firebase client at the public URL. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
+**Release state, 2026-10-09:** Version `1.1.0` (adds word-type badges, #50) is the Firebase client at the public URL; `1.0.0` shipped on 2026-10-07. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
 
 **Prod v1 scope:** ship the current single-deck app with reliable Google sync,
 offline study, safe device migration and tested recovery. The
@@ -112,7 +112,7 @@ The private repository secret
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-The release version is `1.0.0`. **Settings → Install** shows
+The release version is `1.1.0`. **Settings → Install** shows
 the running version and source revision, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI
