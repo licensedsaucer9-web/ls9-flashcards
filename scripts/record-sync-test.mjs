@@ -128,6 +128,42 @@ const bothMissing = planSettingsWrite(
 )
 assert(bothMissing && bothMissing.direction === 'en-de', 'a zero settings clock is not epoch, so a tie keeps local')
 
+const unchangedAll = planSettingsWrite(
+  { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [] },
+  15,
+  { direction: 'de-en', sessionSize: 20, tier: 1, settingsUpdatedAt: 15 },
+)
+assert(unchangedAll === null, 'a missing word-type filter already means All and does not write')
+
+const uploadTypes = planSettingsWrite(
+  { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: ['verb', 'noun', 'noun', 'adverb'] },
+  20,
+  { direction: 'de-en', sessionSize: 20, tier: 1, settingsUpdatedAt: 15 },
+)
+assert(uploadTypes && uploadTypes.wordTypes.join() === 'noun,verb', 'a newer type filter is stored sorted, without unknown values')
+assert(uploadTypes.settingsUpdatedAt === 20, 'the type filter uses the settings clock')
+
+const keepRemoteTypes = planSettingsWrite(
+  { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: ['noun'] },
+  10,
+  { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: ['verb'], settingsUpdatedAt: 15 },
+)
+assert(keepRemoteTypes === null, 'an older type filter does not replace a newer one')
+
+const clearTypes = planSettingsWrite(
+  { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [] },
+  30,
+  { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: ['adj'], settingsUpdatedAt: 15 },
+)
+assert(clearTypes && clearTypes.wordTypes === undefined, 'All removes the stored type filter')
+
+const sameTypes = planSettingsWrite(
+  { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: ['noun', 'verb'] },
+  15,
+  { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: ['verb', 'noun'], settingsUpdatedAt: 15 },
+)
+assert(sameTypes === null, 'type order does not cause a settings write')
+
 const kept = applyAck({ revision: 6, acked: 0 }, 5)
 assert(kept.acked === 5 && isDirty(kept), 'acking the sent revision leaves a later edit dirty')
 const done = applyAck({ revision: 5, acked: 0 }, 5)

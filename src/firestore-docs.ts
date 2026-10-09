@@ -1,5 +1,6 @@
 import { legacyToFiles, parseRemoteDeck } from './merge.ts'
-import type { CardContent, DeckFile, Direction, PublicSettings, Srs, Tier, UserFile } from './types.ts'
+import type { CardContent, DeckFile, Direction, PublicSettings, Srs, Tier, UserFile, WordType } from './types.ts'
+import { normalizeWordTypes } from './word-types.ts'
 
 /** Client-creatable account shape. Migration completion is not one of these values. */
 export const SCHEMA_VERSION = 1
@@ -16,6 +17,8 @@ export type SettingsDoc = {
   sessionSize: number
   tier: Tier
   settingsUpdatedAt: number
+  /** Absent or empty means every word type. Only noun, verb, and adj are stored. */
+  wordTypes?: WordType[]
 }
 
 export type ProgressDoc = {
@@ -55,12 +58,16 @@ export function newUserAccount(uid: string): UserAccountDoc {
 }
 
 export function settingsToDoc(settings: PublicSettings, settingsUpdatedAt: number): SettingsDoc {
-  return {
+  const doc: SettingsDoc = {
     direction: settings.direction,
     sessionSize: settings.sessionSize,
     tier: settings.tier,
     settingsUpdatedAt: settingsUpdatedAt > 0 ? settingsUpdatedAt : 0,
   }
+  const wordTypes = normalizeWordTypes(settings.wordTypes)
+  // An empty list is All, which is also what a document written before this field means.
+  if (wordTypes.length > 0) doc.wordTypes = wordTypes
+  return doc
 }
 
 export function progressToDoc(srs: Srs): ProgressDoc {
@@ -125,7 +132,7 @@ export function filesToDocs(deck: DeckFile, user: UserFile | null): CloudDocs {
     cards: [...byId.entries()].map(([id, data]) => ({ id, data })),
     progress,
     settings: settingsToDoc(
-      user?.settings ?? { direction: 'de-en', sessionSize: 20, tier: 1 },
+      user?.settings ?? { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [] },
       user?.settings_updated_at ?? 0,
     ),
   }
@@ -180,6 +187,7 @@ export function docsToFiles(docs: CloudDocs, profileName: string, updatedAt: num
         direction: docs.settings.direction,
         sessionSize: docs.settings.sessionSize,
         tier: docs.settings.tier,
+        wordTypes: normalizeWordTypes(docs.settings.wordTypes),
       },
       progress,
     },

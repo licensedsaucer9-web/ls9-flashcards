@@ -60,6 +60,7 @@ assert(byId.get(customId).deletedAt === 0 && byId.get(customId).rank === undefin
 assert(docs.progress.length === 2, 'progress is one document per scheduled card')
 assert(docs.settings.direction === 'en-de' && docs.settings.sessionSize === 0 && docs.settings.tier === 2, 'settings fields are copied')
 assert(docs.settings.settingsUpdatedAt === 0, 'a missing settings clock stays 0')
+assert(docs.settings.wordTypes === undefined, 'All omits the word-type field')
 
 const round = docsToFiles(docs, 'joakim', 100)
 assert(round.deck.cards.map((card) => card.id).join() === customId, 'tombstones leave the cards array')
@@ -68,6 +69,15 @@ assert(round.deck.cards[0].de === 'Hund' && round.deck.cards[0].tags.length === 
 assert(round.user.progress['seed-01'].updated_at === 80, 'a progress clock round-trips')
 assert(round.user.progress[customId].updated_at === undefined, 'a missing progress clock is omitted')
 assert(round.user.settings_updated_at === 0, 'settings clock 0 is kept')
+assert(round.user.settings.wordTypes.length === 0, 'a missing filter comes back as All')
+
+const typedDocs = filesToDocs(deck, {
+  ...user,
+  settings: { ...user.settings, wordTypes: ['verb', 'noun', 'verb'] },
+})
+assert(typedDocs.settings.wordTypes.join() === 'noun,verb', 'word types are stored sorted and unique')
+const typedRound = docsToFiles(typedDocs, 'joakim', 100)
+assert(typedRound.user.settings.wordTypes.join() === 'noun,verb', 'word types round-trip')
 assert(!('missing' in round.deck.deleted_ids), 'a missing document is not a tombstone')
 
 const onlyDeleted = filesToDocs(
@@ -93,7 +103,9 @@ assert(legacyCards.get('seed-01').deletedAt === 0 && legacyCards.get('seed-99').
 assert(fromLegacy.progress.length === 1 && fromLegacy.progress[0].id === 'seed-01', 'legacy progress is kept')
 assert(fromLegacy.progress[0].data.ease === 2.5 && fromLegacy.progress[0].data.updated_at === 40, 'legacy SRS fields are copied')
 assert(fromLegacy.settings.direction === 'en-de' && fromLegacy.settings.tier === 1, 'legacy settings gain the default tier')
+assert(fromLegacy.settings.wordTypes === undefined, 'legacy settings have no type filter')
 assert(fromLegacy.settings.settingsUpdatedAt === 900, 'an explicit legacy settings clock is kept')
+assert(docsToFiles(fromLegacy, 'joakim', 1000).user.settings.wordTypes.length === 0, 'legacy settings load as All')
 const credited = docsToFiles(fromLegacy, 'joakim', 1000)
 assert(credited.user.user === 'joakim', 'legacy progress is credited to the named profile')
 

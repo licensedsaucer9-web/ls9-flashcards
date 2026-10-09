@@ -1,4 +1,5 @@
 import type { Card, CardContent, DeckFile, PublicSettings, Snapshot, Srs, UserFile } from './types.ts'
+import { normalizeWordTypes } from './word-types.ts'
 
 export function emptyDeck(now = Date.now()): DeckFile {
   return { version: 2, kind: 'deck', updated_at: now, cards: [], deleted_ids: {} }
@@ -10,7 +11,7 @@ export function emptyUser(user: string, now = Date.now()): UserFile {
     kind: 'user',
     user,
     updated_at: now,
-    settings: { direction: 'de-en', sessionSize: 20, tier: 1 },
+    settings: { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [] },
     progress: {},
   }
 }
@@ -72,6 +73,7 @@ export function parseUserFile(raw: unknown): UserFile | null {
       direction: settings.direction === 'en-de' ? 'en-de' : 'de-en',
       sessionSize: Math.max(0, int(settings.sessionSize, 20)),
       tier: tier === 1 || tier === 2 || tier === 3 ? tier : 1,
+      wordTypes: normalizeWordTypes(settings.wordTypes),
     },
     settings_updated_at: typeof o.settings_updated_at === 'number' ? o.settings_updated_at : undefined,
     progress: o.progress as Record<string, Srs>,
@@ -138,7 +140,7 @@ export function legacyToFiles(snapshot: Snapshot, user: string): { deck: DeckFil
       // settings clock. Without it a second device would see no settings opinion
       // and its own defaults would win.
       settings_updated_at: snapshot.settings_updated_at || snapshot.updated_at,
-      settings: { ...snapshot.settings, tier: 1 },
+      settings: { ...snapshot.settings, tier: 1, wordTypes: [] },
       progress,
     },
   }

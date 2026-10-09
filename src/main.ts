@@ -1,6 +1,6 @@
 import './style.css'
 import { registerSW } from 'virtual:pwa-register'
-import type { Article, Card, Direction, Grade, PublicSettings, Tier } from './types.ts'
+import type { Article, Card, Direction, Grade, PublicSettings, Tier, WordType } from './types.ts'
 import { ARTICLES } from './types.ts'
 import {
   accountBadge,
@@ -37,13 +37,21 @@ import { newSrs, review } from './srs.ts'
 import { importCsv } from './csv.ts'
 import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
 import {
+  countWordTypes,
   editorTagField,
   editorWordType,
+  inSelectedWordTypes,
+  noDueWordTypeMessage,
+  normalizeWordTypes,
   reviewFaces,
+  sameWordTypes,
   savedWordTypes,
   tagsWithWordType,
+  toggleWordType,
   wordTypeBadgeHtml,
+  wordTypeSelectionLabel,
   wordTypeSpoken,
+  type WordTypeCounts,
 } from './word-types.ts'
 import { sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
 import { tierCounts, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
@@ -167,6 +175,50 @@ function bindTierChips(onPick: (tier: Tier) => void): void {
   })
 }
 
+const WORD_TYPE_CHIPS: { id: 'all' | WordType; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'noun', label: 'Nouns' },
+  { id: 'verb', label: 'Verbs' },
+  { id: 'adj', label: 'Adjectives' },
+]
+
+function wordTypeCountsFor(cards: Card[], tier: Tier, now = Date.now()): WordTypeCounts {
+  return countWordTypes(
+    cards
+      .filter((card) => tierOf(card) <= tier)
+      .map((card) => ({ tags: card.tags, article: card.article, due: card.srs.due <= now })),
+  )
+}
+
+function wordTypeChips(selected: readonly WordType[], counts: WordTypeCounts): string {
+  const chosen = normalizeWordTypes(selected)
+  return WORD_TYPE_CHIPS.map((chip) => {
+    const on = chip.id === 'all' ? chosen.length === 0 : chosen.includes(chip.id)
+    const count = counts[chip.id]
+    return `<button type="button" class="chip type-chip${on ? ' is-on' : ''}" data-word-type="${chip.id}" aria-pressed="${on ? 'true' : 'false'}">${chip.label}<small>${count.words} · ${count.due} due</small></button>`
+  }).join('')
+}
+
+function bindWordTypeChips(current: readonly WordType[], onPick: (next: WordType[]) => void): void {
+  document.querySelectorAll<HTMLButtonElement>('[data-word-type]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const value = btn.dataset.wordType
+      if (!value || value === 'all') {
+        onPick([])
+        return
+      }
+      if (value !== 'noun' && value !== 'verb' && value !== 'adj') return
+      onPick(toggleWordType(current, value))
+    })
+  })
+}
+
+function scopeLabel(tier: Tier, types: readonly WordType[]): string {
+  const typesLabel = wordTypeSelectionLabel(types)
+  const tierText = tierLabel(tier)
+  return typesLabel ? `${tierText} · ${typesLabel}` : tierText
+}
+
 function touch(card: Card): Card {
   return { ...card, updated_at: Date.now() }
 }
@@ -210,15 +262,18 @@ async function renderHome() {
   setTabbar('home')
   const settings = await getSettings()
   const dueByTier = await getDueByTier()
-  const due = await getDueCards(settings.tier)
+  const now = Date.now()
+  const due = await getDueCards(settings.tier, now, settings.wordTypes)
   const all = await getAllCards()
   if (!studyLockCurrent(lock)) return
   const suggested = suggestSessionSize(due.length)
   const n = sessionCount(due.length, settings.sessionSize)
-  const inTier = all.filter((c) => tierOf(c) <= settings.tier)
-  const next = inTier
-    .filter((c) => c.srs.due > Date.now())
+  const inScope = all.filter((c) => tierOf(c) <= settings.tier && inSelectedWordTypes(c, settings.wordTypes))
+  const next = inScope
+    .filter((c) => c.srs.due > now)
     .sort((a, b) => a.srs.due - b.srs.due)[0]
+  const typeCounts = wordTypeCountsFor(all, settings.tier, now)
+  const noneOfType = settings.wordTypes.length > 0 && due.length === 0
   const ready = due.length > 0
   const startLabel = ready
     ? n === due.length
@@ -238,10 +293,12 @@ async function renderHome() {
         <span class="badge" id="sync-line">${esc(syncLineText())}</span>
       </header>
       <div class="due-hero">
-        <p class="kicker">Due now · ${esc(tierLabel(settings.tier))}</p>
+        <p class="kicker">Due now · ${esc(scopeLabel(settings.tier, settings.wordTypes))}</p>
         <div class="due-count ${ready ? '' : 'caught-up'}" data-due-count>${due.length}</div>
         <p class="due-label">${
-          ready
+          noneOfType
+            ? esc(noDueWordTypeMessage(settings.wordTypes, settings.tier))
+            : ready
             ? due.length === 1
               ? 'card waiting'
               : 'cards waiting'
@@ -251,10 +308,13 @@ async function renderHome() {
                 ? 'Opening your deck…'
                 : 'No cards yet'
         }</p>
+        ${noneOfType ? '<button type="button" class="secondary" id="show-all-types">All</button>' : ''}
         <div class="session-box">
           <p class="kicker" style="margin:0">Deck tier</p>
           <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
-          <p class="note" style="margin:0">${esc(TIER_NOTES[settings.tier])}</p>
+          <p class="kicker" style="margin:0">Word type</p>
+          <div class="chips" id="type-chips" role="group" aria-label="Word type">${wordTypeChips(settings.wordTypes, typeCounts)}</div>
+          <p class="note" style="margin:0">${esc(TIER_NOTES[settings.tier])} All includes every word type.</p>
         </div>
         <div class="session-box">
           <p class="kicker" style="margin:0">This session</p>
@@ -273,8 +333,17 @@ async function renderHome() {
   $('#start').addEventListener('click', () => {
     if (due.length) go('/review')
   })
+  document.getElementById('show-all-types')?.addEventListener('click', async () => {
+    await patchSettings({ wordTypes: [] })
+    await renderHome()
+  })
   bindTierChips(async (tier) => {
     await patchSettings({ tier })
+    await renderHome()
+  })
+  bindWordTypeChips(settings.wordTypes, async (wordTypes) => {
+    if (sameWordTypes(settings.wordTypes, wordTypes)) return
+    await patchSettings({ wordTypes })
     await renderHome()
   })
   $('#session-chips').querySelectorAll<HTMLButtonElement>('[data-session]').forEach((btn) => {
@@ -299,7 +368,7 @@ async function renderReview() {
   setTabbar('none')
   const settings = await getSettings()
   if (!studyLockCurrent(lock)) return
-  const due = await getDueCards(settings.tier)
+  const due = await getDueCards(settings.tier, Date.now(), settings.wordTypes)
   if (!studyLockCurrent(lock)) return
   const queue = shuffle(due).slice(0, sessionCount(due.length, settings.sessionSize))
   if (queue.length === 0) {
@@ -349,7 +418,7 @@ async function renderReview() {
       <section class="screen review">
         <header class="topbar">
           <button class="ghost" id="back">Close</button>
-          <div class="review-meta"><span data-remaining>${remaining}</span> left · ${esc(tierLabel(settings.tier))}</div>
+          <div class="review-meta"><span data-remaining>${remaining}</span> left · ${esc(scopeLabel(settings.tier, settings.wordTypes))}</div>
           <span></span>
         </header>
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -762,7 +831,8 @@ async function renderCloudSettings() {
   const cards = await getAllCards()
   if (!studyLockCurrent(lock)) return
   const counts = tierCounts(cards)
-  const suggested = suggestSessionSize((await getDueCards(settings.tier)).length)
+  const typeCounts = wordTypeCountsFor(cards, settings.tier)
+  const suggested = suggestSessionSize((await getDueCards(settings.tier, Date.now(), settings.wordTypes)).length)
   if (!studyLockCurrent(lock)) return
   main.innerHTML = `
     <section class="screen scroll">
@@ -771,7 +841,10 @@ async function renderCloudSettings() {
       <div class="setting">
         <p class="kicker" style="margin:0">Deck tier</p>
         <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
+        <p class="kicker" style="margin:0">Word type</p>
+        <div class="chips" id="type-chips" role="group" aria-label="Word type">${wordTypeChips(settings.wordTypes, typeCounts)}</div>
         <p class="note">${esc(TIER_NOTES[settings.tier])} Higher tiers include the lower ones, so tier 2 reviews everything in tier 1 too. ${counts[1]} / ${counts[1] + counts[2]} / ${cards.length} words.</p>
+        <p class="note">All reviews every word type, including words with no type. Pick nouns, verbs, adjectives, or any combination. Turning the last type off returns to All. A card with more than one type is still reviewed once. This does not change when a card is due.</p>
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">Review direction</p>
@@ -783,7 +856,7 @@ async function renderCloudSettings() {
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">Session size</p>
-        <p class="note">Cap how many due cards a review starts with. Suggested now: ${suggested}. 0 / All means the whole due queue.</p>
+        <p class="note">Cap how many due cards a review starts with. Suggested now: ${suggested}. 0 / All means every due card that matches the tier and word type.</p>
         <label>Cards per session
           <input id="session-size" type="number" min="0" step="1" inputmode="numeric" value="${settings.sessionSize}" />
         </label>
@@ -803,6 +876,11 @@ async function renderCloudSettings() {
   bindAccountPanel(accountHooks)
   bindTierChips(async (tier) => {
     await patchSettings({ tier })
+    scheduleRender()
+  })
+  bindWordTypeChips(settings.wordTypes, async (wordTypes) => {
+    if (sameWordTypes(settings.wordTypes, wordTypes)) return
+    await patchSettings({ wordTypes })
     scheduleRender()
   })
   $('#dir').querySelectorAll<HTMLButtonElement>('button').forEach((btn) => {

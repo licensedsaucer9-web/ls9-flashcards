@@ -115,6 +115,8 @@ assert(u.settings.tier === 2, 'tier read')
 assert(parseUserFile({ version: 2, kind: 'user', progress: {}, settings: { tier: 9 } }).settings.tier === 1, 'bad tier -> 1')
 assert(parseUserFile({ version: 2, kind: 'user', progress: {}, settings: { tier: 'x' } }).settings.tier === 1, 'non-numeric tier -> 1')
 assert(parseUserFile({ version: 2, kind: 'user', progress: {} }).settings.direction === 'de-en', 'missing direction -> de-en')
+assert(parseUserFile({ version: 2, kind: 'user', progress: {} }).settings.wordTypes.length === 0, 'missing word types -> All')
+assert(parseUserFile({ version: 2, kind: 'user', progress: {}, settings: { wordTypes: ['verb', 'noun', 'adverb'] } }).settings.wordTypes.join() === 'noun,verb', 'word types are cleaned on read')
 
 // --- parseRemoteDeck routes v1 down the migration path ---
 
@@ -136,6 +138,7 @@ assert(split.deck.cards.every((c) => c.srs === undefined), 'no scheduling state 
 assert(split.user.progress.a.updated_at === now + 7, 'progress moves to the user file')
 assert(split.user.settings.direction === 'en-de' && split.user.settings.sessionSize === 30, 'settings carried over')
 assert(split.user.settings.tier === 1, 'a migrated profile starts on tier 1')
+assert(split.user.settings.wordTypes.length === 0, 'a migrated profile starts on all word types')
 assert(split.deck.deleted_ids.gone === now + 5, 'tombstones move to the deck file')
 assert(split.user.user === 'joakim', 'progress is credited to the opening profile')
 // A v1 snapshot had one clock for everything; without carrying it over, a second
@@ -212,6 +215,9 @@ assert(normalizeSettings({ tier: 3 }).tier === 3, 'tier 3 kept')
 assert(normalizeSettings({ tier: 2 }).tier === 2, 'tier 2 kept')
 assert(normalizeSettings({ tier: 0 }).tier === 1, 'tier 0 -> 1')
 assert(normalizeSettings({ tier: 'x' }).tier === 1, 'non-numeric tier -> 1')
+assert(normalizeSettings().wordTypes.length === 0, 'missing word types mean all')
+assert(normalizeSettings({ wordTypes: ['verb', 'noun', 'verb', 'adverb'] }).wordTypes.join() === 'noun,verb', 'word types drop unknown values, then sort and dedupe')
+assert(normalizeSettings({ wordTypes: 'noun' }).wordTypes.length === 0, 'a non-list word type filter is all')
 
 
 // --- settings merge: a 0 clock means "never set here", not epoch ---
