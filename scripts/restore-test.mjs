@@ -215,6 +215,28 @@ try {
   const truncated = join(directory, 'truncated.json')
   writeFileSync(truncated, '{"kind":"firestore"', { mode: 0o600 })
   assert.throws(() => readFirestoreBackup(truncated), /truncated/)
+  const dumpBody = () => structuredClone(JSON.parse(readFileSync(dumpPath, 'utf8')))
+  assert(dumpBody().users['uid-alice'].settings, 'fixture has settings')
+  assert.equal(Object.hasOwn(dumpBody().users['uid-alice'].settings, 'wordTypes'), false)
+  for (const wordTypes of [[], ['verb'], ['adj', 'noun'], ['noun', 'verb', 'adj']]) {
+    const typed = dumpBody()
+    typed.users['uid-alice'].settings.wordTypes = wordTypes
+    const typedPlan = prepareRestore(resign(typed))
+    const item = typedPlan.items.find((entry) => entry.path === 'users/uid-alice/settings/current')
+    assert.deepEqual(item.data.wordTypes, wordTypes)
+    const typedTarget = memoryStore()
+    await runRestore(typedPlan, typedTarget, { dryRun: false, projectId, reportPath: join(directory, `typed-${wordTypes.join('-') || 'empty'}.json`) })
+    assert.deepEqual(typedTarget.records.get('users/uid-alice/settings/current').wordTypes, wordTypes)
+  }
+  for (const wordTypes of [['adverb'], ['noun', 'nope'], ['Noun'], ['adjective'], 'noun', null, {}, ['noun', 'noun'],
+    ['noun', 'verb', 'adj', 'noun']]) {
+    const bad = dumpBody()
+    bad.users['uid-alice'].settings.wordTypes = wordTypes
+    assert.throws(() => prepareRestore(resign(bad)), /invalid settings uid-alice/)
+  }
+  const extraSetting = dumpBody()
+  extraSetting.users['uid-alice'].settings.theme = 'dark'
+  assert.throws(() => prepareRestore(resign(extraSetting)), /invalid settings uid-alice/)
   const absentSettings = structuredClone(JSON.parse(readFileSync(dumpPath, 'utf8')))
   absentSettings.users['uid-bob'].settings = null
   const absentPlan = prepareRestore(resign(absentSettings))
@@ -264,4 +286,4 @@ function statSafe(path) {
   try { return statSync(path) } catch { return null }
 }
 
-console.log('restore: checksum, schema, assignment, dry-run, exact round trip, newer/older/extra refusal, deleted-parent subcollections, interrupt/resume, cleared target, credential pairing: ok')
+console.log('restore: checksum, schema, optional wordTypes, assignment, dry-run, exact round trip, newer/older/extra refusal, deleted-parent subcollections, interrupt/resume, cleared target, credential pairing: ok')
