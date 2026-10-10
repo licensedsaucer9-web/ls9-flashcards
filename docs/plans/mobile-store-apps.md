@@ -1,4 +1,6 @@
 > Written by Codex (gpt-6.1-sol) on 2026-10-10. These are proposals, not decisions.
+>
+> Note: the wordTypes restore gap described here is fixed by PR #55.
 
 # Plan: LS9 Flashcards for iOS and Android stores
 
@@ -17,7 +19,7 @@ This is a planning proposal only. No files, issues, PRs, branches, commits, push
 | Google authentication currently uses `signInWithPopup`. Account adoption attempts online provisioning before binding the account database. | [src/cloud-on.ts](../../src/cloud-on.ts#L258), [src/cloud-on.ts](../../src/cloud-on.ts#L328). Native login and offline cold startup need dedicated work. |
 | The private legacy vocabulary file contains 514 unique cards, zero tombstones, and vocabulary fields matching all 514 bundled seeds. One separate profile file contains 514 progress records. | Read-only aggregate inspection of [data.json](https://github.com/licensedsaucer9-web/ls9-flashcards-data/blob/main/data.json), [users/joakim.json](https://github.com/licensedsaucer9-web/ls9-flashcards-data/blob/main/users/joakim.json), and [src/seed.ts](../../src/seed.ts#L535). Package the seed; never package personal progress. |
 | Physical deletion is forbidden by current rules; ordinary card deletion creates a tombstone that can retain vocabulary text. | [firestore.rules](../../firestore.rules#L105), [src/record-sync.ts](../../src/record-sync.ts#L254). Card deletion is insufficient for account erasure. |
-| Restore supports the optional v1.2.0 `wordTypes` setting. | Settings can contain `wordTypes` in [src/firestore-docs.ts](../../src/firestore-docs.ts#L60). This change accepts settings with or without a valid optional `wordTypes` list; invalid lists and unrelated extra settings keys still fail. [scripts/restore-core.mjs](../../scripts/restore-core.mjs#L83). |
+| Recovery tooling needs a compatibility fix. | Settings can contain `wordTypes` in [src/firestore-docs.ts](../../src/firestore-docs.ts#L60), but [scripts/restore-core.mjs](../../scripts/restore-core.mjs#L82) requires an exact settings shape excluding it. Such a dump would be rejected. |
 | Daily private backups and an isolated production-dump restore are recorded; an off-machine copy remains outstanding. | [AGENTS.md](../../AGENTS.md#L6), [docs/firebase-rollout-plan.md](../../docs/firebase-rollout-plan.md#L265). Mobile release must not imply that outstanding protection already exists. |
 
 Some older passages describe a held release or legacy writer. Use the current release statement in [README.md](../../README.md#L7) and operating boundaries in [AGENTS.md](../../AGENTS.md#L13), rather than reopening completed or waived migration work.
@@ -190,6 +192,7 @@ CSV is unsuitable for progress migration: [src/csv.ts](../../src/csv.ts#L181) cr
 
 Before mobile launch:
 
+- Fix restore support for `wordTypes`.
 - Extend backup/restore coverage for new administrative schemas.
 - Define how erasure records prevent an older backup from resurrecting deleted accounts.
 - Exclude live push tokens from restoration.
@@ -291,6 +294,7 @@ Each row is a proposed future issue, not an issue created by this plan.
 | **M0.1 — Approve mobile scope** | Record wrapper choice, supported devices, account ownership, reminder scope, and backend budget in the active plan. | Joakim’s decisions recorded; mandatory release gates identified. |
 | **M0.2 — Establish store identities** | Developer enrollment, bundle/package IDs, support/privacy destinations. | Ownership verified; identifiers and public seller identity recorded; credentials private. |
 | **M0.3 — Capacitor feasibility spike** | Bundled app on real iPhone and Android hardware. | Google/Apple flow feasibility, offline cold launch, grade persistence after termination, navigation, and file handling demonstrated; written go/no-go decision. |
+| **M0.4 — Fix current restore compatibility** | Support validated optional `wordTypes` in restore tooling. | Existing dumps and v1.2.0 settings fixtures restore; invalid values still fail; isolated readback passes. |
 | **M0.5 — Complete off-machine backups** | Durable private copy with observable success and retention. | Successful copy and retrieval verified; aggregate checksum evidence recorded outside detailed private reports. |
 | **M1.1 — Add mobile build/platform boundary** | Native projects, adapters, bundled mobile artifact, platform-aware Settings. | Both platforms compile; native bundle is offline-capable and correctly identifies project/version; PWA installation checks remain valid. |
 | **M1.2 — Implement offline account startup** | Cached validated binding and durable native storage behavior. | Previously downloaded accounts open offline without provisioning; grades survive reopen/upgrade; fresh guest works without network; account isolation passes. |
@@ -322,7 +326,7 @@ These steps extend the repository’s current checks rather than substituting br
 | Apple login creates a second account | Explicit linking, grouped Apple configuration, collision handling, and cross-client UID acceptance. [account identity](../../src/user.ts#L78) |
 | Data disappears after origin/storage changes | Stable origins, upgrade tests, full-state export, and an early persistence decision. [local database implementation](../../src/db.ts#L112) |
 | Deleted data returns from stale clients or backups | Rules-level blocking and erasure-aware recovery; handle retained offline copies when clients reconnect. [provisioning](../../src/provision.ts#L22), [backup exporter](../../scripts/migration-files.mjs#L49) |
-| Recovery confidence exceeds actual coverage | Keep `wordTypes` regression coverage, verify new schemas, and complete off-machine copies. [restore validator](../../scripts/restore-core.mjs#L83), [AGENTS.md](../../AGENTS.md#L6) |
+| Recovery confidence exceeds actual coverage | Fix `wordTypes`, verify new schemas, and complete off-machine copies. [restore validator](../../scripts/restore-core.mjs#L82), [AGENTS.md](../../AGENTS.md#L6) |
 | More installs increase Firestore cost/latency | Measure full-deck/progress reads and per-record transactions before optimizing. [src/cloud-push.ts](../../src/cloud-push.ts#L35) |
 | Conflicting simultaneous reviews | Document current clock-based behavior; keep scheduler redesign outside packaging scope. [src/merge.ts](../../src/merge.ts#L202) |
 | Content rights are insufficiently documented | Confirm distribution rights and attribution for vocabulary/examples/ranking sources. The code’s MIT license and frequency-source reference are evidence, not a provenance audit. [LICENSE](../../LICENSE), [README.md](../../README.md#L43) |

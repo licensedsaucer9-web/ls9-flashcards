@@ -1,4 +1,6 @@
 > Written by Codex (gpt-6.1-sol) on 2026-10-10. These are proposals, not decisions.
+>
+> Note: the wordTypes restore gap described here is fixed by PR #55.
 
 **Recommended direction.** Add private decks with a deck picker, deck-specific settings and independent progress. Support both German vocabulary and basic question/answer decks. Ship content-only file sharing first; make live shared decks a separate, optional milestone. Keep the existing German deck’s cloud records in place through a compatibility adapter.
 
@@ -156,7 +158,7 @@ Set a launch capacity envelope after measurement. Suggested test targets are 20 
 
 **Migration and rollout path.**
 
-1. **Prepare recovery first.** Extend backup/restore before writing new schemas. The exporter enumerates only original settings/progress and deck cards. [scripts/migration-files.mjs](../../scripts/migration-files.mjs#L49). This change accepts settings with or without a valid optional `wordTypes` list; invalid lists and unrelated extra settings keys still fail. [settings validator](../../scripts/restore-core.mjs#L83). Restore still rejects membership in more than one deck. [assignment validator](../../scripts/restore-core.mjs#L125).
+1. **Prepare recovery first.** Extend backup/restore before writing new schemas. The exporter enumerates only original settings/progress and deck cards; restore explicitly rejects membership in more than one deck. It also currently rejects settings containing `wordTypes`, despite v1.2.0 allowing that field. [scripts/migration-files.mjs](../../scripts/migration-files.mjs#L49), [scripts/restore-core.mjs](../../scripts/restore-core.mjs#L82), [scripts/restore-core.mjs](../../scripts/restore-core.mjs#L111).
 2. **Expose the original deck through compatibility interfaces.** Resolve and cache its actual assignment; preserve IDs, clocks, schedules, tombstones and preferences. Additional decks do not require copying existing cloud progress.
 3. **Upgrade IndexedDB transactionally.** Retain old stores for recovery, migrate pending revisions as well as visible data, and record completion atomically. If an offline device lacks the cloud assignment, retain an unresolved original-deck namespace and refuse cloud writes until resolved—never assume a shared deck is UID-named. Current provisioning returns the assignment, but account adoption does not retain it locally. [src/provision.ts](../../src/provision.ts#L44), [src/cloud-on.ts](../../src/cloud-on.ts#L268).
 4. **Handle guests explicitly.** Migrate device decks locally. Copy into an account only after target selection and confirmation; make repeat copies idempotent. Existing copy choices are account/device-based and need deck identity added. [src/cloud-on.ts](../../src/cloud-on.ts#L210), [src/copy-choice.ts](../../src/copy-choice.ts).
@@ -199,7 +201,7 @@ Optional follow-ups:
 | Card/progress collision from ID-only keys | Compound identity throughout storage, queues, routes and adapters. [src/types.ts](../../src/types.ts#L77) |
 | German cards appearing in unrelated decks | Explicit seed-pack provenance and initialization. [src/cloud-sync.ts](../../src/cloud-sync.ts#L82) |
 | Read quotas exhausted despite few writes | Separate pushes from reconciliation, paginate and measure usage. [src/cloud-push.ts](../../src/cloud-push.ts#L35) |
-| Incomplete/unrestorable backups after expansion | Recovery milestones precede production schema writes. [scripts/restore-core.mjs](../../scripts/restore-core.mjs#L125) |
+| Incomplete/unrestorable backups after expansion | Recovery milestones precede production schema writes. [scripts/restore-core.mjs](../../scripts/restore-core.mjs#L111) |
 | Old clients and pending offline work lost at cutover | Original wire compatibility, transactional migration and compatible rollback. [src/db.ts](../../src/db.ts#L175) |
 | Clock skew or simultaneous reviews lose one state | Retain and document current conflict policy; review-event merging remains separate work. [docs/architecture.md](../../docs/architecture.md#L126) |
 
