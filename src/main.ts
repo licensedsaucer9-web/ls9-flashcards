@@ -22,7 +22,6 @@ import {
   getAllCards,
   getCard,
   getDueByTier,
-  getDueCards,
   getSettings,
   importLegacyData,
   insertMissingSeeds,
@@ -40,7 +39,6 @@ import {
   countWordTypes,
   editorTagField,
   editorWordType,
-  inSelectedWordTypes,
   noDueWordTypeMessage,
   normalizeWordTypes,
   reviewFaces,
@@ -53,7 +51,7 @@ import {
   wordTypeSpoken,
   type WordTypeCounts,
 } from './word-types.ts'
-import { sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
+import { selectReviewCandidates, sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
 import { tierCounts, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { recoveryBridge, rehearsalPreview } from './rehearsal.ts'
@@ -262,24 +260,23 @@ async function renderHome() {
   setTabbar('home')
   const settings = await getSettings()
   const dueByTier = await getDueByTier()
-  const now = Date.now()
-  const due = await getDueCards(settings.tier, now, settings.wordTypes)
   const all = await getAllCards()
   if (!studyLockCurrent(lock)) return
-  const suggested = suggestSessionSize(due.length)
-  const n = sessionCount(due.length, settings.sessionSize)
-  const inScope = all.filter((c) => tierOf(c) <= settings.tier && inSelectedWordTypes(c, settings.wordTypes))
-  const next = inScope
-    .filter((c) => c.srs.due > now)
-    .sort((a, b) => a.srs.due - b.srs.due)[0]
+  const now = Date.now()
+  const candidates = selectReviewCandidates(all, settings.tier, settings.wordTypes, now)
+  const available = candidates.cards.length
+  const suggested = suggestSessionSize(available)
+  const n = sessionCount(available, settings.sessionSize)
+  const next = candidates.dueCount === 0 ? candidates.cards[0] : undefined
   const typeCounts = wordTypeCountsFor(all, settings.tier, now)
-  const noneOfType = settings.wordTypes.length > 0 && due.length === 0
-  const ready = due.length > 0
+  const noneOfType = settings.wordTypes.length > 0 && available === 0
+  const ready = candidates.dueCount > 0
+  const canStart = available > 0
   const startLabel = ready
-    ? n === due.length
+    ? n === available
       ? `Start ${n} ${n === 1 ? 'card' : 'cards'}`
-      : `Start ${n} of ${due.length}`
-    : 'Start review'
+      : `Start ${n} of ${available}`
+    : canStart ? `Review ${n} ${n === 1 ? 'card' : 'cards'} ahead` : 'Start review'
   const presets = SESSION_PRESETS.map((size) => {
     const on = settings.sessionSize === size
     const label = size === 0 ? 'All' : String(size)
@@ -294,12 +291,12 @@ async function renderHome() {
       </header>
       <div class="due-hero">
         <p class="kicker">Due now · ${esc(scopeLabel(settings.tier, settings.wordTypes))}</p>
-        <div class="due-count ${ready ? '' : 'caught-up'}" data-due-count>${due.length}</div>
+        <div class="due-count ${ready ? '' : 'caught-up'}" data-due-count>${candidates.dueCount}</div>
         <p class="due-label">${
           noneOfType
             ? esc(noDueWordTypeMessage(settings.wordTypes, settings.tier))
             : ready
-            ? due.length === 1
+            ? candidates.dueCount === 1
               ? 'card waiting'
               : 'cards waiting'
             : next
@@ -325,13 +322,13 @@ async function renderHome() {
             }" placeholder="${suggested}" />
           </label>
         </div>
-        <button class="primary" id="start" data-session-count="${n}" ${ready ? '' : 'disabled'}>${esc(startLabel)}</button>
+        <button class="primary" id="start" data-session-count="${n}" ${canStart ? '' : 'disabled'}>${esc(startLabel)}</button>
         <p class="note" id="who">${accountSignIn ? accountHomeNote() : 'On this device'}</p>
       </div>
     </section>
   `
   $('#start').addEventListener('click', () => {
-    if (due.length) go('/review')
+    if (canStart) go('/review')
   })
   document.getElementById('show-all-types')?.addEventListener('click', async () => {
     await patchSettings({ wordTypes: [] })
@@ -368,16 +365,19 @@ async function renderReview() {
   setTabbar('none')
   const settings = await getSettings()
   if (!studyLockCurrent(lock)) return
-  const due = await getDueCards(settings.tier, Date.now(), settings.wordTypes)
+  const all = await getAllCards()
   if (!studyLockCurrent(lock)) return
-  const queue = shuffle(due).slice(0, sessionCount(due.length, settings.sessionSize))
+  const candidates = selectReviewCandidates(all, settings.tier, settings.wordTypes)
+  const reviewingAhead = candidates.dueCount === 0
+  const ordered = reviewingAhead ? candidates.cards : shuffle(candidates.cards)
+  const queue = ordered.slice(0, sessionCount(ordered.length, settings.sessionSize))
   if (queue.length === 0) {
     go('/')
     return
   }
 
   const sessionTotal = queue.length
-  const leftover = () => due.length - sessionTotal
+  const leftover = () => Math.max(0, candidates.dueCount - sessionTotal)
   let flipped = false
 
   const paint = () => {
@@ -395,7 +395,9 @@ async function renderReview() {
             <p class="kicker">Session</p>
             <div class="due-count caught-up">0</div>
             <p class="due-label">${
-              leftover() > 0
+              reviewingAhead
+                ? 'Review ahead complete'
+                : leftover() > 0
                 ? `Session complete · ${leftover()} still due`
                 : 'No more due cards'
             }</p>
@@ -418,7 +420,7 @@ async function renderReview() {
       <section class="screen review">
         <header class="topbar">
           <button class="ghost" id="back">Close</button>
-          <div class="review-meta"><span data-remaining>${remaining}</span> left · ${esc(scopeLabel(settings.tier, settings.wordTypes))}</div>
+          <div class="review-meta">${reviewingAhead ? 'Review ahead · ' : ''}<span data-remaining>${remaining}</span> left · ${esc(scopeLabel(settings.tier, settings.wordTypes))}</div>
           <span></span>
         </header>
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -832,8 +834,7 @@ async function renderCloudSettings() {
   if (!studyLockCurrent(lock)) return
   const counts = tierCounts(cards)
   const typeCounts = wordTypeCountsFor(cards, settings.tier)
-  const suggested = suggestSessionSize((await getDueCards(settings.tier, Date.now(), settings.wordTypes)).length)
-  if (!studyLockCurrent(lock)) return
+  const suggested = suggestSessionSize(selectReviewCandidates(cards, settings.tier, settings.wordTypes).cards.length)
   main.innerHTML = `
     <section class="screen scroll">
       <header class="topbar"><h1>Settings</h1><span class="badge">${esc(accountBadge())}</span></header>
@@ -856,7 +857,7 @@ async function renderCloudSettings() {
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">Session size</p>
-        <p class="note">Cap how many due cards a review starts with. Suggested now: ${suggested}. 0 / All means every due card that matches the tier and word type.</p>
+        <p class="note">Cap how many cards a review starts with. Suggested now: ${suggested}. Due cards come first. When none are due, review the soonest-due cards ahead. 0 / All means every eligible card matching the tier and word type.</p>
         <label>Cards per session
           <input id="session-size" type="number" min="0" step="1" inputmode="numeric" value="${settings.sessionSize}" />
         </label>
@@ -895,7 +896,7 @@ async function renderCloudSettings() {
     const v = Math.floor(Number(($('#session-size') as HTMLInputElement).value))
     if (!Number.isFinite(v) || v < 0) return
     await patchSettings({ sessionSize: v })
-    toast(v === 0 ? 'Session: all due' : `Session: ${v}`)
+    toast(v === 0 ? 'Session: all eligible cards' : `Session: ${v}`)
   })
   const sw = 'serviceWorker' in navigator
   $('#sw-status').textContent = sw

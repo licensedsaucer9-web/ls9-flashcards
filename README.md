@@ -55,6 +55,12 @@ every tier 1 word is more common than every tier 2 word.
 The tier is part of your account settings, so two accounts can study different sizes.
 Cards you add yourself have no rank and start in tier 3; the card editor has a tier box to move one.
 
+You can review a tier even when it has zero cards due. **Review ahead** selects
+the matching cards soonest due, up to your session-size limit. Your word-type
+filter still applies and the due count stays at zero. When cards are due, sessions
+remain due-only; All selects the entire eligible queue. Early reviews save and
+update the schedule through the normal grading controls.
+
 ## Account
 
 A Firebase build offers **Continue with Google** and **Study on this device**. New accounts get personal decks seeded from the bundled list; mapped legacy accounts share their assigned vocabulary deck. Each account has its own schedule. Signing in does not upload device-study data unless you confirm a copy; mapped legacy profiles use the separate recovery flow below. Two accounts cannot read each other’s progress. The public root does not serve this build yet.

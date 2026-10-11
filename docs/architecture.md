@@ -133,8 +133,13 @@ first Easy = 4 days. Again and Gender requeue immediately, with a smaller ease
 penalty for Gender. The account stores the latest SRS state per card, with
 no interval multiplier, review history, or FSRS.
 
-A review session starts from a captured due queue. Cards arriving from sync
-do not join that running session; start a new session to include them.
+A review session starts from a captured queue within the selected cumulative
+tier and word-type filter. It uses only due cards when any match. When none
+are due, it selects future cards in ascending due-time order and applies the
+same session-size cap (All includes the whole eligible queue). Selecting cards
+does not reschedule them; grading a review-ahead card uses the normal SRS and
+progress-save path. Cards arriving from sync do not join that running session;
+start a new session to include them.
 
 Legacy migration preserves card IDs, clocks, settings, progress, and
 tombstones. The Admin completion marker verifies the imported snapshot;
