@@ -234,6 +234,18 @@ exists; any rollback must use a Firebase-compatible client and preserve that
 data. Device-route checks belonged to the waived legacy recovery gate and are
 not a current release blocker.
 
+The historical preflight's reuse guidance required an unchanged data-repo
+commit, source revision, and rules checksum, plus a fresh read-only comparison
+with the saved reviewed server evidence. It called for comparing relevant
+document IDs, values, clocks, assignments, and memberships, or a canonical
+checksum of that state. Collection counts were an additional check; matching
+counts alone did not establish that the server was unchanged. A newer server value
+retained by the importer did not show that the reviewed dry run still
+described the target. An unavailable server comparison or checksum blocked
+reuse. A difference invalidates the reviewed dry run. This is historical
+context for the waived legacy cutover, not a current release or production
+operation.
+
 **Historical-only record: do not run the preflight command or create production
 mapping/credential files.**
 

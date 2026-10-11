@@ -391,6 +391,42 @@ a {
   font-size: 0.85rem;
 }
 
+.face-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.word-type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--text) 32%, var(--line));
+  background: color-mix(in srgb, var(--text) 10%, var(--surface));
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  white-space: normal;
+  text-align: center;
+}
+
+@media (forced-colors: active) {
+  .word-type {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+}
+
 .example {
   margin: 8px 0 0;
   color: var(--muted);
@@ -528,6 +564,21 @@ a {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+.de-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.de-line .de {
+  min-width: 0;
+}
+
+.de-line .word-type {
+  flex-shrink: 0;
 }
 
 .card-row .de {
@@ -815,11 +866,20 @@ p code {
   .word {
     font-size: 1.85rem;
   }
+  .word-type {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+  }
+  .de-line {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 }
 
 /* --- tiers and profiles --- */
 
-.chip.tier-chip {
+.chip.tier-chip,
+.chip.type-chip {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -829,10 +889,15 @@ p code {
   line-height: 1.15;
 }
 
-.chip.tier-chip small {
+.chip.tier-chip small,
+.chip.type-chip small {
   font-size: 0.68rem;
   font-weight: 500;
   opacity: 0.72;
+}
+
+.due-hero > .secondary {
+  width: 100%;
 }
 
 .badge.tier {

@@ -1,6 +1,7 @@
 import { cardToDoc, progressToDoc, settingsToDoc, type CardDoc, type ProgressDoc, type SettingsDoc } from './firestore-docs.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
 import type { Card, CardContent, DeckFile, PendingRecords, PublicSettings, RecordMark, Srs } from './types.ts'
+import { normalizeWordTypes, sameWordTypes } from './word-types.ts'
 
 /** Strictly under Firestore's 500-write transaction cap. */
 export const WRITE_CHUNK = 499
@@ -316,6 +317,7 @@ function settingsEqual(a: SettingsDoc, b: SettingsDoc): boolean {
     && a.sessionSize === b.sessionSize
     && a.tier === b.tier
     && a.settingsUpdatedAt === b.settingsUpdatedAt
+    && sameWordTypes(a.wordTypes, b.wordTypes)
 }
 
 export function planSettingsWrite(
@@ -324,10 +326,21 @@ export function planSettingsWrite(
   remote: SettingsDoc | null,
 ): SettingsDoc | null {
   const remoteSettings: PublicSettings = remote
-    ? { direction: remote.direction, sessionSize: remote.sessionSize, tier: remote.tier }
-    : { direction: 'de-en', sessionSize: 20, tier: 1 }
+    ? {
+        direction: remote.direction,
+        sessionSize: remote.sessionSize,
+        tier: remote.tier,
+        wordTypes: normalizeWordTypes(remote.wordTypes),
+      }
+    : { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [] }
+  const localSettings: PublicSettings = {
+    direction: local.direction,
+    sessionSize: local.sessionSize,
+    tier: local.tier,
+    wordTypes: normalizeWordTypes(local.wordTypes),
+  }
   const remoteAt = remote?.settingsUpdatedAt ?? 0
-  const winner = newerSettings(local, localAt, remoteSettings, remoteAt)
+  const winner = newerSettings(localSettings, localAt, remoteSettings, remoteAt)
   const next = settingsToDoc(winner, Math.max(localAt, remoteAt || 0))
   if (remote && settingsEqual(next, remote)) return null
   return next

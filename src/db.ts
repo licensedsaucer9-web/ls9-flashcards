@@ -1,4 +1,4 @@
-import type { Card, CardContent, DeckFile, PublicSettings, Settings, Srs, Tier, UserFile } from './types.ts'
+import type { Card, CardContent, DeckFile, PublicSettings, Settings, Srs, Tier, UserFile, WordType } from './types.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
 import {
   applyAck,
@@ -13,6 +13,7 @@ import { newSrs } from './srs.ts'
 import { validateCard, validateMapping, validateSettings, validateSrs, validateTombstones } from './migration-data.ts'
 import { captureStudyLock, hasStudyBinding, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { inSelectedTier, tierOf } from './tiers.ts'
+import { inSelectedWordTypes, normalizeWordTypes, sameWordTypes } from './word-types.ts'
 import { accountDatabaseName, activeUserSlug, dbNameForUser, hasMigrated, LEGACY_DB_NAME, listUsers, markMigrated } from './user.ts'
 
 const DB_VERSION = 1
@@ -98,6 +99,7 @@ export function normalizeSettings(s?: Partial<Settings> | null): Settings {
         ? Math.max(0, Math.floor(s.sessionSize))
         : 20,
     tier: tier(s?.tier),
+    wordTypes: normalizeWordTypes(s?.wordTypes),
     deletedIds: s?.deletedIds && typeof s.deletedIds === 'object' ? { ...s.deletedIds } : {},
     localRevision,
     acknowledgedRevision: Math.min(localRevision, revision(s?.acknowledgedRevision)),
@@ -216,7 +218,12 @@ function contentTime(c: Pick<Card, 'updated_at' | 'created_at'>): number {
 }
 
 function publicSettings(settings: Settings): PublicSettings {
-  return { direction: settings.direction, sessionSize: settings.sessionSize, tier: settings.tier }
+  return {
+    direction: settings.direction,
+    sessionSize: settings.sessionSize,
+    tier: settings.tier,
+    wordTypes: settings.wordTypes,
+  }
 }
 
 // --- legacy import --------------------------------------------------------
@@ -577,13 +584,22 @@ export async function getDueByTier(now = Date.now()): Promise<DueByTier> {
   return out
 }
 
-/** Omitting a tier returns the whole deck, which is what the deck list wants. */
-export async function getDueCards(selected?: Tier, now = Date.now()): Promise<Card[]> {
-  const cards = await getAllCards()
-  const inScope = selected === undefined ? cards : inSelectedTier(cards, selected)
+/**
+ * Due cards in the tier, then limited to the selected word types.
+ * An empty type list keeps every card. Scheduling fields are not copied or changed.
+ * Omitting a tier returns the whole deck, which is what the deck list wants.
+ */
+export function selectDueCards(cards: readonly Card[], selected: Tier | undefined, types: readonly WordType[], now: number): Card[] {
+  const list = [...cards]
+  const inScope = selected === undefined ? list : inSelectedTier(list, selected)
   return inScope
     .filter((card) => card.srs.due <= now)
+    .filter((card) => inSelectedWordTypes(card, types))
     .sort((a, b) => a.srs.due - b.srs.due || a.de.localeCompare(b.de, 'de'))
+}
+
+export async function getDueCards(selected?: Tier, now = Date.now(), types: readonly WordType[] = []): Promise<Card[]> {
+  return selectDueCards(await getAllCards(), selected, types, now)
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -604,13 +620,20 @@ export async function putSettings(next: Partial<PublicSettings>): Promise<void> 
     const direction = next.direction ?? settings.direction
     const sessionSize = next.sessionSize ?? settings.sessionSize
     const nextTier = tier(next.tier ?? settings.tier)
-    if (settings.direction !== direction || settings.sessionSize !== sessionSize || settings.tier !== nextTier) {
+    const nextTypes = next.wordTypes === undefined ? settings.wordTypes : normalizeWordTypes(next.wordTypes)
+    if (
+      settings.direction !== direction
+      || settings.sessionSize !== sessionSize
+      || settings.tier !== nextTier
+      || !sameWordTypes(settings.wordTypes, nextTypes)
+    ) {
       settings.settingsUpdatedAt = Math.max(Date.now(), settings.settingsUpdatedAt + 1)
       settings.pending.settings = bumpMark(settings.pending.settings, settings.localRevision + 1)
     }
     settings.direction = direction
     settings.sessionSize = sessionSize
     settings.tier = nextTier
+    settings.wordTypes = nextTypes
   })
 }
 
@@ -712,6 +735,7 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
     current.settings.direction = settings.direction
     current.settings.sessionSize = settings.sessionSize
     current.settings.tier = settings.tier
+    current.settings.wordTypes = settings.wordTypes
     current.settings.settingsUpdatedAt = Math.max(localSettingsAt, remoteSettingsAt || 0)
     tx.objectStore('settings').put(current.settings)
     await current.done
@@ -973,7 +997,8 @@ export async function copyMappedLegacyProfile(
     const sourceAt = sourceSettings.settingsUpdatedAt
     const preferences = newerSettings(publicSettings(current.settings), localAt, publicSettings(sourceSettings), sourceAt)
     if (current.settings.direction !== preferences.direction || current.settings.sessionSize !== preferences.sessionSize
-      || current.settings.tier !== preferences.tier || sourceAt > localAt || !current.settings.pending.settings) {
+      || current.settings.tier !== preferences.tier || !sameWordTypes(current.settings.wordTypes, preferences.wordTypes)
+      || sourceAt > localAt || !current.settings.pending.settings) {
       Object.assign(current.settings, preferences)
       current.settings.settingsUpdatedAt = Math.max(localAt, sourceAt)
       current.settings.pending.settings = bumpMark(current.settings.pending.settings, rev)
@@ -1067,10 +1092,12 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
       const settingsChanged = current.settings.direction !== sourceSettings.direction
         || current.settings.sessionSize !== sourceSettings.sessionSize
         || current.settings.tier !== sourceSettings.tier
+        || !sameWordTypes(current.settings.wordTypes, sourceSettings.wordTypes)
         || sourceSettings.settingsUpdatedAt > current.settings.settingsUpdatedAt
       current.settings.direction = sourceSettings.direction
       current.settings.sessionSize = sourceSettings.sessionSize
       current.settings.tier = sourceSettings.tier
+      current.settings.wordTypes = sourceSettings.wordTypes
       if (sourceSettings.settingsUpdatedAt > current.settings.settingsUpdatedAt) {
         current.settings.settingsUpdatedAt = sourceSettings.settingsUpdatedAt
       }

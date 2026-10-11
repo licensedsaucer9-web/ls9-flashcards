@@ -25,6 +25,7 @@ for (const change of [{ sourceDirty: true }, { sourceCommit: 'abc' }, { version:
   assert.throws(() => validateIdentity({ ...release, ...change }, { candidate: true }))
 }
 assert.throws(() => validateIdentity({ ...release, adminCredential: 'must not be public' }))
+for (const version of ['1.1.0', '1.1.0-rc.1', '2.0.0']) validateIdentity({ ...release, version }, { candidate: true })
 assert.equal(buildIdentity({ version: release.version, sourceCommit: release.sourceCommit, sourceDirty: true,
   basePath: '/', backend: 'device', firebaseProject: null }).mode, 'device')
 

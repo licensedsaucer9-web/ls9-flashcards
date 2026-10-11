@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { object, validMigrationId } from '../src/migration-data.ts'
+import { validWordTypeList } from '../src/word-types.ts'
 import { same } from './migration-core.mjs'
 import { credentialPath, privatePath, readPrivateJson, snapshotDigest } from './migration-files.mjs'
 
@@ -80,7 +81,10 @@ function accountDoc(uid, value) {
 }
 
 function settingsDoc(uid, value) {
-  if (!object(value) || !keysExactly(value, SETTINGS_KEYS)) fail(`invalid settings ${uid}`)
+  // wordTypes is optional, as in firestore.rules validSettings(); validWordTypeList mirrors validWordTypes().
+  const keys = Object.hasOwn(value ?? {}, 'wordTypes') ? [...SETTINGS_KEYS, 'wordTypes'] : SETTINGS_KEYS
+  if (!object(value) || !keysExactly(value, keys)) fail(`invalid settings ${uid}`)
+  if (Object.hasOwn(value, 'wordTypes') && !validWordTypeList(value.wordTypes)) fail(`invalid settings ${uid}`)
   if (value.direction !== 'de-en' && value.direction !== 'en-de') fail(`invalid settings ${uid}`)
   if (!clock(value.sessionSize, 500) || ![1, 2, 3].includes(value.tier) || !clock(value.settingsUpdatedAt)) fail(`invalid settings ${uid}`)
 }
