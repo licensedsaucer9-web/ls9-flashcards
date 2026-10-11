@@ -1,10 +1,13 @@
 # LS9 Flashcards — manual acceptance guide
 
-Use a disposable browser profile for study/editor checks. Existing personal
-decks and legacy storage must remain intact. The public root still serves the
-renamed legacy GitHub-sync client; the Firebase client is staged and the real-data
-test rehearsal is complete. Production acceptance remains in the
-[rollout plan](docs/firebase-rollout-plan.md).
+Use a disposable browser profile for study/editor checks. The production
+Firebase `1.2.0` application is published and in use. Production acceptance for
+the initial `1.0.0` release is complete. Do not use this guide to access or
+migrate the retired non-Firebase GitHub-sync application: it is no longer in
+use, and old-device-only study progress was explicitly not imported.
+The production release checks are complete; this guide is for ongoing app
+regression and usability checks. See the [rollout plan](docs/firebase-rollout-plan.md)
+for the release record and the remaining off-machine backup task.
 
 A fresh device-study deck has 514 built-in cards in three tiers. Existing
 decks gain missing seeds without resetting existing SRS; deleted seeds stay
@@ -44,18 +47,20 @@ in the test project. The rehearsal admits only an already verified legacy
 assignment and uses separate storage; it cannot demonstrate fresh-user
 provisioning or recover the old root app's device-only data.
 
-The [published rehearsal](docs/firebase-rehearsal.md) supports physical-device
-testing. Check its visible revision: merged source changes do not automatically
-publish that preview. An ordinary `VITE_SYNC_BACKEND=firebase` build defaults
-to production; do not sign an unmigrated owner into it before the Admin import.
+The [published test-project rehearsal](docs/firebase-rehearsal.md) supports
+physical-device testing. Check its visible revision: merged source changes do
+not automatically publish that preview. It uses a separate test project and
+is not the production application. An ordinary `VITE_SYNC_BACKEND=firebase`
+build defaults to production; new accounts use personal-deck provisioning.
 
 For candidate preparation from clean committed source, use `npm run release:build`
 and `npm run release:verify`. In Settings → Install, record the displayed version
 and source revision, then reload offline and confirm they remain the same. The
 installability test also verifies the offline Settings and cached `release.json`
-identity against the artifact. See [the candidate runbook](docs/firebase-setup.md#prepare-and-verify-a-release-candidate)
-for checksum/CI evidence and later read-only served verification. Production
-publication and physical installation updates remain #38's operational gate.
+identity against the artifact. See [the release-candidate runbook](docs/firebase-setup.md#prepare-and-verify-a-release-candidate)
+for checksum/CI evidence and read-only served verification. Version `1.2.0`
+is already published; use these steps to validate future candidate builds, not
+as a pending publication gate.
 
 ## 1. Tiers
 
@@ -94,9 +99,9 @@ publication and physical installation updates remain #38's operational gate.
 
 ## 4. Accounts and guarded sessions
 
-These checks need a Firebase build. General new-account provisioning is covered
-by automated checks and the later production acceptance, not by the guarded
-rehearsal preview.
+These checks need a Firebase build. General new-account provisioning is
+covered by automated checks and by the completed production acceptance on #39;
+it is not demonstrated by the guarded test-project preview.
 
 1. A fresh Firebase visit offers **Continue with Google** and **Study on this
    device**, with no repository/token form. Device study stays local.
@@ -108,8 +113,9 @@ rehearsal preview.
 4. **Study on this device** still opens the local deck. Settings retains the
    guarded session's sign-out action. Sign out; sign-in becomes available again.
    Check popup cancellation and a later retry leave the app usable.
-5. A verified legacy account enters its imported deck. Settings shows the
-   account, **Sync now**, and **Sign out**.
+5. In the isolated rehearsal only, a mapped test account enters its imported
+   deck. Settings shows the account, **Sync now**, and **Sign out**. Production
+   accounts use the current personal-deck provisioning flow.
 6. With pending account changes, sign-out offers sync, sign-out, or staying
    signed in. Signing out retains that account's local data; signing in as
    another account must not expose or upload it.
@@ -151,8 +157,10 @@ rehearsal preview.
 
 ## 7. Cross-device Firebase sync
 
-Use the mapped test account for rehearsal, or production after its authorized
-cutover. Never use the old public root as evidence of the staged client's sync.
+Use the isolated mapped test account for test-project rehearsal, or a production
+account for current-app regression checks. The production public root serves the
+current Firebase client; the former non-Firebase application is retired and no
+longer used by anyone.
 
 1. Sign in on client A and wait for **Synced**.
 2. Grade a card; pending status becomes **Synced** only after acknowledgement.
@@ -162,9 +170,9 @@ cutover. Never use the old public root as evidence of the staged client's sync.
 4. Review offline, close/reopen offline, reconnect, and confirm the grade on B.
 5. Create, sync, and delete a disposable card; it stays absent after B syncs.
 6. On a normal production build, verify a fresh account gets its own seeded deck
-   and cannot see the legacy account's schedule or vocabulary edits.
-7. For old device-only progress, use the confirmed same-context copy procedure
-   in [the migration runbook](docs/firebase-migration.md).
+   and cannot see another account's schedule or vocabulary edits.
+7. Legacy-app study progress was not imported; old-device recovery was waived
+   for `1.0.0`. Do not run the historical copy procedure for production accounts.
 
 ## Automated checks and evidence
 
@@ -181,6 +189,7 @@ see [development setup](README.md#develop).
 
 The real #25 rehearsal passed on 2026-10-04; its
 [record](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235)
-distinguishes server comparisons from human checks. New manual results should
-record build, date, device/browser, method, and outcome. Keep record-level
-values and operator files private. Production acceptance is still outstanding.
+distinguishes server comparisons from human checks. Initial production
+acceptance is separately recorded as complete on #39. New regression results
+should record build, date, device/browser, method, and outcome. Keep record-level
+values and operator files private.

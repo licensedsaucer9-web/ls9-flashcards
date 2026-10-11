@@ -2,15 +2,15 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German vocabulary deck. It supports frequency tiers, SM-2-style review, card editing, CSV import, and offline study. The longer-term goal is multiple decks on different subjects; the current app assigns one deck per account and has no deck picker.
+A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German vocabulary deck. It supports frequency tiers, word-type badges and filtering, SM-2-style review, card editing, CSV import, and offline study. The longer-term goal is multiple decks on different subjects; the current app assigns one deck per account and has no deck picker.
 
-**Release state, 2026-10-07:** Version `1.0.0` is the Firebase client at the public URL. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
+**Current release state, 2026-10-11:** LS9 Flashcards `1.2.0` is the Firebase application published at the public URL; `1.1.0` added word-type badges and `1.2.0` added filtering by word type. New production accounts receive the built-in 514-word deck with empty study progress. Production login, account isolation, cancellation, and offline-to-second-client sync were verified for the `1.0.0` launch. The former non-Firebase GitHub-sync application is retired and no longer used by anyone. Import of its studied data and recovery of old-device-only progress were explicitly waived; that data is not part of the production account. The [rollout plan](docs/firebase-rollout-plan.md) records the completed `1.0.0` release gates and the remaining off-machine backup action.
 
-**Prod v1 scope:** ship the current single-deck app with reliable Google sync,
-offline study, safe device migration and tested recovery. The
+**Prod v1 scope:** the initial single-deck release introduced Google sync,
+offline study, and verified production use. The
 [tracking issue #33](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/33)
 and [Prod v1 milestone](https://github.com/licensedsaucer9-web/ls9-flashcards/milestone/2)
-link the seven delivery gates. Multi-deck support and scheduler changes remain
+record the release decisions. Multi-deck support and scheduler changes remain
 outside this release.
 
 The project is named **LS9 Flashcards**. The [rename record](docs/rename.md)
@@ -57,11 +57,9 @@ Cards you add yourself have no rank and start in tier 3; the card editor has a t
 
 ## Account
 
-A Firebase build offers **Continue with Google** and **Study on this device**. New accounts get personal decks seeded from the bundled list; mapped legacy accounts share their assigned vocabulary deck. Each account has its own schedule. Signing in does not upload device-study data unless you confirm a copy; mapped legacy profiles use the separate recovery flow below. Two accounts cannot read each other’s progress. The public root does not serve this build yet.
+The production Firebase app offers **Continue with Google** and **Study on this device**. The current published version is `1.2.0`. New production accounts get personal decks seeded from the bundled list, with schedules isolated by account. The former non-Firebase app and its GitHub-sync writer are retired and no longer used by anyone. Legacy studied data was not imported, and old-device recovery was waived; do not follow the historical recovery procedure as a production setup step. The public root serves the Firebase application.
 
-A profile name on an older install is local data only. It does not select a cloud account. The first launch of this build removes the saved GitHub token (`german-flashcards.github` and `german-flashcards.github.shas`) from this browser.
-
-An older device with unsynced legacy work can copy a confirmed local profile after sign-in: **Settings → Recover a legacy profile on this device**. This requires the old app's origin and storage context; the isolated rehearsal uses separate storage. Keep the mapping private. See [the migration runbook](docs/firebase-migration.md).
+A profile name from the retired app was local data only and did not select a cloud account. The Firebase client removes obsolete GitHub token keys (`german-flashcards.github` and `german-flashcards.github.shas`) when it starts. Device-only study remains available in the current app and is separate from Google-account study.
 
 ## Develop
 
@@ -86,7 +84,7 @@ BASE=/ls9-flashcards-site/auth-spike/rehearsal/ npm run preview -- --outDir dist
 
 Open `http://127.0.0.1:4178/ls9-flashcards-site/auth-spike/rehearsal/`. This preview guards legacy import and uses separate storage. Real login requires an authorized hostname and a completed test assignment; guest study is available. See [the rehearsal guide](docs/firebase-rehearsal.md).
 
-An ordinary `VITE_SYNC_BACKEND=firebase` build defaults to production. Do not sign an unmigrated owner into it before the Admin import has preassigned the legacy deck. Build/project configuration is in [Firebase setup](docs/firebase-setup.md).
+An ordinary `VITE_SYNC_BACKEND=firebase` build defaults to production. Production accounts use the personal-deck provisioning flow; legacy import is retired and is not a prerequisite. Build/project configuration is in [Firebase setup](docs/firebase-setup.md).
 
 ## Public site
 
@@ -112,7 +110,7 @@ The private repository secret
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-The release version is `1.0.0`. **Settings → Install** shows
+The current release version is `1.2.0`. **Settings → Install** shows
 the running version and source revision, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI
@@ -120,18 +118,15 @@ retains this artifact after all checks, including `.nojekyll`. Master
 publication uses that same `dist-firebase` build. See the
 [candidate procedure](docs/firebase-setup.md#prepare-and-verify-a-release-candidate).
 
-## Upgrade an older iPhone Home Screen installation
+## Install and use the current iPhone app
 
-The current app is the Firebase client at the new public URL. An old Home Screen icon still opens the compatibility address until that icon is deleted and added again from the new URL. Studied progress from the old client is not imported.
+The supported production application is Firebase `1.2.0` at the public URL. The former non-Firebase application is retired and no longer used by anyone. Its device-only study progress was not imported; this was an explicit release decision, not an outstanding migration step.
 
-1. Open the public URL in Safari, confirm the Firebase build, choose **Continue with Google**, and compare the imported schedule with a trusted device.
-2. Open the existing Home Screen installation and confirm it has received the Firebase build. If it still serves an older build or uses a different old URL, preserve it and follow the same-context recovery procedure before replacing its icon. The prepared bridge stays unpublished until that recovery operation; see the migration runbook.
-3. For each storage context with outstanding legacy work, use the confirmed mapping and **Recover a legacy profile on this device**, then verify its Firestore acknowledgement and second-device readback.
-4. Turn on Airplane Mode, review one card, and leave the app. Reopen it. The grade is still there and the status stays **Saved on this device** until you are online again. Then wait for **Synced**, and open a second device signed into the same account.
+1. Open the public URL in Safari and install/update from there (Share → **Add to Home Screen** if desired).
+2. Choose **Continue with Google** for account sync or **Study on this device** for local-only study. Confirm the running version in Settings → Install.
+3. To verify sync, sign in on a second client to the same account and check that an offline grade survives close/reopen, reconnects, and appears on the second client.
 
-Replace an old icon only after those checks. Revoke the data-repo write token only after every active device is on the Firebase build and its pending work is acknowledged.
-
-Before production Firebase study exists, keep or restore the previously published artifact if cutover fails. Current `master` is not that legacy writer. Once production Firebase progress exists, rollback uses a Firebase-compatible client and retains its data.
+For current backup behavior and the local-vs-cloud sync indicators, see [iPhone backup check](#iphone-backup-check). If a future release needs migration guidance, update this section from the actual release decision rather than reviving the retired legacy recovery procedure.
 
 ## iPhone backup check
 
@@ -148,11 +143,11 @@ A private Firestore export is described in [Firebase setup](docs/firebase-setup.
 
 ## Other documentation
 
-- [Rollout plan](docs/firebase-rollout-plan.md): completed milestones, remaining production gates, and later product direction.
+- [Rollout plan](docs/firebase-rollout-plan.md): historical `1.0.0` release gates, the remaining off-machine backup closeout, and later product direction.
 - [Architecture](docs/architecture.md): account/deck boundaries, persistence, merge rules, and current limits.
-- [Rename record](docs/rename.md): repository/URL mapping and compatibility for old installations.
+- [Rename record](docs/rename.md): historical repository/URL mapping and rename compatibility details.
 - [Firebase setup](docs/firebase-setup.md): projects, build configuration, rules, private operator files, and backup command.
-- [Migration runbook](docs/firebase-migration.md): immutable snapshot export, baseline, Admin import, and confirmed device recovery.
+- [Historical migration runbook](docs/firebase-migration.md): records the waived legacy import/recovery procedures and retains guarded isolated restore details.
 - [Rehearsal runbook](docs/firebase-rehearsal.md): isolated test preview, preflight, and preview checks.
 - [Live import evidence](docs/issue-24-status.md): saved aggregate #24 readback and zero-write repeat results.
 - [TEST.md](TEST.md): manual acceptance and automated check commands.

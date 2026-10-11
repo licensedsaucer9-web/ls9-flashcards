@@ -1,10 +1,14 @@
 # Firebase setup and operations
 
-The Firebase client is the authorized production build as of 2026-10-07.
-A new account receives the built-in deck with no studied progress. Use the
-[rollout plan](firebase-rollout-plan.md) for remaining work and release gates,
-[the migration runbook](firebase-migration.md) for imports/device recovery,
-and [the rehearsal runbook](firebase-rehearsal.md) for the isolated test app.
+The Firebase `1.2.0` client is the current published production application.
+New accounts receive the built-in deck with empty study progress. The initial
+`1.0.0` release and later `1.1.0`/`1.2.0` releases have shipped. The
+former non-Firebase application is retired and no longer used by anyone;
+legacy-data import and old-device recovery were waived and are not outstanding
+release actions. See the
+[rollout plan](firebase-rollout-plan.md) for current status, this runbook for
+release/backup/restore procedures, and [the rehearsal runbook](firebase-rehearsal.md)
+for the isolated test app.
 
 ## Project record
 
@@ -21,9 +25,10 @@ Web configuration is public. Admin SDK service-account JSON is private.
 
 Both projects were created on 2026-09-29. Spark/free-tier status and disabled
 billing were confirmed then; that dated check is not a fresh billing audit.
-The test database now contains the verified legacy import and newer rehearsal
-reviews. Production import and rules deployment remain separate rollout work;
-do not assume production is empty without inspecting it.
+The test database contains the verified legacy import and newer rehearsal
+reviews. Production Firebase rules are deployed. Production legacy-data import
+was waived for the `1.0.0` launch; new accounts receive a personal deck with
+empty study progress.
 
 Test and production UIDs were confirmed separately in
 [issue #10](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/10).
@@ -50,8 +55,9 @@ VITE_FIREBASE_APP_ID
 Partial configuration does not fall through to production. For a real test
 session use `npm run rehearsal:build`, which supplies the checked-in test
 configuration, enables the import guard, clears emulator overrides, and selects
-separate storage. Do not use a production-configured preview for an unmigrated
-owner's first full-app login: it could provision a conflicting personal deck.
+separate storage. Production now provisions new accounts with personal decks;
+the legacy import is not a prerequisite. Use the test preview only with its
+dedicated test-project accounts.
 
 For local OAuth, authorize the actual local hostname in the test project's
 Authentication settings. The Pages hostname is already recorded; local
@@ -61,11 +67,11 @@ basic sign-in scopes. See [Google sign-in setup](https://firebase.google.com/doc
 
 ## Prepare and verify a release candidate
 
-This is coding preparation for #38. Production data/device recovery (#37)
-and publication of a concrete tested candidate need their recorded gates and
-separate authorization. Both Pages publish steps stay disabled. These commands
-build or read public artifacts; they do not deploy rules, import data, sign into
-Google or publish.
+The Firebase `1.2.0` production client is already built, verified, and
+published. The commands below reproduce or validate future release candidates.
+They build or read public artifacts locally; they do not deploy rules, import
+data, sign into Google, or publish. The guarded master workflow publishes;
+`release:build` and `release:verify` do not.
 
 Use Node 22 and a clean, committed source checkout. Keep operator credentials
 and real records out of the build environment. Dependencies remain locked:
@@ -83,9 +89,10 @@ The builder pins actual Git HEAD, requires no source changes before/after
 the build, selects the production public web config and `/ls9-flashcards-site/`,
 and clears preview/bridge/emulator overrides. It refuses test/device/bridge
 artifacts, an unversioned package, wrong project/base, or dirty source as
-candidates. Both publication conditions must remain held or use the same exact
-master-only/non-PR guard after a later authorized change. Ordinary development
-builds still work and mark local changes. The package version is `1.0.0`.
+candidates. The active workflow publishes only on `master` and never from a
+pull request; keep both paired publication steps under that same guard. Ordinary
+development builds still work and mark local changes. The current package
+version is `1.2.0`.
 
 `dist-firebase/release.json` identifies version, full source commit, backend,
 project, base, mode, emulator flag and public-site repository. The same values
@@ -97,8 +104,8 @@ Local verification rejects changes, omissions and extra files. These hashes
 bind bytes to a reviewed candidate; they do not prove migration or device
 acceptance, and do not sign an untrusted artifact.
 
-Run installability against the built candidate with a disposable browser profile
-and device study; do not sign the unmigrated owner into production. In two terminals:
+Run installability against a future candidate with a disposable browser profile
+and device study. In two terminals:
 
 ```bash
 BASE=/ls9-flashcards-site/ npm run preview -- --outDir dist-firebase --strictPort
@@ -113,15 +120,15 @@ operational gate will take longer. Preserve its inventory fingerprint and CI
 run/check results. A rebuilt PR or master commit is a different candidate and
 needs its own checks; do not mix files from different builds.
 
-After #37 and explicit authorization, publication must use the exact tested
-`dist-firebase` bytes, with both existing master-only/non-PR conditions restored
-together. Keep the prepared `auth-spike/` and `auth-spike-prod/` exclusions in
-root cleanup while recovery/compatibility routes are needed. The separate old
-URL also remains until its contexts are recovered. Pages does not deploy rules;
-a candidate build/merge does not authorize any production change.
+The production workflow publishes the exact tested `dist-firebase` artifact
+from `master`, preserving `auth-spike/` and `auth-spike-prod/` during root
+cleanup. Firebase `1.2.0` is already published and in use; the former
+non-Firebase application is no longer used by anyone. Legacy studied-data import
+and old-device recovery were waived. Pages does not deploy Firestore rules. A
+candidate build alone does not publish anything.
 
-After the candidate is actually served, keep the matching local artifact and
-record the public `gh-pages` commit. The read-only check is:
+For a new publication, keep the matching local artifact and record the public
+`gh-pages` commit. The read-only served check is:
 
 ```bash
 npm run release:verify -- --served --site-commit FULL_PUBLIC_SITE_COMMIT
@@ -135,21 +142,20 @@ fingerprint, verified file count and served URL, without UIDs or record values.
 Save the receipt with operational evidence. No public-site commit is invented
 in the build: publication creates it later.
 
-Then verify running Settings version/source on desktop, Safari and each Home
-Screen installation after its worker update and after reopening offline.
-Record date, device/browser/OS, URL, source/site revisions and update outcome.
-A successful HTTP comparison does not prove every installed client updated;
-#38 stays open until those results exist, and production usability is #39.
-Retain a known-good artifact. After Firebase study exists, rollback uses a
-compatible Firebase client and retains its data, rather than restoring the
-legacy writer over it.
+For future releases, verify the running Settings version/source on supported
+desktop, Safari, and Home Screen clients after their worker update and after
+reopening offline. Record date, device/browser/OS, URL, source/site revisions,
+and outcome. An HTTP comparison alone does not prove every installed client
+updated. Retain a known-good Firebase artifact; rollback must use a
+Firebase-compatible client and preserve Firebase data, never restore the retired
+legacy writer.
 
 ## Rules and private operator files
 
 `firestore.rules` is the source of the restrictive client rules. CI tests
-rules but does not deploy them. Test deployment and read-only preflight commands
-are in [the rehearsal runbook](firebase-rehearsal.md). Production deployment
-belongs to its authorized rollout milestone.
+rules but does not deploy them. Production rules are deployed for the current
+Firebase client. Test-project deployment and rehearsal commands are in [the
+rehearsal runbook](firebase-rehearsal.md).
 
 Set `GERMAN_FLASHCARDS_PRIVATE_DIR` to a durable directory outside every Git
 repository, with mode 700. Keep credentials, mappings, snapshots, baselines,
@@ -165,10 +171,16 @@ Do not commit it, put it in a build environment, or upload it to Pages.
 
 ## Private Firestore backup
 
-The local CLI writes a one-off Admin SDK JSON dump; this does not require Blaze
-and is not scheduled by CI or the application. Run it against production only
-as part of the authorized backup milestone, with that project's credential.
-For a test export, substitute the test project and credential together.
+The local CLI can write a one-off Admin SDK JSON dump; this does not require
+Blaze and is not scheduled by CI or the application. The daily production
+backup is already running on this machine. The remaining #40 closeout is to
+copy its private backup directory to storage independent of this machine and
+record evidence; it is not a remaining migration, release, or publication gate.
+For a test export, use the test project and its matching credential.
+
+The following command documents the established one-off production backup
+procedure. It is not part of the #40 off-machine-copy action; run it only for a
+separately authorized backup or recovery operation.
 
 After setting the private directory and placing `service-account-prod.json`
 there:
@@ -196,7 +208,8 @@ Firebase CLI, writes the same private dump, and records aggregate counts,
 checksum, and elapsed time in `backup-status.json`. The user timer
 `firestore-backup.timer` runs that command at 08:30 and keeps 14 dumps.
 Stdout is the status object. A failed run writes `ok: false` and a non-zero
-exit. These files stay on the primary machine.
+exit. These files stay on the primary machine until the #40 off-machine copy
+is complete.
 
 This `kind: firestore` dump differs from the GitHub snapshot accepted by
 `migrate import`. Restoring it does not recreate Google Auth identities,
@@ -205,55 +218,24 @@ Confirm UID ownership separately; do not invent identity mappings. Production
 restore is not authorized by this command. Restore drills use an isolated
 emulator project, not `flashcards-ls9-prod` or `flashcards-ls9-auth-test`.
 
-## Production preflight
+## Historical production preflight tool (not a current release action)
 
-`npm run migrate -- preflight` binds this source revision to project
-`flashcards-ls9-prod`, public base `/ls9-flashcards-site/`, legacy base
-`/german-flashcards-site/`, authorized hosts
-`licensedsaucer9-web.github.io` and `flashcards-ls9-prod.firebaseapp.com`,
-and the SHA-256 of `firestore.rules` and `firebase.json`. Both Pages publish
-steps must stay `if: ${{ false }}`. Stdout is one JSON object of blockers,
-checksums, and device-route counts. Rules deployment, Admin access, UID
-confirmation, production inspection, backup, and publication stay outside
-this command.
+The legacy import/cutover preflight was waived for the `1.0.0` launch. Its
+historical report bound the source revision, project/base/host configuration,
+and hashes of `firestore.rules` and `firebase.json`; it also reported missing
+production readiness evidence. At that time both Pages publication steps were
+held. Current publication uses paired master-only, non-pull-request guards.
 
-A private `--out` report repeats that fingerprint. It records this rules
-command with `executed: false`:
+The preflight did not read production, deploy rules, create a backup, or publish.
+Its server fingerprint was unavailable and its package remained `ready: false`.
+The recorded compatibility-site rollback revision was
+`1dbc26214bb3bfe1e132edc94688bd3137c1e996`. Production Firebase study now
+exists; any rollback must use a Firebase-compatible client and preserve that
+data. Device-route checks belonged to the waived legacy recovery gate and are
+not a current release blocker.
 
-```text
-npx firebase deploy --only firestore:rules --project flashcards-ls9-prod
-```
-
-Reuse the package only when the data-repo commit, this source revision, and
-the rules checksum are unchanged, and a fresh read-only capture matches the
-saved reviewed server evidence. Compare the relevant document IDs, values,
-clocks, assignments, and memberships with that capture, or compare a canonical
-checksum of that state. Leave the capture time out of the checksum. Collection
-counts are an additional check. Matching counts do not show that the server is
-unchanged. The importer keeping a newer server value does not mean the
-reviewed dry run still describes the target. An unavailable server comparison
-or checksum blocks reuse. A difference invalidates the reviewed dry run:
-create a new export, baseline, dry run, and preflight, and review that
-evidence before an authorized apply. This command leaves legacy writes running.
-The recorded compatibility-site rollback revision is
-`1dbc26214bb3bfe1e132edc94688bd3137c1e996`. After Firebase study exists, roll
-back with a Firebase-compatible client and keep that data. The production
-backup command is the one in the previous section; preflight leaves it
-unrun.
-
-`service-account-prod.json` and `migration-map-prod.json` are the expected
-private filenames. The command checks only whether those names exist outside
-Git. A present file is not a confirmed production UID, and file contents stay
-out of stdout. This command does not read production, so the server
-fingerprint stays unavailable and blocks reuse. Device routes stay blocked
-until #34 has a private inventory and a saved same-context read, so this
-package stays `ready: false`.
-
-```bash
-umask 077
-npm run migrate -- preflight \
-  --out "$MIGRATION_DIR/exports/preflight-$BACKUP_STAMP.json"
-```
+**Historical-only record: do not run the preflight command or create production
+mapping/credential files.**
 
 ## Restore a Firestore dump
 
@@ -315,6 +297,8 @@ must preserve the root site and its `rehearsal/` child. Preview workers exclude
 nested preview paths. Keep old study storage intact; clearing Safari website
 data can erase reviews.
 
-GitHub Pages cannot proxy Firebase's sign-in helper. If login requires a hosting
-change, use [Firebase's redirect guidance](https://firebase.google.com/docs/auth/web/redirect-best-practices)
-and address old-origin storage recovery before moving the app.
+GitHub Pages cannot proxy Firebase's sign-in helper. This was noted during the
+auth-only spike, not as a current production blocker. If a future auth change
+requires hosting work, use [Firebase's redirect guidance](https://firebase.google.com/docs/auth/web/redirect-best-practices)
+and follow the then-current migration decision; old-origin recovery was waived
+for the retired non-Firebase app and must not be reinstated as a release gate.

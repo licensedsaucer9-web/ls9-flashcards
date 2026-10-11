@@ -1,24 +1,32 @@
-# Legacy migration and device recovery runbook
+# Historical legacy migration and device recovery runbook
 
+**Release decision (2026-10-07):** The Firebase `1.0.0` launch was published
+and accepted; later releases have since shipped. The former non-Firebase app is
+retired and no longer used by anyone.
+Production import of legacy studied data and old-device recovery were
+explicitly waived; do not run the procedures below as current release work.
+This runbook is retained for historical test evidence and for the guarded,
+isolated restore tooling described in [Firebase setup](firebase-setup.md).
 The test snapshot import (#24) and real second-device rehearsal (#25) passed
-on 2026-10-04. Production import, collection of device-only legacy work, and
-public cutover remain in the [single rollout plan](firebase-rollout-plan.md).
-Use [the saved import record](issue-24-status.md) and
+on 2026-10-04. Use [the saved import record](issue-24-status.md) and
 [the final second-device result](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235)
 when reviewing completed work; do not rerun `--apply` just to inspect evidence.
 
-These are local operator commands, never a Cloud Function or production CI
-step. Rehearse live operations only against `flashcards-ls9-auth-test`.
-Production commands require their separate authorized milestone. Pages builds
-`dist-firebase` but both publication steps remain disabled. Firestore backup
-and the guarded dump restore, including what a dump does not recover, are in
+The commands below are local operator tools, never a Cloud Function or
+production CI step. Do not use them for legacy production migration or device
+recovery: those operations were waived, and the retired application is no
+longer used by anyone. Any live test-project rehearsal must use
+`flashcards-ls9-auth-test`. The current production Firebase app is published;
+Firestore backup and guarded isolated dump restore, including what a dump does
+not recover, are in
 [Firebase setup](firebase-setup.md). Restore refuses the production project
 and the real-data rehearsal project.
 
-Before production Firebase study exists, rollback keeps or restores the
-previously published artifact. Current `master` has no GitHub writer. After
-production Firebase progress exists, use a Firebase-compatible client while
-retaining that data.
+The historical legacy client used a GitHub data writer; the current `master`
+and production application use Firebase. The legacy application is retired and
+no longer used by anyone. Any future rollback must remain Firebase-compatible
+and preserve production Firebase data; never restore the old GitHub writer over
+it.
 
 ## 1. Prepare private inputs
 
@@ -73,18 +81,19 @@ reported as skipped. UIDs must be unique, and the shared deck ID must differ
 from personal UIDs. A profile name entered in the app cannot assign an account
 or claim remote progress.
 
-Use a separate mapping and service account for production. Keep both files,
-exports, and command output outside Git repositories. The mapping file is
-also used for the explicitly confirmed copy on each device; it is not embedded
-in a build or saved to localStorage.
+Only the isolated `flashcards-ls9-auth-test` rehearsal used mappings and
+credentials. Production legacy import and old-device recovery were waived; do
+not create production mappings or credentials for those retired procedures.
+Keep any test-project mapping, credentials, exports, and command output outside
+Git repositories.
 
-## 2. Export an immutable GitHub snapshot
+## 2. Historical test-project snapshot export
 
-Fetch `origin main` in the private data clone before choosing the source commit;
-resolve `origin/main` to its full SHA and pass that SHA, rather than a stale
-local `HEAD`. Export reads
-`data.json` and `users/*.json` at that exact commit, including a v1 `data.json`
-if present. It ignores uncommitted working files and leaves the data repo intact.
+Historical #22 test-project rehearsal procedure: the operator fetched
+`origin main` in the private data clone, resolved its full SHA, and exported
+`data.json` and `users/*.json` from that exact commit. The exporter ignored
+uncommitted working files and left the data repo intact. This is not a current
+production migration step.
 
 ```bash
 git -C /home/joakim/src/german-flashcards-data fetch origin main
@@ -95,11 +104,10 @@ npm run migrate -- export \
   --out "$MIGRATION_DIR/exports/REPLACE_WITH_TIMESTAMP-rehearsal.json"
 ```
 
-The private export records the full commit, export time, and SHA-256 checksum.
-Record the printed commit for the final production GitHub recheck. Existing export files
-are never overwritten; choose a fresh dated filename for a later snapshot.
-Exports are created with mode 600. Input and output paths inside Git repositories
-(including symlinks into them) are refused.
+The private test export recorded the full commit, export time, and SHA-256
+checksum. Existing export files are never overwritten; exports are created with
+mode 600. Input and output paths inside Git repositories (including symlinks
+into them) are refused.
 
 ### Prepare the offline comparison baseline
 
@@ -130,13 +138,18 @@ the importer's deleted-document representation. Later live readback must use
 the reviewed merge result for any newer server records, rather than overwriting
 them with this baseline.
 
-Record the source commit, aggregate counts, mapping confirmation status, and
-baseline validation result for each new migration. Keep exact values, mapping
-files, and actual artifact locations private. No Firebase write or preview
-deployment is needed for this preparation. The #22 test baseline is already
-recorded; production needs a fresh snapshot and its own confirmed mapping.
+This records the completed #22 test-project baseline. No production legacy
+snapshot or mapping is required: that import was waived for `1.0.0`. Keep any
+retained test-project evidence and private artifacts outside Git.
 
-## 3. Dry-run, import, read back, and resume
+**Historical test-project import procedure only — not for production.** The
+commands in the next section describe the completed isolated rehearsal.
+
+## 3. Historical test-project import (completed; not production)
+
+This command sequence documents the completed isolated rehearsal only. Legacy
+production import was waived; do not run it as a release or account-provisioning
+step.
 
 ```bash
 npm run migrate -- import \
@@ -154,111 +167,50 @@ before opening the network client if the export or mapping is invalid.
 The output contains private vocabulary and progress; save it only to a private
 file outside the repo if a report is needed.
 
-After inspecting the private differences, repeat with `--apply` only as part
-of the authorized import, saving output to a fresh private log. The importer:
+For the completed test rehearsal, the reviewed dry-run was followed by an
+`--apply` and exact readback. Do not apply this procedure to production. The
+importer behavior recorded in that rehearsal was:
 
-1. Preassigns the shared deck and its exact mapped membership, and creates each
-   `users/{uid}` with `migrationStatus: pending`. A conflicting existing personal
-   deck/account is refused, so run this before the legacy owner's first app login.
-2. Imports vocabulary once into that deck and progress/settings separately per UID.
-   Each transaction re-reads the server before merging. It uses the #13 content,
-   SRS, settings, and tombstone rules; newer Firebase records survive a rerun.
-3. Reads every imported record back, compares exact committed fields and clocks
-   against the source/merge result, and verifies source IDs and collection counts.
-   A server record that advanced during verification is retained and reported.
-4. Marks accounts `complete` only after successful verification. Any interrupted
-   write or failed readback leaves the affected import pending. Run the same
-   command to resume; verified no-op repeats say `already imported` without writes.
+1. The importer preassigned the shared deck and its exact mapped membership,
+   then created each `users/{uid}` with `migrationStatus: pending`. It refused
+   conflicting existing personal decks/accounts; the test rehearsal used its
+   prepared test-project accounts.
+2. It imported vocabulary once into that deck and progress/settings separately
+   per UID. Each transaction re-read the server before merging, using the #13
+   content, SRS, settings, and tombstone rules; newer Firebase records survived
+   a rerun.
+3. It read every imported record back, compared exact committed fields and clocks
+   against the source/merge result, and verified source IDs and collection counts.
+   A server record that advanced during verification was retained and reported.
+4. It marked accounts `complete` only after successful verification. An
+   interrupted write or failed readback left the affected import pending. The
+   recorded resume behavior reused committed records and the source fingerprint;
+   verified no-op repeats reported `already imported` without writes.
 
-No local resume file is needed: committed records and the recorded source
-fingerprint are the checkpoints. Do not change the mapping while resuming.
-An Admin `complete` marker verifies the snapshot import; human second-device
-verification and collection of every device's local work are separate steps.
+No local resume file was needed: committed records and the recorded source
+fingerprint were the checkpoints. The mapping remained fixed while resuming.
+An Admin `complete` marker verified the snapshot import; human second-device
+verification and collection of every device's local work were separate steps.
 
-## 4. Recover each device's unsynced local profile
+This describes the completed test-project rehearsal, not an instruction to run
+or resume a production import.
 
-Use a Firebase recovery client **on the same browser origin and storage context
-as the old app**, with the mapped account preassigned and restrictive rules
-deployed before access. A localhost preview cannot read an iPhone's IndexedDB.
-The isolated rehearsal uses the `german-flashcards-rehearsal` prefix and cannot
-recover root-app profiles. Check Safari and the installed Home Screen app
-separately. IndexedDB is per origin, so Safari on
-`licensedsaucer9-web.github.io` can open `german-flashcards` and
-`german-flashcards:<profile>` from either the old or new site path. An
-installed Home Screen app keeps a separate store and only runs pages inside
-`https://licensedsaucer9-web.github.io/german-flashcards-site/`. The new site
-scope cannot enter that store.
+## 4. Historical procedure: recover an old device profile (waived)
 
-| Context | Route |
-| --- | --- |
-| Safari, same origin, reachable | Existing recovery client. |
-| Home Screen app whose scope is the old site, reachable | Unpublished bridge below. Open the existing icon after the authorized publication. |
-| Other origin, other Home Screen scope, unknown install, or a context this session cannot open | Blocker. Keep it in the inventory. |
+This procedure was not part of the released `1.0.0` flow. The former
+non-Firebase application is no longer used by anyone, and old-device-only
+progress was not imported. Do not execute this section as a remaining rollout
+action.
 
-Build the bridge locally. This command does not publish it, and Pages does not
-publish `dist-recovery-bridge`:
+Historical implementation notes: the recovery design depended on the old app's
+origin/storage context, an account mapping, and an unpublished bridge. Its
+pre-release inventory showed two installation classes but did not establish
+actual active-device recovery. Issues #34 and #36 were later waived/closed as
+not planned for `1.0.0`. This design and its bridge are retired; do not build,
+publish, or follow the recovery steps, and do not treat the old inventory as a
+current blocker.
 
-```bash
-npm run recovery-bridge:build
-```
-
-The artifact is `dist-recovery-bridge/`. Its base, manifest scope, and start URL
-are `/german-flashcards-site/`. The manifest keeps the installed name
-**LS9 Flashcards** / **LS9 Cards** and has no separate `id`. Storage stays
-`german-flashcards`. The bundle names `flashcards-ls9-prod`, refuses
-`flashcards-ls9-auth-test`, and refuses rehearsal storage. Sign-in reads the
-account and does not create a personal deck. A missing, pending, unmapped, or
-wrong-deck account stops with the device records left as they are. The bridge
-also leaves `german-flashcards.github` and `german-flashcards.github.shas`
-untouched. A normal open, before sign-in or **Copy**, only reads the legacy
-database: it does not seed missing cards, import a profile, or change cards,
-settings, revisions, or pending markers. Publishing this directory onto the
-compatibility site is a separate authorized recovery operation. Until that
-operation, the old icon keeps the compatibility client.
-
-When publication is authorized, copy `dist-recovery-bridge/` onto the
-compatibility site so the existing icon loads it. Do not publish it as the new
-public app and do not create a second Home Screen icon. Rollback restores the
-compatibility site's recorded `gh-pages` revision
-`1dbc26214bb3bfe1e132edc94688bd3137c1e996` from the rename record. Neither the
-bridge nor that rollback deletes IndexedDB. Keep the source installation until
-its pending work is acknowledged and compared from a second client.
-
-This preparation does not complete #34. No private device inventory was
-available, and no actual legacy database was read. The published aggregate is
-2 installation classes, 1 existing-client route, 1 bridge route, 2 unreachable,
-0 proven reads, and 2 blockers. Those rows come from
-`unreachedInstallationClasses()` and keep the two public URL classes visible.
-They are a class count, not a census of active installations. #34 stays open.
-#36 stays blocked on #34 until a private inventory and a saved same-context
-read exist for every active installation. Add each real install in private
-storage and publish a new count only. A class or device without a saved
-same-context read remains a blocker.
-
-Sign in as the already mapped account. Shared legacy accounts do not run the
-generic first-login guest copy. In Settings:
-
-1. Open **Recover a legacy profile on this device**.
-2. Choose the reviewed mapping JSON from private device storage. The project must
-   match this build; only registered local profiles mapped to this signed-in UID
-   are offered. Guests and unmapped profiles are skipped.
-3. Check the confirmation that the named profile belongs to this account, then
-   select **Copy local progress and vocabulary**. The server's preassigned deck
-   must also match the mapping. This action never changes account ownership.
-4. Check the normal sync status. An offline copy says **Saved on this device**;
-   reopen/reconnect or use **Sync now**. **Synced** means the copied records have
-   been acknowledged by Firestore.
-
-The source database stays unchanged. Content, schedules, settings, custom cards,
-and tombstones merge with the UID database. Newer account reviews/settings win
-over older source values. Source clocks remain intact. The target revision is
-at least the source revision plus one; copied records get Firestore dirty markers
-in the same IndexedDB transaction. GitHub acknowledgements are not treated as
-Firestore acknowledgements, including rows from before per-record tracking.
-Repeating a copy preserves acknowledged markers and newer account data. Account
-changes before the write refuse the copy.
-
-## 5. Record results and apply the release gate
+## Historical rehearsal results and current release status
 
 The test rehearsal is complete: #22 prepared the immutable source/baseline,
 #24 verified the real import, and #25 verified fresh Google restoration on
@@ -266,35 +218,37 @@ iPhone Home Screen and Mac Safari clients. Ten newer reviews and a newer
 settings record survived a repeat import with zero writes and client reopening.
 Mac browser/OS versions were not recorded.
 
-For production, use a separately confirmed production mapping and credential,
-a fresh final GitHub snapshot, exact server readback, and recovery of every
-active device's local work. Record source/build, date, device/browser, comparison
-method, aggregate result, and unresolved items. Keep exact values and operator
-files private. A server `migrationStatus: complete` marker does not verify
-device recovery or authorize publication.
-
-The [rollout plan](firebase-rollout-plan.md) owns the production checklist.
-Keep both publish steps held until the production recovery gate and publication
-authorization are recorded. Publish the tested `dist-firebase`, never a local-only
-`dist/`. Revoke the legacy write token only after all active devices are on the
-Firebase build and their pending work is acknowledged; then retain the data
-repository as a frozen recovery snapshot.
+Legacy production import and old-device recovery were waived for `1.0.0`;
+there is no production cutover procedure to perform. The Firebase site is
+published and in use. The legacy data repository is a frozen archived snapshot,
+and no one uses the former non-Firebase application. Do not infer that a
+specific obsolete token has been revoked; check the private credential
+inventory if credential cleanup is undertaken. Keep exports and record-level
+evidence outside Git. The [rollout plan](firebase-rollout-plan.md) records the
+remaining #40 action: copy the private backup directory off this machine.
 
 ## Automated checks
 
-`npm test` includes synthetic v1/v2 files, two profiles, unmapped names,
-strict validation, record-level dry-run, exact readback, interrupted/resumed
-imports, no-op repeats, newer server data, and immutable/private export checks.
-It calls no production service.
+The following repository checks remain useful for regression validation; they
+are not unfinished migration or release gates:
 
-`npm run test:rules` needs Java 21. It also imports synthetic records using the
-Admin SDK into `demo-german-flashcards`, then restores them in clean Chromium
-contexts using the full #13 sync path. It checks schedule isolation, seed
-tombstones, the confirmed Settings copy, source preservation after that copy,
-dirty-marker backfill, retries, and account/deck guards. It uses no service
-account file. The live operator command is never invoked by CI.
+- `npm test` covers synthetic v1/v2 files, strict validation, dry-run output,
+  exact readback, interrupted/resumed imports, no-op repeats, newer server data,
+  and immutable/private export checks. It calls no production service.
+- `npm run rehearsal:build` validates the isolated test-project configuration
+  and artifact without publishing it.
+- `npm run test:rules` requires Java 21 and exercises synthetic records in the
+  emulator/demo project; it uses no service-account file and does not invoke a
+  live operator command.
 
-`npm run recovery-bridge:build` checks the unpublished artifact, then opens it
-on a synthetic legacy profile with external requests blocked and without
-sign-in or **Copy**. The source cards, settings, revisions, pending markers,
-and token key must match that profile.
+Production publication is complete. The retired recovery bridge is not a
+current build, test, or release requirement.
+
+## Historical importer and token-key behavior
+
+The retired GitHub writer used the localStorage keys
+`german-flashcards.github` and `german-flashcards.github.shas`. The current
+Firebase client removes those keys on launch. Do not infer from that client-side
+cleanup that an old GitHub credential was revoked at the provider.
+
+**End of historical migration/recovery record.**

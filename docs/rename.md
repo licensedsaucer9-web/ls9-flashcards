@@ -10,7 +10,7 @@ and public URL rename before continuing development on 2026-10-04.
 | Built site (public) | [ls9-flashcards-site](https://github.com/licensedsaucer9-web/ls9-flashcards-site) |
 | Public app | <https://licensedsaucer9-web.github.io/ls9-flashcards-site/> |
 | Test rehearsal | <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/rehearsal/> |
-| Old-installation compatibility | <https://licensedsaucer9-web.github.io/german-flashcards-site/> |
+| Historical old-site compatibility URL (retired legacy app) | <https://licensedsaucer9-web.github.io/german-flashcards-site/> |
 
 The package is `ls9-flashcards`. App headings, HTML/Apple metadata, manifests,
 icons, and documentation use LS9 branding. The short installed label is
@@ -27,31 +27,40 @@ locations, not product identity.
 [GitHub repository renames](https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository)
 preserve repository redirects, but do not redirect project-site URLs. Source
 and data repository names are not reused, so their redirects remain available.
-The old public-site name is deliberately reused for a temporary compatibility
-repository serving the old Pages path, with the renamed legacy client and
-its original service-worker/manifest scope.
+At rename time, the old public-site name was reused for a temporary
+compatibility repository serving the old Pages path with the renamed legacy
+client and its original service-worker/manifest scope. That retired app is no
+longer used by anyone; the URL is retained here as historical routing context.
 
-The compatibility app links to the new address without forcing navigation or
-deleting/copying local storage. Keep older Safari/Home Screen installations
-until their device-only work is recovered and acknowledged. Do not infer that
-a new Home Screen icon shares every old installation's storage.
+Historically, the compatibility app linked to the new address without forcing
+navigation or deleting/copying local storage. The retired non-Firebase app's
+device-only progress was not imported by explicit release decision. These notes
+document old behavior, not a requirement to recover legacy storage before using
+the current Firebase application.
 
-## Release boundary
+## Historical release boundary (2026-10-04)
 
-This is a branding/URL release of the existing GitHub-sync client, based on
+This section records the branding/URL release state on 2026-10-04. It is not
+the current production state: Firebase `1.2.0` is now published and in use,
+and the former non-Firebase GitHub-sync application is retired.
+
+This was a branding/URL release of the existing GitHub-sync client, based on
 source commit `1a833b7260166429171f965ed798f79a6fc14626`, with its rename changes
 retained on branch `rename/legacy-public`. The new default data-repository name
 is also used when an existing default-owner configuration has the old name.
 Stored tokens, revision clocks, and data files remain intact.
 
-The production Firebase client is still staged. Both production publication
-steps remain disabled. The test-only previews are published with the new
-branding at their corresponding new and compatibility paths. Authorized
-Firebase domains use the unchanged `licensedsaucer9-web.github.io` hostname;
-no project/UID reassignment is part of this rename.
+At the time of this rename, the production Firebase client was staged and the
+production publication steps were disabled. Later, Firebase `1.0.0` was
+published and adopted; subsequent releases have shipped through `1.2.0`.
+The former non-Firebase app is retired and no longer used by anyone; its
+studied-data import and old-device recovery were waived. The test-only previews
+remain separate from production. Authorized Firebase domains use the unchanged
+`licensedsaucer9-web.github.io` hostname; this rename did not reassign projects
+or UIDs.
 
-The [rollout plan](firebase-rollout-plan.md) owns later production cutover,
-device recovery, token retirement, and retirement of the compatibility site.
+See the [rollout plan](firebase-rollout-plan.md) for the current release status
+and remaining off-machine backup action.
 
 ## Deployment and verification, 2026-10-04
 

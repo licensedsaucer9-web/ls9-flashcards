@@ -1,12 +1,17 @@
-# Live test snapshot import (#24)
+# Historical live test snapshot import (#24)
 
-The real import into `flashcards-ls9-auth-test` completed on 2026-10-04, with
-exact server readback and an unchanged repeat that made zero writes. All #24
-acceptance checks passed. The separate
+This document records the test-project import as it stood on 2026-10-04; it is
+not the current production release state. Firebase `1.2.0` is now published and
+in use; the `1.0.0` launch was the first production release. The former
+non-Firebase application is retired and no longer used by anyone; production
+legacy-data import and old-device recovery were explicitly waived. The real
+import into `flashcards-ls9-auth-test` completed on 2026-10-04, with exact server
+readback and an unchanged repeat that made zero writes. All #24 acceptance
+checks passed. The separate
 [second-device verification (#25)](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235)
-also passed later on 2026-10-04. Production/device recovery and public cutover
-remain in the [rollout plan](firebase-rollout-plan.md). This document retains
-the saved #24 import evidence; reviewing it does not require another import.
+also passed later that day. See the [rollout plan](firebase-rollout-plan.md)
+for current status. This document retains the saved #24 import evidence;
+reviewing it does not require another import.
 
 ## Reviewed inputs and revisions
 
@@ -98,7 +103,8 @@ Firebase import. Exact values, IDs, UID
 mapping, credentials, and actual operator-directory paths are excluded from
 Git and GitHub.
 
-`npm test` passed. `npm run rehearsal:build` passed its type/build and artifact
-checks against the test project. The operation does not publish the build or
-sign into the full app. Production publishing remains held in both workflow
-steps. Other worktrees and their untracked files are preserved.
+At the time of this historical test-project operation, `npm test` and
+`npm run rehearsal:build` passed. It did not publish the build or sign into the
+full app. Production Firebase publication happened later; see the current
+[rollout plan](firebase-rollout-plan.md). Other worktrees and their untracked
+files were preserved during that operation.

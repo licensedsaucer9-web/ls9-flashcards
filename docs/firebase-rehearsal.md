@@ -1,7 +1,8 @@
 # Isolated test-project rehearsal runbook
 
-Use only `flashcards-ls9-auth-test`. The production publish steps stay held.
-The full-app rehearsal URL is:
+Use only `flashcards-ls9-auth-test`; this is an isolated test-project preview,
+not the production app. Production Firebase `1.2.0` is already published. The
+full-app rehearsal URL is:
 
 <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/rehearsal/>
 
@@ -17,7 +18,9 @@ The rename release published the test preview at `bdf9b15`; its automated
 live checks are recorded in [the rename record](rename.md). No new physical
 iPhone or real Google sign-in result is claimed for that revision.
 Always compare the visible deployed revision with the revision under test.
-The [rollout plan](firebase-rollout-plan.md) owns remaining production work.
+The initial `1.0.0` production release and device-acceptance gates are complete. The
+[rollout plan](firebase-rollout-plan.md) records the remaining off-machine
+backup closeout; this test-project rehearsal is not a production gate.
 
 ## Private credential and account inspection
 
@@ -54,7 +57,7 @@ the empty pre-import environment. The client will
 accept only that account after the importer marks it complete; a pending or
 missing account cannot trigger personal-deck creation in this preview.
 
-## Deploy restrictive test rules
+## Deploy restrictive test-project rules
 
 Run from the source revision you are recording:
 
@@ -65,7 +68,7 @@ npm exec -- firebase deploy --only firestore:rules \
 
 Record the source revision, rules checksum, release identifier, and date
 privately. This is an operator command; CI and pull requests do not deploy
-rules. Production rules remain a separate authorized rollout milestone.
+rules. Production rules are deployed; this command only targets the isolated test project.
 
 ## Build and publish the isolated full app
 
@@ -93,8 +96,10 @@ commit after deployment.
 
 The full app uses `german-flashcards-rehearsal` local databases and preferences.
 It preserves the legacy app's profile list, progress/settings, and PAT keys
-on the shared origin. It does not copy device-only legacy data; that belongs
-to the production/device-recovery milestone. Google authentication uses the
+on the shared origin. It does not copy device-only legacy data; production
+legacy recovery was waived and the retired application is no longer used by
+anyone.
+Google authentication uses the
 separate test project's Firebase persistence. A verified mapped account opens
 its imported deck. Other or pending accounts report that their verified import
 is required and make no account/deck provisioning writes; **Study on this

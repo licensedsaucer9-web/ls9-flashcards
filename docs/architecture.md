@@ -1,8 +1,8 @@
 # Architecture and data guarantees
 
-This describes the implementation as of 2026-10-06.
-For what is deployed and what remains, use the
-[rollout plan](firebase-rollout-plan.md).
+This describes the Firebase application, currently at `1.2.0`, published and
+in use as of 2026-10-11. For release status and remaining operational
+closeout, use the [rollout plan](firebase-rollout-plan.md).
 
 ## Build modes
 
@@ -30,9 +30,9 @@ Settings reads the bundled identity without network access, so an installed
 offline client reports the version it is actually running. A source change
 alters the bundled identity and worker precache revision.
 
-`release:build` requires a clean committed source tree and matching publication
-gates (currently both held; future authorized gates must both be master-only),
-explicitly selects production public configuration, clears preview/emulator
+`release:build` requires a clean committed source tree and the paired
+master-only, non-pull-request publication conditions in the active workflow.
+It explicitly selects production public configuration, clears preview/emulator
 modes, runs type/build/artifact checks, then writes `release-candidate.json`.
 That manifest binds the identity and sorted SHA-256 file inventory; local
 verification rejects added, missing or modified files. It is an artifact
@@ -41,7 +41,9 @@ retains the candidate only after its other tests pass. Post-publication
 read-only verification compares served bytes and the public `gh-pages` commit,
 with before/after branch checks. The site commit is recorded then, rather than
 invented at build time: embedding a commit inside itself would change that
-commit. Production data/device acceptance remains separate.
+commit. Production login, account isolation, and offline second-client acceptance
+were verified for the initial `1.0.0` release. The remaining operational
+closeout is the off-machine backup copy tracked in #40.
 
 ## Identity and storage
 
@@ -66,9 +68,11 @@ assignments cannot create personal decks. An authenticated session can
 therefore remain in device study while showing an import guard. Current
 source shows **Signed in to Google** and **Sign out of Google** in that state.
 
-Ordinary builds remove the obsolete `german-flashcards.github` and
-`german-flashcards.github.shas` keys on launch. The source has no active
-GitHub data transport; the previous published build still has its old writer.
+Ordinary builds remove obsolete `german-flashcards.github` and
+`german-flashcards.github.shas` keys on launch. The current source and published
+Firebase client have no GitHub data transport. The former non-Firebase client
+contains its retired writer, but that application is retired and no longer used
+by anyone.
 
 ## Firestore layout
 
@@ -136,11 +140,10 @@ no interval multiplier, review history, or FSRS.
 A review session starts from a captured due queue. Cards arriving from sync
 do not join that running session; start a new session to include them.
 
-Legacy migration preserves card IDs, clocks, settings, progress, and
-tombstones. The Admin completion marker verifies the imported snapshot;
-device-only data and real second-device checks are separate evidence.
-The [migration runbook](firebase-migration.md) explains the confirmed copy
-and repeat-import behavior.
+Legacy migration code preserves card IDs, clocks, settings, progress, and
+tombstones. The Admin completion marker verifies an imported snapshot; it does
+not recover waived old-device data. The [historical migration runbook](firebase-migration.md)
+records the completed test import and retired recovery design.
 
 `npm run migrate -- backup` writes a private Firestore dump with a checksum.
 `npm run migrate -- restore` puts that dump back only onto an isolated
