@@ -42,7 +42,7 @@ export interface Card {
 export interface Settings {
   id: 'settings'
   direction: Direction
-  /** 0 means review every due card. */
+  /** 0 means all matching due cards, or all matching cards when none are due. */
   sessionSize: number
   /** Highest tier included in reviews. Higher tiers include the lower ones. */
   tier: Tier

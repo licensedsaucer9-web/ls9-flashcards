@@ -80,7 +80,11 @@ publication and physical installation updates remain #38's operational gate.
    offer **Gender** (key 5), which requeues with a smaller ease penalty than Again.
 5. Grade one card, then **Close** mid-session. Return to home with that grade
    saved. Start again and confirm a fresh queue; completion offers **Back home**.
-6. A running session uses its initial due queue. Cards arriving through sync
+6. When the selected tier and word type are caught up, the due count stays at
+   zero and **Review N cards ahead** remains enabled. It reviews matching cards
+   soonest due first, obeys Custom/All, and saves grades normally. Empty tiers or
+   word-type selections with no matching cards remain disabled.
+7. A running session uses its initial queue. Cards arriving through sync
    enter a later session.
 
 ## 3. Persistence and deletion
