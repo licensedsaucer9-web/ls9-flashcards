@@ -54,10 +54,13 @@ export async function exportFirestore(store, output) {
   for (const user of (await store.list('users')).sort(byId)) {
     const progress = {}
     for (const row of (await store.list(`users/${user.id}/progress`)).sort(byId)) progress[row.id] = row.data
+    const activity = {}
+    for (const row of (await store.list(`users/${user.id}/activity`)).sort(byId)) activity[row.id] = row.data
     users[user.id] = {
       account: user.data,
       settings: await store.get(`users/${user.id}/settings/current`),
       progress,
+      ...(Object.keys(activity).length ? { activity } : {}),
     }
   }
   const decks = {}

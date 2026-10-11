@@ -6,6 +6,10 @@ A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German
 
 **Release state, 2026-10-09:** Version `1.2.0` (adds the word-type filter, #49; `1.1.0` added word-type badges, #50) is the Firebase client at the public URL; `1.0.0` shipped on 2026-10-07. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
 
+**In development:** `1.3.0` adds forgiving streaks (#58). Its activity rules and
+backup tooling must be deployed before merging/publishing the new client;
+see the [streak release checklist](docs/firebase-rollout-plan.md#forgiving-streaks--58).
+
 **Prod v1 scope:** ship the current single-deck app with reliable Google sync,
 offline study, safe device migration and tested recovery. The
 [tracking issue #33](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/33)
@@ -17,7 +21,7 @@ The project is named **LS9 Flashcards**. The [rename record](docs/rename.md)
 lists the new repositories and URLs. Original storage/configuration identifiers
 remain in use so existing progress is preserved.
 
-On a Firebase build, Google sign-in gives each account its own schedule in Firestore; new accounts receive personal decks. Device-only study remains available. The app stores current SRS state, without review history, an interval multiplier, or FSRS. See [the architecture](docs/architecture.md) for storage and sync guarantees.
+On a Firebase build, Google sign-in gives each account its own schedule in Firestore; new accounts receive personal decks. Device-only study remains available. The app stores current SRS state and minimal streak activity, without detailed review history, an interval multiplier, or FSRS. See [the architecture](docs/architecture.md) for storage and sync guarantees.
 
 The private [ls9-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) repo is a frozen recovery snapshot of the legacy deck. This source has no GitHub data writer or token form. Keep `PUBLIC_SITE_DEPLOY_KEY` for Pages deployment.
 
@@ -60,6 +64,24 @@ the matching cards soonest due, up to your session-size limit. Your word-type
 filter still applies and the due count stays at zero. When cards are due, sessions
 remain due-only; All selects the entire eligible queue. Early reviews save and
 update the schedule through the normal grading controls.
+
+## Forgiving streaks
+
+The quiet counter beneath the Home and review headers shows your streak:
+**🔥** means today's target is complete, **🌙** means today is still unfinished,
+and **💀** shows how many reviews will repair earlier shortfalls. Tap the counter
+for the rules. There are no streak notifications, reminders, emails or popups.
+
+Every saved grade counts, including repeated cards, Again/Gender and review-ahead
+cards. The first **10 reviews** cover today. Extra reviews repair missing work
+from earlier days, with partial repair carried over. Two empty days need 20 extra
+reviews: 30 today covers today and both missed days. A day with 7 reviews needs
+only 3 extra. Extra reviews after repair is complete do not prepay future days.
+
+Tracking begins with new reviews; a streak starts on the first day you reach 10.
+Earlier days create no debt. Days follow the time zone of your first tracked
+review and keep that zone when travelling. Offline activity and confirmed device
+copies merge into the signed-in account; the counter may update after sync.
 
 ## Account
 

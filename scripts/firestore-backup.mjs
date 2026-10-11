@@ -33,8 +33,10 @@ export function backupCounts(snapshot) {
   let progress = 0
   let settings = 0
   let tombstones = 0
+  let activity = 0
   for (const user of Object.values(snapshot.users)) {
     progress += Object.keys(user.progress ?? {}).length
+    activity += Object.keys(user.activity ?? {}).length
     if (user.settings) settings += 1
   }
   for (const deck of Object.values(snapshot.decks)) {
@@ -46,7 +48,7 @@ export function backupCounts(snapshot) {
   return {
     users: Object.keys(snapshot.users).length,
     decks: Object.keys(snapshot.decks).length,
-    cards, progress, settings, tombstones,
+    cards, progress, settings, tombstones, activity,
   }
 }
 

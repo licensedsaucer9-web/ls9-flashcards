@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { filesToDocs } from '../src/firestore-docs.ts'
 import { planCardWrite, planProgressWrite, planSettingsWrite } from '../src/record-sync.ts'
 import { migrationFiles, validateMapping } from '../src/migration-data.ts'
+import { mergeReviewActivity } from '../src/streak.ts'
 
 export function same(a, b) {
   const canonical = (value) => Array.isArray(value) ? value.map(canonical)
@@ -28,6 +29,13 @@ export function prepareMigration(snapshot, rawMapping) {
   for (const [profile, user] of Object.entries(files.users)) {
     const uid = mapping.profiles[profile]
     const docs = filesToDocs(files.deck, user)
+    for (const { id, data } of docs.activity ?? []) {
+      items.push({ path: `users/${uid}/activity/${id}`, kind: 'activity', source: data,
+        merge: (remote) => {
+          if (remote) { mergeReviewActivity({ [id]: remote }, { [id]: data }); return null }
+          return data
+        } })
+    }
     for (const { id, data } of docs.progress) {
       items.push({ path: `users/${uid}/progress/${id}`, kind: 'progress', source: data,
         merge: (remote) => planProgressWrite(user.progress[id], remote) })

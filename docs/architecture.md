@@ -1,6 +1,6 @@
 # Architecture and data guarantees
 
-This describes the implementation as of 2026-10-06.
+This describes the implementation as of 2026-10-11 (including the unreleased #58 implementation).
 For what is deployed and what remains, use the
 [rollout plan](firebase-rollout-plan.md).
 
@@ -77,6 +77,7 @@ GitHub data transport; the previous published build still has its old writer.
 | `users/{uid}` | Owner-readable account metadata, deck assignment, schema version, migration status. |
 | `users/{uid}/settings/current` | Owner-only direction, session size, tier, and settings clock. |
 | `users/{uid}/progress/{cardId}` | Owner-only SRS state and its clock. |
+| `users/{uid}/activity/{eventId}` | Owner-only immutable saved-review timestamp and time zone, keyed by UUID. |
 | `decks/{deckId}` | Explicit deck membership. Clients cannot alter membership or assign themselves to a legacy deck. |
 | `decks/{deckId}/cards/{cardId}` | Vocabulary, content clock, optional rank/tier, and deletion tombstone; deck members can edit. |
 
@@ -131,7 +132,7 @@ same card remain limitations; there is no review-event merge.
 The scheduler is SM-2-style: first Hard/Good = 1 day, second Good = 6 days,
 first Easy = 4 days. Again and Gender requeue immediately, with a smaller ease
 penalty for Gender. The account stores the latest SRS state per card, with
-no interval multiplier, review history, or FSRS.
+no interval multiplier, detailed review history, or FSRS.
 
 A review session starts from a captured queue within the selected cumulative
 tier and word-type filter. It uses only due cards when any match. When none
@@ -140,6 +141,41 @@ same session-size cap (All includes the whole eligible queue). Selecting cards
 does not reschedule them; grading a review-ahead card uses the normal SRS and
 progress-save path. Cards arriving from sync do not join that running session;
 start a new session to include them.
+
+## Forgiving streaks
+
+IndexedDB version 2 adds an `activity` store. A grade commits the schedule,
+its UUID activity event and both pending markers in one transaction. Retrying
+the same UUID does not reschedule or count again. Imports, seed writes and
+ordinary card edits do not earn streak credit. Read-only legacy/recovery opens
+keep the existing database version; the first write upgrades it without removing
+cards or preferences. Older installed clients need the new build to write a
+version-2 database.
+
+Events store only `{ at, timeZone }`, with no card content or grade. Firestore
+allows owner reads/creates and prohibits updates/deletes. Sync pulls and unions
+the account's activity and pushes pending UUIDs with create-or-identical-no-op
+transactions. Different devices retain both events even when the SRS merge picks
+one schedule. Conflicting payloads for a UUID are refused. Activity remains after
+card deletion and survives confirmed device copies, user-file serialization,
+private backup and isolated restore. It is separate from settings merge clocks.
+The current full-account pull includes activity, so reads/storage grow with the
+number of saved reviews; there is no event pruning or loss of repair history.
+
+Calendar days use a fixed profile zone chosen from the earliest tracked event;
+UUID order breaks timestamp ties. Concurrent first studies in different zones
+converge after sync to that same choice, and all events are grouped in that zone.
+Travelling does not change it. Dates, rather than elapsed 24-hour intervals,
+handle daylight-saving boundaries. Device clock accuracy remains an assumption.
+
+The first day with at least 10 reviews activates the streak. Subsequent past-day
+shortfalls accumulate, with today's first 10 reserved for today and excess
+reducing older debt first. Surplus cannot prepay future days. Partial repairs
+persist; clearing the debt restores the elapsed continuous streak including
+repaired days. An unfinished current day is off, and becomes debt only on rollover.
+The counter refreshes after grades/sync, on foreground and at a day boundary,
+without rebuilding the captured review queue. It has no live announcements,
+notification permissions, reminders or messages.
 
 Legacy migration preserves card IDs, clocks, settings, progress, and
 tombstones. The Admin completion marker verifies the imported snapshot;

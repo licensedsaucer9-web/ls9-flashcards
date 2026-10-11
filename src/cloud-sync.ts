@@ -1,5 +1,5 @@
 import { cloudFirestore } from './cloud-handle.ts'
-import { accountDeckId, commitCard, commitProgress, commitSettings, pullCloud } from './cloud-push.ts'
+import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettings, pullCloud } from './cloud-push.ts'
 import {
   acknowledgePending,
   applyStagedProgress,
@@ -48,6 +48,7 @@ async function pushLoaded(
   snapshot: CloudSnapshot,
   item: PushItem,
 ): Promise<'wrote' | 'noop'> {
+  if (item.kind === 'activity') return commitActivity(db, uid, item.id, snapshot.activity[item.id])
   if (item.kind === 'settings') {
     return commitSettings(db, uid, publicSettings(snapshot.settings), snapshot.settings.settingsUpdatedAt)
   }

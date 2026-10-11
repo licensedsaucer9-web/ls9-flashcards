@@ -119,6 +119,19 @@ service cloud.firestore {
         allow create, update: if isOwner(uid) && validProgress(cardId);
         allow delete: if false;
       }
+
+      // One immutable event per saved grade. Retries reuse its UUID.
+      match /activity/{eventId} {
+        allow get, list: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && eventId.matches('^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$')
+          && request.resource.data.keys().hasAll(['at', 'timeZone'])
+          && request.resource.data.keys().hasOnly(['at', 'timeZone'])
+          && clock(request.resource.data.at) && request.resource.data.at <= 253402214400000
+          && text(request.resource.data.timeZone, 100)
+          && request.resource.data.timeZone.matches('^[A-Za-z0-9_+:/-]+$');
+        allow update, delete: if false;
+      }
     }
 
     match /decks/{deckId} {

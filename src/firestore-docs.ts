@@ -1,6 +1,7 @@
 import { legacyToFiles, parseRemoteDeck } from './merge.ts'
 import type { CardContent, DeckFile, Direction, PublicSettings, Srs, Tier, UserFile, WordType } from './types.ts'
 import { normalizeWordTypes } from './word-types.ts'
+import { parseReviewActivity, type ReviewEvent } from './streak.ts'
 
 /** Client-creatable account shape. Migration completion is not one of these values. */
 export const SCHEMA_VERSION = 1
@@ -51,6 +52,7 @@ export type CloudDocs = {
   cards: NamedDoc<CardDoc>[]
   progress: NamedDoc<ProgressDoc>[]
   settings: SettingsDoc
+  activity?: NamedDoc<ReviewEvent>[]
 }
 
 export function newUserAccount(uid: string): UserAccountDoc {
@@ -131,6 +133,7 @@ export function filesToDocs(deck: DeckFile, user: UserFile | null): CloudDocs {
   return {
     cards: [...byId.entries()].map(([id, data]) => ({ id, data })),
     progress,
+    ...(user?.activity ? { activity: Object.entries(user.activity).map(([id, data]) => ({ id, data })) } : {}),
     settings: settingsToDoc(
       user?.settings ?? { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [] },
       user?.settings_updated_at ?? 0,
@@ -190,6 +193,7 @@ export function docsToFiles(docs: CloudDocs, profileName: string, updatedAt: num
         wordTypes: normalizeWordTypes(docs.settings.wordTypes),
       },
       progress,
+      ...(docs.activity?.length ? { activity: parseReviewActivity(Object.fromEntries(docs.activity.map(({ id, data }) => [id, data]))) } : {}),
     },
   }
 }

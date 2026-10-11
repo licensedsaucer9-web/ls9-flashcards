@@ -2,6 +2,7 @@ import { collection, doc, getDoc, getDocs, runTransaction, type Firestore } from
 import type { CardContent, PublicSettings, Srs } from './types.ts'
 import type { CardDoc, CloudDocs, ProgressDoc, SettingsDoc } from './firestore-docs.ts'
 import { planCardWrite, planProgressWrite, planSettingsWrite } from './record-sync.ts'
+import { validReviewEvent, type ReviewEvent } from './streak.ts'
 
 function asCard(data: unknown): CardDoc | null {
   if (!data || typeof data !== 'object') return null
@@ -33,10 +34,11 @@ export async function accountDeckId(db: Firestore, uid: string): Promise<string>
 }
 
 export async function pullCloud(db: Firestore, uid: string, deckId: string): Promise<CloudDocs> {
-  const [cardsSnap, progressSnap, settingsSnap] = await Promise.all([
+  const [cardsSnap, progressSnap, settingsSnap, activitySnap] = await Promise.all([
     getDocs(collection(db, 'decks', deckId, 'cards')),
     getDocs(collection(db, 'users', uid, 'progress')),
     getDoc(doc(db, 'users', uid, 'settings', 'current')),
+    getDocs(collection(db, 'users', uid, 'activity')),
   ])
   const cards = cardsSnap.docs.flatMap((item) => {
     const data = asCard(item.data())
@@ -52,7 +54,29 @@ export async function pullCloud(db: Firestore, uid: string, deckId: string): Pro
     tier: 1 as const,
     settingsUpdatedAt: 0,
   }
-  return { cards, progress, settings }
+  const activity = activitySnap.docs.map((item) => {
+    const data = item.data()
+    if (!validReviewEvent(item.id, data)) throw new Error('Invalid cloud review activity')
+    return { id: item.id, data }
+  })
+  return { cards, progress, settings, activity }
+}
+
+export async function commitActivity(db: Firestore, uid: string, id: string, event: ReviewEvent): Promise<'wrote' | 'noop'> {
+  if (!validReviewEvent(id, event)) throw new Error('Invalid review activity')
+  return runTransaction(db, async (tx) => {
+    const ref = doc(db, 'users', uid, 'activity', id)
+    const snap = await tx.get(ref)
+    if (snap.exists()) {
+      const remote = snap.data()
+      if (!validReviewEvent(id, remote) || remote.at !== event.at || remote.timeZone !== event.timeZone) {
+        throw new Error('Conflicting review activity')
+      }
+      return 'noop'
+    }
+    tx.set(ref, event)
+    return 'wrote'
+  })
 }
 
 export async function commitCard(

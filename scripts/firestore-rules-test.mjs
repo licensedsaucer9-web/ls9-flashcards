@@ -1,5 +1,6 @@
 // Firestore rules against the emulator. Run via `npm run test:rules`, not `npm test`.
 import { readFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing'
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
 
@@ -69,6 +70,27 @@ function db(uid) {
 
 try {
   await env.clearFirestore()
+
+  const eventId = randomUUID()
+  const event = { at: 1790856000000, timeZone: 'Europe/Oslo' }
+  const eventRef = (uid, id = eventId) => doc(db(uid), 'users', ALICE, 'activity', id)
+  await denied(getDoc(eventRef(null)), 'signed-out activity read')
+  await denied(setDoc(eventRef(null), event), 'signed-out activity create')
+  await denied(setDoc(eventRef(BOB), event), 'cross-account activity create')
+  await assertSucceeds(setDoc(eventRef(ALICE), event))
+  await assertSucceeds(getDoc(eventRef(ALICE)))
+  await assertSucceeds(getDocs(collection(db(ALICE), 'users', ALICE, 'activity')))
+  await denied(getDoc(eventRef(BOB)), 'cross-account activity read')
+  await denied(getDocs(collection(db(BOB), 'users', ALICE, 'activity')), 'cross-account activity list')
+  await denied(updateDoc(eventRef(ALICE), { at: event.at + 1 }), 'immutable activity update')
+  await denied(deleteDoc(eventRef(ALICE)), 'immutable activity delete')
+  await denied(setDoc(eventRef(ALICE, 'bad-id'), event), 'activity UUID required')
+  for (const data of [{ ...event, at: -1 }, { ...event, at: 0.5 }, { ...event, at: 1e16 },
+    { at: event.at }, { ...event, timeZone: '' }, { ...event, timeZone: 'x'.repeat(101) },
+    { ...event, count: 100 }]) {
+    await denied(setDoc(eventRef(ALICE, randomUUID()), data), 'invalid activity shape')
+  }
+
 
   await denied(getDoc(doc(db(null), 'users', ALICE)), 'signed-out user read')
   await denied(getDocs(collection(db(null), 'users')), 'signed-out user list')

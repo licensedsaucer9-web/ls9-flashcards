@@ -1,3 +1,5 @@
+import type { ReviewActivity } from './streak.ts'
+
 export type Article = 'der' | 'die' | 'das' | 'none'
 export type Grade = 'again' | 'wrong_gender' | 'hard' | 'good' | 'easy'
 export type Direction = 'de-en' | 'en-de'
@@ -79,6 +81,7 @@ export interface PendingRecords {
   tombstones: Record<string, RecordMark>
   progress: Record<string, RecordMark>
   settings: RecordMark | null
+  activity?: Record<string, RecordMark>
 }
 
 /** The settings that travel between devices. */
@@ -114,6 +117,8 @@ export interface UserFile {
   settings_updated_at?: number
   /** card id to scheduling state. */
   progress: Record<string, Srs>
+  /** Saved review events, absent in files predating streaks. */
+  activity?: ReviewActivity
 }
 
 /**

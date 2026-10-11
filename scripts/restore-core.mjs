@@ -1,3 +1,4 @@
+import { validReviewEvent } from '../src/streak.ts'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { object, validMigrationId } from '../src/migration-data.ts'
@@ -150,13 +151,22 @@ export function prepareRestore(snapshot) {
   if (!object(snapshot.users) || !object(snapshot.decks)) fail('users and decks must be objects')
   const items = []
   let progress = 0
+  let activity = 0
   let settings = 0
   let cards = 0
   let tombstones = 0
   for (const uid of Object.keys(snapshot.users).sort()) {
     if (!validMigrationId(uid)) fail('invalid account id')
     const user = snapshot.users[uid]
-    if (!object(user) || !keysExactly(user, ['account', 'settings', 'progress'])) fail(`invalid user ${uid}`)
+    if (!object(user) || !keysExactly(user, ['account', 'settings', 'progress', ...(Object.hasOwn(user, 'activity') ? ['activity'] : [])])) fail(`invalid user ${uid}`)
+    if (user.activity !== undefined) {
+      if (!object(user.activity)) fail(`invalid activity ${uid}`)
+      for (const [id, data] of Object.entries(user.activity)) {
+        if (!validReviewEvent(id, data)) fail(`invalid activity ${uid}`)
+        items.push({ path: `users/${uid}/activity/${id}`, kind: 'activity', data })
+        activity++
+      }
+    }
     accountDoc(uid, user.account)
     items.push({ path: `users/${uid}`, kind: 'account', data: user.account })
     if (user.settings !== null) {
@@ -200,6 +210,7 @@ export function prepareRestore(snapshot) {
       progress,
       settings,
       tombstones,
+      activity,
     },
   }
 }
@@ -216,7 +227,7 @@ export function preflightRestore({ dumpPath, projectId, credentialName, reportPa
 
 // Ordinary parent queries omit a deleted account or deck even when progress,
 // settings, or cards remain. Those surviving documents are still part of the target.
-const ROOTS = { users: ['settings', 'progress'], decks: ['cards'] }
+const ROOTS = { users: ['settings', 'progress', 'activity'], decks: ['cards'] }
 
 async function collectTarget(store) {
   const present = new Map()
@@ -305,6 +316,7 @@ export function publicRestoreSummary(result) {
     decks: result.counts.decks,
     cards: result.counts.cards,
     progress: result.counts.progress,
+    activity: result.counts.activity,
     settings: result.counts.settings,
     tombstones: result.counts.tombstones,
     creates: result.creates,

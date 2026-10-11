@@ -301,3 +301,29 @@ It would need settings/document/rules compatibility, interval previews, and
 cross-device checks. Review history and FSRS require a separate data design
 and evaluation using real review events; they are not current features or
 release requirements.
+
+
+## Forgiving streaks — #58
+
+The `1.3.0` source implements the 10-review target, carrying partial repair,
+passive fire/moon/skull counter, and immutable per-account activity. It is not
+yet published. The Pages workflow still publishes master automatically, so
+complete the following before merging the feature PR:
+
+1. Review the passing unit/browser/emulator checks, including activity ownership,
+   concurrent writes, idempotent retry, offline replay and backup/restore.
+2. Deploy the reviewed additive `activity` security rules through the existing
+   operator procedure. Record the revision and rules checksum. Old clients remain
+   compatible with the additive rules. Pages must not deploy rules. Without the
+   new rules, the new client's activity pull is denied and its sync cannot finish.
+3. Point the private daily backup runner at the reviewed backup code that exports
+   `users/{uid}/activity`; retain the existing private directory and retention.
+   Record a successful aggregate backup and isolated restore including activity.
+4. Merge/publish the tested Firebase candidate, verify served files and revision,
+   and check installed-app update plus two-device offline activity reconciliation.
+   Record the publication before changing README's development status to released.
+
+The activity store upgrades IndexedDB from version 1 to 2 on writes. A rollback
+must retain activity and support version 2; publishing the old version-1 writer
+would strand that installation until it upgrades again. Existing production
+schedules and preferences are preserved. No pre-feature streak is reconstructed.

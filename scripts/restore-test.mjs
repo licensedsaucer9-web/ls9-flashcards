@@ -64,10 +64,15 @@ const directory = mkdtempSync(join(tmpdir(), 'flashcards-restore-'))
 const projectId = 'demo-restore-rehearsal'
 try {
   const source = memoryStore()
-  await runMigration(prepareMigration(snapshot(), mapping), source, { dryRun: false })
+  const activityId = '00000000-0000-4000-8000-000000000058'
+  const input = snapshot()
+  input.users.alice.activity = { [activityId]: { at: 1790856000000, timeZone: 'Europe/Oslo' } }
+  await runMigration(prepareMigration(input, mapping), source, { dryRun: false })
   const dumpPath = join(directory, 'backup.json')
   const exported = await exportFirestore(source, dumpPath)
   const plan = readFirestoreBackup(dumpPath)
+  assert.equal(plan.counts.activity, 1)
+  assert.equal(plan.items.find(item => item.path === `users/uid-alice/activity/${activityId}`).data.timeZone, 'Europe/Oslo')
   assert.equal(plan.sha256, exported.sha256)
   assert.equal(plan.counts.tombstones, 1)
   assert.equal(plan.counts.users, 2)
