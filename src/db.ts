@@ -929,7 +929,11 @@ export async function acknowledgePending(
       } else if (item.kind === 'progress' || item.kind === 'activity') {
         const marks = item.kind === 'progress' ? settings.pending.progress : settings.pending.activity
         const mark = marks?.[item.id]
-        if (mark) marks![item.id] = applyAck(mark, item.revision)
+        if (mark) {
+          const next = applyAck(mark, item.revision)
+          if (item.kind === 'activity' && next.acked === next.revision) delete marks![item.id]
+          else marks![item.id] = next
+        }
       } else {
         if (item.contentRevision > 0) {
           const mark = settings.pending.cards[item.id]

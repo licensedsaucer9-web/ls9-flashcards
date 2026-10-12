@@ -506,6 +506,7 @@ async function renderReview() {
   }
 
   const onKey = (e: KeyboardEvent) => {
+    if (e.target instanceof Element && e.target.closest('[data-streak]')) return
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault()

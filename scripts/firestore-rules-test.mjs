@@ -83,7 +83,15 @@ try {
   await denied(getDoc(eventRef(BOB)), 'cross-account activity read')
   await denied(getDocs(collection(db(BOB), 'users', ALICE, 'activity')), 'cross-account activity list')
   await denied(updateDoc(eventRef(ALICE), { at: event.at + 1 }), 'immutable activity update')
-  await denied(deleteDoc(eventRef(ALICE)), 'immutable activity delete')
+  await denied(deleteDoc(eventRef(null)), 'signed-out activity delete')
+  await denied(deleteDoc(eventRef(BOB)), 'cross-account activity delete')
+  await assertSucceeds(deleteDoc(eventRef(ALICE)))
+  for (const timeZone of ['UTC', 'Etc/UTC', 'Etc/GMT+1', 'America/Argentina/Buenos_Aires']) {
+    await assertSucceeds(setDoc(eventRef(ALICE, randomUUID()), { ...event, timeZone }))
+  }
+  for (const timeZone of ['Factory', 'UTC+1', '+01:00', 'Europe/', 'Europe/Oslo:bad']) {
+    await denied(setDoc(eventRef(ALICE, randomUUID()), { ...event, timeZone }), 'invalid timezone format')
+  }
   await denied(setDoc(eventRef(ALICE, 'bad-id'), event), 'activity UUID required')
   for (const data of [{ ...event, at: -1 }, { ...event, at: 0.5 }, { ...event, at: 1e16 },
     { at: event.at }, { ...event, timeZone: '' }, { ...event, timeZone: 'x'.repeat(101) },

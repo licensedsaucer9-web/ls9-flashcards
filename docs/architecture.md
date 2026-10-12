@@ -77,7 +77,7 @@ GitHub data transport; the previous published build still has its old writer.
 | `users/{uid}` | Owner-readable account metadata, deck assignment, schema version, migration status. |
 | `users/{uid}/settings/current` | Owner-only direction, session size, tier, and settings clock. |
 | `users/{uid}/progress/{cardId}` | Owner-only SRS state and its clock. |
-| `users/{uid}/activity/{eventId}` | Owner-only immutable saved-review timestamp and time zone, keyed by UUID. |
+| `users/{uid}/activity/{eventId}` | Owner-only saved-review timestamp and time zone, keyed by UUID; payload immutable, owner deletion allowed. |
 | `decks/{deckId}` | Explicit deck membership. Clients cannot alter membership or assign themselves to a legacy deck. |
 | `decks/{deckId}/cards/{cardId}` | Vocabulary, content clock, optional rank/tier, and deletion tombstone; deck members can edit. |
 
@@ -153,14 +153,17 @@ cards or preferences. Older installed clients need the new build to write a
 version-2 database.
 
 Events store only `{ at, timeZone }`, with no card content or grade. Firestore
-allows owner reads/creates and prohibits updates/deletes. Sync pulls and unions
+allows owner reads/creates/deletes and prohibits updates. Invalid external events
+are skipped during pull and restore with aggregate counts; rules check timezone
+format while the app validates the actual zone with Intl. Sync pulls and unions
 the account's activity and pushes pending UUIDs with create-or-identical-no-op
 transactions. Different devices retain both events even when the SRS merge picks
 one schedule. Conflicting payloads for a UUID are refused. Activity remains after
 card deletion and survives confirmed device copies, user-file serialization,
 private backup and isolated restore. It is separate from settings merge clocks.
 The current full-account pull includes activity, so reads/storage grow with the
-number of saved reviews; there is no event pruning or loss of repair history.
+number of saved reviews; acknowledged activity pending marks are removed, while
+events remain unless the owner explicitly deletes them.
 
 Calendar days use a fixed profile zone chosen from the earliest tracked event;
 UUID order breaks timestamp ties. Concurrent first studies in different zones

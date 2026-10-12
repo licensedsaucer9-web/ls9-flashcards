@@ -23,8 +23,38 @@ export async function testStreakUI(newPage) {
     await (await import('/src/streak-ui.ts')).refreshStreak()
   })
   await page.waitForFunction(() => document.querySelector('[data-streak-label]')?.textContent === '🌙 0-day streak · 9/10 today')
+  await page.evaluate(async () => {
+    const ui = await import('/src/streak-ui.ts')
+    const original = IDBObjectStore.prototype.getAll
+    let release
+    let started
+    const ready = new Promise(resolve => { started = resolve })
+    IDBObjectStore.prototype.getAll = function (...args) {
+      if (this.name !== 'activity') return original.apply(this, args)
+      IDBObjectStore.prototype.getAll = original
+      const request = { result: [] }
+      release = () => request.onsuccess()
+      started()
+      return request
+    }
+    try {
+      const old = ui.refreshStreak()
+      await ready
+      await ui.refreshStreak()
+      release()
+      await old
+    } finally { IDBObjectStore.prototype.getAll = original }
+  })
+  assert.equal(await page.locator('[data-streak-label]').textContent(), '🌙 0-day streak · 9/10 today', 'older refresh cannot overwrite newer activity')
   await capture('off')
   await page.click('#start')
+  const summary = page.locator('[data-streak] summary')
+  await summary.focus()
+  await page.keyboard.press('Enter')
+  assert.equal(await page.locator('[data-streak]').getAttribute('open'), '')
+  assert.equal(await page.locator('#card').getAttribute('class'), 'flip ')
+  await page.keyboard.press('Space')
+  assert.equal(await page.locator('[data-streak]').getAttribute('open'), null)
   await page.click('#card')
   await page.click('[data-grade="again"]')
   await page.waitForFunction(() => document.querySelector('[data-streak-label]')?.textContent === '🔥 1-day streak')
@@ -98,9 +128,18 @@ export async function testStreakUI(newPage) {
     const copiedTwice = await db.getReviewActivity()
     const pending = (await db.getSettings()).pending.activity
     const lock = locks.captureStudyLock()
+    await db.acknowledgePending({ kind: 'activity', id, revision: pending[id].revision - 1 },
+      { uid: lock.uid, generation: lock.generation })
+    const afterPartialAck = (await db.getSettings()).pending.activity
+    const dirtyRetained = afterPartialAck[id].acked < afterPartialAck[id].revision
+      && Object.keys(afterPartialAck).length === Object.keys(pending).length
     const acknowledged = await db.acknowledgePending({ kind: 'activity', id, revision: pending[id].revision },
       { uid: lock.uid, generation: lock.generation })
-    const mark = (await db.getSettings()).pending.activity[id]
+    const afterAck = (await db.getSettings()).pending.activity
+    const mark = afterAck[id]
+    const remainingPending = Object.keys(afterAck).length === Object.keys(pending).length - 1
+      && Object.values(afterAck).every(mark => mark.acked < mark.revision)
+    const eventRetained = !!(await db.getReviewActivity())[id]
     // Existing schedules alone cannot manufacture activity on a different account.
     locks.bindStudyDatabase({ uid: 'streak-other', dbName: 'streak-ui-other' })
     await db.putCard(first)
@@ -119,10 +158,11 @@ export async function testStreakUI(newPage) {
       aborted, rolledBack, invalidFailed, invalidUnchanged: unchanged && JSON.stringify(first) === JSON.stringify(afterInvalid),
       exported: JSON.stringify(snapshot.snapshot.user.activity) === JSON.stringify(activity), empty, rejectedAck,
       copied: Object.keys(copied).length, copiedTwice: Object.keys(copiedTwice).length,
-      pending: Object.keys(pending).length, acknowledged, acked: mark.acked === mark.revision,
+      pending: Object.keys(pending).length, acknowledged, acked: mark === undefined, dirtyRetained, remainingPending, eventRetained,
       otherCount, pulled: Object.keys(pulled).length, mergedCount,
     }
   })
+  assert.equal(checks.dirtyRetained && checks.remainingPending && checks.eventRetained, true, 'acks prune only fully confirmed marks and preserve event history')
   assert.equal(checks.replayIdentical, true, 'retry cannot reschedule or count a grade twice')
   assert.equal(checks.count, 41)
   assert.equal(checks.invalidFailed && checks.invalidUnchanged, true, 'failed saves roll back scheduling and activity together')

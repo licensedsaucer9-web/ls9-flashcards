@@ -25,6 +25,19 @@ export function validReviewEvent(id: string, value: unknown): value is ReviewEve
   try { formatter(row.timeZone); return true } catch { return false }
 }
 
+/** Tolerate corrupt external activity without discarding unrelated account data. */
+export function filterReviewEvents(rows: { id: string; data: unknown }[]): {
+  activity: { id: string; data: ReviewEvent }[]; skipped: number
+} {
+  const activity: { id: string; data: ReviewEvent }[] = []
+  let skipped = 0
+  for (const row of rows) {
+    if (validReviewEvent(row.id, row.data)) activity.push({ id: row.id, data: row.data })
+    else skipped++
+  }
+  return { activity, skipped }
+}
+
 export function parseReviewActivity(value: unknown): ReviewActivity {
   if (value === undefined) return {}
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid review activity')

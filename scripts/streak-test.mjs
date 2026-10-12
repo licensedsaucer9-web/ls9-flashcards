@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { calculateStreak, calendarDay, mergeReviewActivity, parseReviewActivity, streakLabel, streakTimeZone } from '../src/streak.ts'
+import { filterReviewEvents, calculateStreak, calendarDay, mergeReviewActivity, parseReviewActivity, streakLabel, streakTimeZone } from '../src/streak.ts'
 import { filesToDocs, docsToFiles } from '../src/firestore-docs.ts'
 import { parseUserFile } from '../src/merge.ts'
 import { emptyPending, listPushItems, hasDirty, applyAck } from '../src/record-sync.ts'
@@ -72,3 +72,13 @@ assert.deepEqual(listPushItems(pending), [{ kind: 'activity', id, revision: 2 }]
 pending.activity[id] = applyAck(pending.activity[id], 2)
 assert.equal(hasDirty(pending), false)
 console.log('streak: daily targets, partial repair, no banking, midnight/DST, immutable merge, time zone, serialization and pending credit: ok')
+
+const goodId = randomUUID()
+const filtered = filterReviewEvents([
+  { id: goodId, data: { at: time(1), timeZone: 'Europe/Oslo' } },
+  ...['Not/AZone', 'UTC+1'].map(timeZone => ({ id: randomUUID(), data: { at: time(1), timeZone } })),
+  { id: 'bad-id', data: { at: time(1), timeZone: 'UTC' } },
+  { id: randomUUID(), data: { at: -1, timeZone: 'UTC' } },
+])
+assert.equal(filtered.skipped, 4)
+assert.deepEqual(filtered.activity, [{ id: goodId, data: { at: time(1), timeZone: 'Europe/Oslo' } }])

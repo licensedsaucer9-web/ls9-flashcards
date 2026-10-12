@@ -327,3 +327,11 @@ The activity store upgrades IndexedDB from version 1 to 2 on writes. A rollback
 must retain activity and support version 2; publishing the old version-1 writer
 would strand that installation until it upgrades again. Existing production
 schedules and preferences are preserved. No pre-feature streak is reconstructed.
+
+Review fixes for #59 tighten activity time zones to `UTC` or slash-separated
+Area/Location forms (including `Etc` zones); rules cannot validate the full IANA
+registry. Activity updates remain forbidden, while owners may delete events for
+cleanup. Pulls skip invalid events with aggregate warnings, and restore reports
+count skipped activity rows while retaining all other validated data. Deploy
+these reviewed rules separately before publication; no rules deployment is part
+of this review fix.

@@ -319,6 +319,23 @@ try {
   const first = await getDoc(doc(alice, 'decks', ALICE, 'cards', 'n000'))
   assert(sample.exists() && first.exists() && sample.data().de === 'w513', 'both chunks were written')
 
+  await commitSettings(alice, ALICE, { direction: 'en-de', sessionSize: 10, tier: 2 }, 100)
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    for (const timeZone of ['Not/AZone', 'UTC+1']) {
+      await setDoc(doc(ctx.firestore(), 'users', ALICE, 'activity', randomUUID()), { ...event, timeZone })
+    }
+  })
+  const warnings = []
+  const warn = console.warn
+  let pulled
+  try {
+    console.warn = message => warnings.push(message)
+    pulled = await pullCloud(alice, ALICE, ALICE)
+  } finally { console.warn = warn }
+  assert(warnings.length === 1 && warnings[0] === 'Skipped 2 invalid cloud review activity events', 'pull reports aggregate skipped count')
+  assert(pulled.activity.length === 12, 'pull retains valid events beside corrupt rows')
+  assert(pulled.cards.some(row => row.id === 'n513') && pulled.progress.some(row => row.id === 'card-grade')
+    && pulled.settings.direction === 'en-de', 'invalid activity cannot block other account data')
   console.log('cloud sync emulator ok')
 } finally {
   await Promise.all(stores.map((store) => terminate(store).catch(() => {})))

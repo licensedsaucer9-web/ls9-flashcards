@@ -5,6 +5,7 @@ import { captureStudyLock, studyLockCurrent } from './study-lock.ts'
 
 let lastDay: number | undefined
 let lastZone = 'UTC'
+let refreshGeneration = 0
 
 /** Passive text, deliberately without live announcements or notifications. */
 export function streakPlaceholder(): string {
@@ -12,11 +13,12 @@ export function streakPlaceholder(): string {
 }
 
 export async function refreshStreak(): Promise<void> {
+  const generation = ++refreshGeneration
   const nodes = [...document.querySelectorAll<HTMLElement>('[data-streak]')]
   if (!nodes.length) return
   const lock = captureStudyLock()
   const activity = await getReviewActivity()
-  if (!studyLockCurrent(lock)) return
+  if (generation !== refreshGeneration || !studyLockCurrent(lock)) return
   const streak = calculateStreak(activity)
   lastZone = streak.timeZone
   lastDay = calendarDay(Date.now(), lastZone)

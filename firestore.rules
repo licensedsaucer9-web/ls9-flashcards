@@ -120,7 +120,8 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // One immutable event per saved grade. Retries reuse its UUID.
+      // One event per saved grade; payloads cannot change. Owners may delete for cleanup.
+      // Rules validate zone format, not the IANA registry; clients skip invalid zones.
       match /activity/{eventId} {
         allow get, list: if isOwner(uid);
         allow create: if isOwner(uid)
@@ -129,8 +130,9 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['at', 'timeZone'])
           && clock(request.resource.data.at) && request.resource.data.at <= 253402214400000
           && text(request.resource.data.timeZone, 100)
-          && request.resource.data.timeZone.matches('^[A-Za-z0-9_+:/-]+$');
-        allow update, delete: if false;
+          && request.resource.data.timeZone.matches('^(UTC|[A-Za-z_]+/[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)?)$');
+        allow update: if false;
+        allow delete: if isOwner(uid);
       }
     }
 

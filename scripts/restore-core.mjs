@@ -152,6 +152,7 @@ export function prepareRestore(snapshot) {
   const items = []
   let progress = 0
   let activity = 0
+  let skippedActivity = 0
   let settings = 0
   let cards = 0
   let tombstones = 0
@@ -162,7 +163,7 @@ export function prepareRestore(snapshot) {
     if (user.activity !== undefined) {
       if (!object(user.activity)) fail(`invalid activity ${uid}`)
       for (const [id, data] of Object.entries(user.activity)) {
-        if (!validReviewEvent(id, data)) fail(`invalid activity ${uid}`)
+        if (!validReviewEvent(id, data)) { skippedActivity++; continue }
         items.push({ path: `users/${uid}/activity/${id}`, kind: 'activity', data })
         activity++
       }
@@ -211,6 +212,7 @@ export function prepareRestore(snapshot) {
       settings,
       tombstones,
       activity,
+      skippedActivity,
     },
   }
 }
@@ -287,6 +289,7 @@ function writeReport(destination, result) {
     dryRun: result.dryRun,
     state: result.state,
     elapsedMs: result.elapsedMs,
+    skippedActivity: result.counts.skippedActivity,
     documents: result.documents.map((row) => ({ path: row.path, kind: row.kind, state: row.state })),
   }
   mkdirSync(dirname(destination), { recursive: true, mode: 0o700 })
@@ -317,6 +320,7 @@ export function publicRestoreSummary(result) {
     cards: result.counts.cards,
     progress: result.counts.progress,
     activity: result.counts.activity,
+    skippedActivity: result.counts.skippedActivity,
     settings: result.counts.settings,
     tombstones: result.counts.tombstones,
     creates: result.creates,

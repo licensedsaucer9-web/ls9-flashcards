@@ -281,3 +281,9 @@ const moved = await runDirtyQueue(
 assert(!moved.clean && foreign === 0, 'a uid change before the acknowledgement writes nothing onto the new account')
 
 console.log('record sync ok')
+
+const activityPending = normalizePending({ activity: {
+  clean: { revision: 3, acked: 3 }, dirty: { revision: 5, acked: 3 },
+} })
+assert(!activityPending.activity.clean, 'acknowledged activity marks are pruned on load')
+assert(activityPending.activity.dirty.revision === 5, 'dirty activity marks survive normalization')

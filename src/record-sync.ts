@@ -39,7 +39,7 @@ export function normalizePending(value: unknown): PendingRecords {
     tombstones: asMarkMap(raw.tombstones),
     progress: asMarkMap(raw.progress),
     settings: asMark(raw.settings),
-    ...(raw.activity ? { activity: asMarkMap(raw.activity) } : {}),
+    ...(raw.activity ? { activity: Object.fromEntries(Object.entries(asMarkMap(raw.activity)).filter(([, mark]) => isDirty(mark))) } : {}),
   }
 }
 

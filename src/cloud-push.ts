@@ -2,7 +2,7 @@ import { collection, doc, getDoc, getDocs, runTransaction, type Firestore } from
 import type { CardContent, PublicSettings, Srs } from './types.ts'
 import type { CardDoc, CloudDocs, ProgressDoc, SettingsDoc } from './firestore-docs.ts'
 import { planCardWrite, planProgressWrite, planSettingsWrite } from './record-sync.ts'
-import { validReviewEvent, type ReviewEvent } from './streak.ts'
+import { filterReviewEvents, validReviewEvent, type ReviewEvent } from './streak.ts'
 
 function asCard(data: unknown): CardDoc | null {
   if (!data || typeof data !== 'object') return null
@@ -54,11 +54,8 @@ export async function pullCloud(db: Firestore, uid: string, deckId: string): Pro
     tier: 1 as const,
     settingsUpdatedAt: 0,
   }
-  const activity = activitySnap.docs.map((item) => {
-    const data = item.data()
-    if (!validReviewEvent(item.id, data)) throw new Error('Invalid cloud review activity')
-    return { id: item.id, data }
-  })
+  const { activity, skipped } = filterReviewEvents(activitySnap.docs.map((item) => ({ id: item.id, data: item.data() })))
+  if (skipped) console.warn(`Skipped ${skipped} invalid cloud review activity events`)
   return { cards, progress, settings, activity }
 }
 
