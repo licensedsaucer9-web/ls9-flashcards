@@ -126,7 +126,7 @@ try {
     const records = await import('/src/record-sync.ts')
     const result = await db.copyMappedLegacyProfile('alice', activeMapping, activeMapping.projectId, activeMapping.deckId)
     const account = await db.getSettings()
-    const request = indexedDB.open('german-flashcards:alice', 1)
+    const request = indexedDB.open('german-flashcards:alice')
     const source = await new Promise((resolve, reject) => {
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
@@ -181,7 +181,7 @@ try {
   assert.equal((await store.get('decks/legacy-deck/cards/seed-01')).deletedAt, 700)
   assert.equal((await store.get('users/uid-alice/settings/current')).tier, 3)
   const preserved = await alice.evaluate(async () => {
-    const request = indexedDB.open('german-flashcards:alice', 1)
+    const request = indexedDB.open('german-flashcards:alice')
     const db = await new Promise((resolve) => { request.onsuccess = () => resolve(request.result) })
     const tx = db.transaction(['cards', 'settings'], 'readonly')
     const read = (request) => new Promise((resolve) => { request.onsuccess = () => resolve(request.result) })

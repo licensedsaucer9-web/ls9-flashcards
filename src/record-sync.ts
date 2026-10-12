@@ -39,6 +39,7 @@ export function normalizePending(value: unknown): PendingRecords {
     tombstones: asMarkMap(raw.tombstones),
     progress: asMarkMap(raw.progress),
     settings: asMark(raw.settings),
+    ...(raw.activity ? { activity: Object.fromEntries(Object.entries(asMarkMap(raw.activity)).filter(([, mark]) => isDirty(mark))) } : {}),
   }
 }
 
@@ -51,6 +52,7 @@ export function hasDirty(pending: PendingRecords): boolean {
   for (const mark of Object.values(pending.cards)) if (isDirty(mark)) return true
   for (const mark of Object.values(pending.tombstones)) if (isDirty(mark)) return true
   for (const mark of Object.values(pending.progress)) if (isDirty(mark)) return true
+  for (const mark of Object.values(pending.activity ?? {})) if (isDirty(mark)) return true
   return false
 }
 
@@ -106,6 +108,7 @@ export function reconcileStagedProgress(staged: Srs, current: Srs): Srs {
 export type PushItem =
   | { kind: 'card'; id: string; contentRevision: number; tombstoneRevision: number }
   | { kind: 'progress'; id: string; revision: number }
+  | { kind: 'activity'; id: string; revision: number }
   | { kind: 'settings'; revision: number }
 
 export function listPushItems(pending: PendingRecords): PushItem[] {
@@ -129,6 +132,9 @@ export function listPushItems(pending: PendingRecords): PushItem[] {
     if (isDirty(mark)) items.push({ kind: 'progress', id, revision: mark.revision })
   }
   if (pending.settings && isDirty(pending.settings)) items.push({ kind: 'settings', revision: pending.settings.revision })
+  for (const [id, mark] of Object.entries(pending.activity ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
+    if (isDirty(mark)) items.push({ kind: 'activity', id, revision: mark.revision })
+  }
   return items
 }
 

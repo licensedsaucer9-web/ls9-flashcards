@@ -37,10 +37,15 @@ function memoryStore() {
 
 try {
   const source = memoryStore()
-  await runMigration(prepareMigration(snapshot(), mapping), source, { dryRun: false })
+  const activityId = '00000000-0000-4000-8000-000000000058'
+  const input = snapshot()
+  input.users.alice.activity = { [activityId]: { at: 1790856000000, timeZone: 'Europe/Oslo' } }
+  await runMigration(prepareMigration(input, mapping), source, { dryRun: false })
   const dumpPath = join(directory, 'backup.json')
   await exportFirestore(source, dumpPath)
   const plan = readFirestoreBackup(dumpPath)
+  assert.equal(plan.counts.activity, 1)
+  assert.equal(plan.items.find(item => item.path === `users/uid-alice/activity/${activityId}`).data.timeZone, 'Europe/Oslo')
   await envRules.clearFirestore()
   const restored = await runRestore(plan, store, { dryRun: false, projectId, reportPath: join(directory, 'emulator-apply.json') })
   assert.equal(restored.state, 'restored and verified')

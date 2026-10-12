@@ -185,7 +185,7 @@ npm run migrate -- backup \
   > "$MIGRATION_DIR/exports/firestore-$BACKUP_STAMP.log"
 ```
 
-The output contains account metadata, each user's settings/progress, deck
+The output contains account metadata, each user's settings/progress/streak activity, deck
 membership/cards, and a SHA-256 of the serialized body. Keep its log private
 too. Files are mode 600 and existing outputs are never overwritten. Check
 the checksum and aggregate document counts privately.
@@ -197,6 +197,11 @@ checksum, and elapsed time in `backup-status.json`. The user timer
 `firestore-backup.timer` runs that command at 08:30 and keeps 14 dumps.
 Stdout is the status object. A failed run writes `ok: false` and a non-zero
 exit. These files stay on the primary machine.
+
+For the `1.3.0` streak release, the runner must use code that exports the new
+`activity` collection and reports its aggregate count. Older backups without
+activity remain readable. Complete the [#58 release steps](firebase-rollout-plan.md#forgiving-streaks--58)
+before publishing the client.
 
 This `kind: firestore` dump differs from the GitHub snapshot accepted by
 `migrate import`. Restoring it does not recreate Google Auth identities,

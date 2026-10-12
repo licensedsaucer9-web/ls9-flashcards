@@ -1,5 +1,8 @@
 // Firestore rules against the emulator. Run via `npm run test:rules`, not `npm test`.
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { chromium } from 'playwright-core'
+import { canonicalReviewTimeZone, validReviewEvent } from '../src/streak.ts'
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing'
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
 
@@ -69,6 +72,52 @@ function db(uid) {
 
 try {
   await env.clearFirestore()
+
+  const eventId = randomUUID()
+  const event = { at: 1790856000000, timeZone: 'Europe/Oslo' }
+  const eventRef = (uid, id = eventId) => doc(db(uid), 'users', ALICE, 'activity', id)
+  await denied(getDoc(eventRef(null)), 'signed-out activity read')
+  await denied(setDoc(eventRef(null), event), 'signed-out activity create')
+  await denied(setDoc(eventRef(BOB), event), 'cross-account activity create')
+  await assertSucceeds(setDoc(eventRef(ALICE), event))
+  await assertSucceeds(getDoc(eventRef(ALICE)))
+  await assertSucceeds(getDocs(collection(db(ALICE), 'users', ALICE, 'activity')))
+  await denied(getDoc(eventRef(BOB)), 'cross-account activity read')
+  await denied(getDocs(collection(db(BOB), 'users', ALICE, 'activity')), 'cross-account activity list')
+  await denied(updateDoc(eventRef(ALICE), { at: event.at + 1 }), 'immutable activity update')
+  await denied(deleteDoc(eventRef(null)), 'signed-out activity delete')
+  await denied(deleteDoc(eventRef(BOB)), 'cross-account activity delete')
+  await assertSucceeds(deleteDoc(eventRef(ALICE)))
+  for (const timeZone of ['UTC', 'Etc/UTC', 'Etc/GMT+1', 'America/Argentina/Buenos_Aires']) {
+    await assertSucceeds(setDoc(eventRef(ALICE, randomUUID()), { ...event, timeZone }))
+  }
+  // Use Chromium's actual device zone, including its raw-offset responses.
+  for (const [TZ, expected] of [['GMT', 'UTC'], ['GMT+1', 'Etc/GMT-1'], ['GMT-5', 'Etc/GMT+5']]) {
+    const browser = await chromium.launch({
+      executablePath: process.env.CHROME || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()),
+      headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'], env: { ...process.env, TZ },
+    })
+    try {
+      const page = await browser.newPage()
+      const raw = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
+      const timeZone = canonicalReviewTimeZone(raw)
+      assert(timeZone === expected, `Chromium TZ=${TZ}: canonical zone`)
+      const id = randomUUID()
+      const data = { ...event, timeZone }
+      assert(validReviewEvent(id, data), `Chromium TZ=${TZ}: valid client event`)
+      await assertSucceeds(setDoc(eventRef(ALICE, id), data))
+    } finally { await browser.close() }
+  }
+  for (const timeZone of ['Factory', 'UTC+1', '+01:00', 'Europe/', 'Europe/Oslo:bad']) {
+    await denied(setDoc(eventRef(ALICE, randomUUID()), { ...event, timeZone }), 'invalid timezone format')
+  }
+  await denied(setDoc(eventRef(ALICE, 'bad-id'), event), 'activity UUID required')
+  for (const data of [{ ...event, at: -1 }, { ...event, at: 0.5 }, { ...event, at: 1e16 },
+    { at: event.at }, { ...event, timeZone: '' }, { ...event, timeZone: 'x'.repeat(101) },
+    { ...event, count: 100 }]) {
+    await denied(setDoc(eventRef(ALICE, randomUUID()), data), 'invalid activity shape')
+  }
+
 
   await denied(getDoc(doc(db(null), 'users', ALICE)), 'signed-out user read')
   await denied(getDocs(collection(db(null), 'users')), 'signed-out user list')

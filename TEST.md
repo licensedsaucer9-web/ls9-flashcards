@@ -188,3 +188,25 @@ The real #25 rehearsal passed on 2026-10-04; its
 distinguishes server comparisons from human checks. New manual results should
 record build, date, device/browser, method, and outcome. Keep record-level
 values and operator files private. Production acceptance is still outstanding.
+
+
+## Forgiving streaks (#58)
+
+The daily target is 10 saved grades, including repeated cards and every grade.
+The counter is passive, near the Home/review header. Check moon at 9, fire at 10,
+moon after midnight, and skull only after a past day has a shortfall. Its optional
+explanation opens only when tapped; there must be no reminder, permission prompt,
+notification, email, popup or live screen-reader announcement.
+
+Two empty days need 20 extra reviews after today's 10; 7 reviews on a past day
+need only 3 extras. Partial repairs carry between sessions and days. Extra reviews
+after repair is complete do not bank future days. Check progress after closing
+mid-session and reopening offline, including the newly available review-ahead path.
+
+`npm test` covers the calculation, serialization, pending markers, calendar/DST
+boundaries, merge and backup/restore. `npm run test:account-ui` uses synthetic auth
+and real IndexedDB for all counter states, repair, rollover, atomic saves, retry,
+account isolation and device copies. `npm run test:rules` checks immutable activity
+ownership, malformed writes, concurrent clients and offline retry in the emulator.
+The recovery build also verifies that opening a version-1 source does not upgrade
+or mutate it. Production two-device/installed-app acceptance belongs to release.

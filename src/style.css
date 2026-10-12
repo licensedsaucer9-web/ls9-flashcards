@@ -956,3 +956,11 @@ p code {
 .user-row .name {
   font-weight: 650;
 }
+
+/* A quiet, optional streak explanation beneath the main header. */
+.streak { color: var(--muted); font-size: .85rem; margin: 0 0 1rem; }
+.streak summary { cursor: pointer; list-style: none; min-height: 1.5rem; }
+.streak summary::-webkit-details-marker { display: none; }
+.streak summary:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.streak p { max-width: 42rem; line-height: 1.5; margin: .5rem 0; }
+.streak[data-state="on"] summary { color: var(--text); }

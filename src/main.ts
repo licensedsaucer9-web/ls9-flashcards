@@ -29,10 +29,12 @@ import {
   putCard,
   putCards,
   putSettings,
+  saveReview,
 } from './db.ts'
 import { seedCards } from './seed.ts'
 import { seedBeforeFirstSync } from './sign-in-flow.ts'
-import { newSrs, review } from './srs.ts'
+import { newSrs } from './srs.ts'
+import { quietlyRefreshStreak, refreshStreakDay, streakPlaceholder } from './streak-ui.ts'
 import { importCsv } from './csv.ts'
 import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
 import {
@@ -289,6 +291,7 @@ async function renderHome() {
         <h1>LS9 Flashcards</h1>
         <span class="badge" id="sync-line">${esc(syncLineText())}</span>
       </header>
+      ${streakPlaceholder()}
       <div class="due-hero">
         <p class="kicker">Due now · ${esc(scopeLabel(settings.tier, settings.wordTypes))}</p>
         <div class="due-count ${ready ? '' : 'caught-up'}" data-due-count>${candidates.dueCount}</div>
@@ -379,9 +382,11 @@ async function renderReview() {
   const sessionTotal = queue.length
   const leftover = () => Math.max(0, candidates.dueCount - sessionTotal)
   let flipped = false
+  let saving = false
+  let attempt: string | null = null
 
   const paint = () => {
-    if (!studyLockCurrent(lock)) return
+    if (!studyLockCurrent(lock) || parseRoute().name !== 'review') return
     const card = queue[0]
     if (!card) {
       main.innerHTML = `
@@ -391,6 +396,7 @@ async function renderReview() {
             <h1>Done</h1>
             <span></span>
           </header>
+          ${streakPlaceholder()}
           <div class="due-hero">
             <p class="kicker">Session</p>
             <div class="due-count caught-up">0</div>
@@ -405,6 +411,7 @@ async function renderReview() {
           </div>
         </section>
       `
+      quietlyRefreshStreak()
       $('#back').addEventListener('click', () => go('/'))
       $('#home').addEventListener('click', () => go('/'))
       return
@@ -423,6 +430,7 @@ async function renderReview() {
           <div class="review-meta">${reviewingAhead ? 'Review ahead · ' : ''}<span data-remaining>${remaining}</span> left · ${esc(scopeLabel(settings.tier, settings.wordTypes))}</div>
           <span></span>
         </header>
+        ${streakPlaceholder()}
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
         <div class="card-stage">
           <button class="flip ${flipped ? 'is-flipped' : ''}" id="card" type="button" aria-label="Flip card">
@@ -460,6 +468,7 @@ async function renderReview() {
       </section>
     `
 
+    quietlyRefreshStreak()
     $('#back').addEventListener('click', () => go('/'))
     $('#card').addEventListener('click', () => {
       if (flipped) return
@@ -472,30 +481,32 @@ async function renderReview() {
   }
 
   const grade = async (g: Grade) => {
-    if (!studyLockCurrent(lock)) return
-    const card = queue.shift()
+    if (!studyLockCurrent(lock) || saving || !flipped) return
+    const card = queue[0]
     if (!card) return
-    const current = await getCard(card.id)
-    // Sync may have merge-deleted this card while the review screen was open.
-    // Do not fall back to the stale queue object — that would resurrect it.
-    if (!current) {
+    saving = true
+    attempt ??= crypto.randomUUID()
+    try {
+      const saved = await saveReview(card.id, g, attempt)
+      if (!studyLockCurrent(lock)) return
+      queue.shift()
+      attempt = null
+      // A sync-deleted card is skipped without earning activity or resurrecting it.
+      if (saved) {
+        pushSoon()
+        if (g === 'again' || g === 'wrong_gender') queue.push(saved)
+      }
       flipped = false
       paint()
-      return
+    } catch {
+      if (studyLockCurrent(lock)) toast('Could not save this review. Try again.')
+    } finally {
+      saving = false
     }
-    // A review changes scheduling, not vocabulary, so only the scheduling clock
-    // moves. Bumping the card's own updated_at would rewrite the shared deck
-    // file on every single grade.
-    const saved = { ...current, srs: { ...review(current.srs, g), updated_at: Date.now() } }
-    await putCard(saved)
-    if (!studyLockCurrent(lock)) return
-    pushSoon()
-    if (g === 'again' || g === 'wrong_gender') queue.push(saved)
-    flipped = false
-    paint()
   }
 
   const onKey = (e: KeyboardEvent) => {
+    if (e.target instanceof Element && e.target.closest('[data-streak]')) return
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault()
@@ -931,6 +942,7 @@ async function render() {
   else await renderSettings()
   if (!studyLockCurrent(lock)) return
   document.getElementById('db-block')?.remove()
+  quietlyRefreshStreak()
 }
 
 function clearLegacyGithubToken(): void {
@@ -992,8 +1004,10 @@ async function boot() {
       pauseSync()
       return
     }
+    quietlyRefreshStreak()
     if (accountSignIn && !captureStudyLock().uid) {
-      scheduleRender()
+      const route = parseRoute().name
+      if (route === 'home' || route === 'deck') scheduleRender()
       return
     }
     void syncNow()
@@ -1017,9 +1031,14 @@ async function boot() {
   const paintSyncLine = () => {
     const el = document.getElementById('sync-line')
     if (el) el.textContent = syncLineText()
+    quietlyRefreshStreak()
   }
   onSyncStatus(paintSyncLine)
   onAccountSync(paintSyncLine)
+  // Refresh the passive date-dependent text while open; this never starts sync.
+  window.setInterval(() => {
+    if (document.visibilityState === 'visible') refreshStreakDay()
+  }, 1000)
 }
 
 void boot()

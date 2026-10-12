@@ -1,6 +1,7 @@
 // Exercise the real account UI and IndexedDB with synthetic Google sessions.
 // Only Auth and the import lookup are replaced; no live account is accessed.
 import assert from 'node:assert/strict'
+import { testStreakUI } from './streak-ui-test.mjs'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -335,6 +336,7 @@ try {
   await ahead.evaluate(() => { location.hash = '/review' })
   await ahead.waitForFunction(() => location.hash === '#/' && document.getElementById('start')?.disabled)
 
+  await testStreakUI(newPage)
   assert.deepEqual(pageErrors, [], 'no unhandled browser errors')
   assert.deepEqual(externalRequests, [], 'the test must not access live Firebase or Google')
   console.log('account-ui: account guards/sign-out, data preservation, review ahead, due-only sessions, caps/All, empty tier: ok')

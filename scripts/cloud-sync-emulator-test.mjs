@@ -1,5 +1,6 @@
 // Firestore sync against the emulator. Run via `npm run test:rules`, not `npm test`.
 import { readFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { assertFails, initializeTestEnvironment } from '@firebase/rules-unit-testing'
 import { initializeApp } from 'firebase/app'
 import {
@@ -11,7 +12,8 @@ import {
   setDoc,
   terminate,
 } from 'firebase/firestore'
-import { commitCard, commitProgress, commitSettings } from '../src/cloud-push.ts'
+import { commitActivity, pullCloud, commitCard, commitProgress, commitSettings } from '../src/cloud-push.ts'
+import { parseStoredReviewActivity } from '../src/streak.ts'
 import { applyAck, chunkItems, isDirty, runDirtyQueue } from '../src/record-sync.ts'
 
 function assert(cond, msg) {
@@ -85,10 +87,10 @@ const env = await initializeTestEnvironment({
   firestore: { rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') },
 })
 
-function db(uid, port) {
+function db(uid, port, label = '') {
   const app = initializeApp(
     { apiKey: 'demo-key', projectId: 'demo-german-flashcards', appId: 'demo-app' },
-    `${uid || 'signed-out'}-${port || 'live'}`,
+    `${uid || 'signed-out'}-${port || 'live'}-${label}`,
   )
   const store = initializeFirestore(app, { localCache: memoryLocalCache() })
   const [host, portText] = String(process.env.FIRESTORE_EMULATOR_HOST).split(':')
@@ -111,12 +113,41 @@ try {
   await setDoc(doc(bob, 'users', BOB), { deckId: BOB, schemaVersion: 1, migrationStatus: 'new' })
   await setDoc(doc(bob, 'decks', BOB), { memberUids: [BOB] })
 
+  const aliceSecond = db(ALICE, undefined, 'second-device')
+  const event = { at: 1790856000000, timeZone: 'Europe/Oslo' }
+  const eventId = randomUUID()
+  await Promise.all(Array.from({ length: 10 }, (_, i) => commitActivity(i % 2 ? alice : aliceSecond, ALICE, randomUUID(), event)))
+  await Promise.all([commitActivity(alice, ALICE, eventId, event), commitActivity(aliceSecond, ALICE, eventId, event)])
+  assert((await pullCloud(alice, ALICE, ALICE)).activity.length === 11, 'concurrent devices retain every unique grade, with a duplicate counted once')
+  const eventAt = await serverUpdated(`users/${ALICE}/activity/${eventId}`)
+  assert(await commitActivity(aliceSecond, ALICE, eventId, event) === 'noop', 'activity retry is a no-op')
+  assert(await serverUpdated(`users/${ALICE}/activity/${eventId}`) === eventAt, 'activity retry makes no server write')
+  let collision = false
+  try { await commitActivity(alice, ALICE, eventId, { ...event, at: event.at + 1 }) } catch { collision = true }
+  assert(collision, 'an ID collision cannot overwrite activity')
+  await assertFails(commitActivity(bob, ALICE, randomUUID(), event))
+
   const grade = { kind: 'progress', id: 'card-grade', revision: 4 }
   const gradeAcks = []
   // disableNetwork does not stop emulator transactions in this SDK, so the
   // offline client is pointed at a closed port. The in-memory cache has no
   // second queue: the transaction rejects and nothing is acknowledged.
   const offlineDb = db(ALICE, 1)
+  const offlineEventId = randomUUID()
+  const activityItem = { kind: 'activity', id: offlineEventId, revision: 5 }
+  let activityAcks = 0
+  const activityOffline = await runDirtyQueue([activityItem], {
+    locked: () => true,
+    push: () => orTimeout(commitActivity(offlineDb, ALICE, offlineEventId, event)),
+    ack: async () => { activityAcks++ },
+  })
+  assert(!activityOffline.clean && activityAcks === 0, 'offline activity remains pending')
+  const activityRetry = await runDirtyQueue([activityItem], {
+    locked: () => true,
+    push: () => commitActivity(aliceSecond, ALICE, offlineEventId, event),
+    ack: async () => { activityAcks++ },
+  })
+  assert(activityRetry.clean && activityAcks === 1, 'reconnected activity is acknowledged once')
   const offline = await runDirtyQueue([grade], {
     locked: () => true,
     push: () => orTimeout(commitProgress(offlineDb, ALICE, 'card-grade', srs())),
@@ -289,6 +320,33 @@ try {
   const first = await getDoc(doc(alice, 'decks', ALICE, 'cards', 'n000'))
   assert(sample.exists() && first.exists() && sample.data().de === 'w513', 'both chunks were written')
 
+  await commitSettings(alice, ALICE, { direction: 'en-de', sessionSize: 10, tier: 2 }, 100)
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    for (const timeZone of ['Not/AZone', 'UTC+1']) {
+      await setDoc(doc(ctx.firestore(), 'users', ALICE, 'activity', randomUUID()), { ...event, timeZone })
+    }
+  })
+  const warnings = []
+  const warn = console.warn
+  let pulled
+  try {
+    console.warn = message => warnings.push(message)
+    pulled = await pullCloud(alice, ALICE, ALICE)
+  } finally { console.warn = warn }
+  assert(warnings.length === 1 && warnings[0] === 'Skipped 2 invalid cloud review activity events', 'pull reports aggregate skipped count')
+  assert(pulled.activity.length === 12, 'pull retains valid events beside corrupt rows')
+  assert(pulled.cards.some(row => row.id === 'n513') && pulled.progress.some(row => row.id === 'card-grade')
+    && pulled.settings.direction === 'en-de', 'invalid activity cannot block other account data')
+  const repaired = parseStoredReviewActivity(Object.fromEntries(
+    ['+01:00', '+00:00', '-05:00', 'GMT', '+05:30'].map(timeZone => [randomUUID(), { ...event, timeZone }]),
+  ))
+  assert(Object.keys(repaired).length === 4, 'unsupported stored offset is skipped')
+  for (const [id, data] of Object.entries(repaired)) {
+    assert(await commitActivity(alice, ALICE, id, data) === 'wrote', 'repaired stored activity passes emulator rules')
+    const saved = await getDoc(doc(alice, 'users', ALICE, 'activity', id))
+    assert(saved.data().timeZone === data.timeZone, 'server retains canonical zone')
+    assert(await commitActivity(alice, ALICE, id, data) === 'noop', 'repaired activity retry is idempotent')
+  }
   console.log('cloud sync emulator ok')
 } finally {
   await Promise.all(stores.map((store) => terminate(store).catch(() => {})))
