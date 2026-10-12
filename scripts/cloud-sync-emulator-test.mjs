@@ -13,6 +13,7 @@ import {
   terminate,
 } from 'firebase/firestore'
 import { commitActivity, pullCloud, commitCard, commitProgress, commitSettings } from '../src/cloud-push.ts'
+import { parseStoredReviewActivity } from '../src/streak.ts'
 import { applyAck, chunkItems, isDirty, runDirtyQueue } from '../src/record-sync.ts'
 
 function assert(cond, msg) {
@@ -336,6 +337,16 @@ try {
   assert(pulled.activity.length === 12, 'pull retains valid events beside corrupt rows')
   assert(pulled.cards.some(row => row.id === 'n513') && pulled.progress.some(row => row.id === 'card-grade')
     && pulled.settings.direction === 'en-de', 'invalid activity cannot block other account data')
+  const repaired = parseStoredReviewActivity(Object.fromEntries(
+    ['+01:00', '+00:00', '-05:00', 'GMT', '+05:30'].map(timeZone => [randomUUID(), { ...event, timeZone }]),
+  ))
+  assert(Object.keys(repaired).length === 4, 'unsupported stored offset is skipped')
+  for (const [id, data] of Object.entries(repaired)) {
+    assert(await commitActivity(alice, ALICE, id, data) === 'wrote', 'repaired stored activity passes emulator rules')
+    const saved = await getDoc(doc(alice, 'users', ALICE, 'activity', id))
+    assert(saved.data().timeZone === data.timeZone, 'server retains canonical zone')
+    assert(await commitActivity(alice, ALICE, id, data) === 'noop', 'repaired activity retry is idempotent')
+  }
   console.log('cloud sync emulator ok')
 } finally {
   await Promise.all(stores.map((store) => terminate(store).catch(() => {})))

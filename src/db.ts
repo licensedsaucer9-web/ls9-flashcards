@@ -10,7 +10,7 @@ import {
   type PushItem,
 } from './record-sync.ts'
 import { newSrs, review } from './srs.ts'
-import { deviceTimeZone, mergeReviewActivity, parseReviewActivity, streakTimeZone, validReviewEvent, type ReviewActivity, type ReviewEvent } from './streak.ts'
+import { deviceTimeZone, mergeReviewActivity, parseStoredReviewActivity, streakTimeZone, validReviewEvent, type ReviewActivity, type ReviewEvent } from './streak.ts'
 import { validateCard, validateMapping, validateSettings, validateSrs, validateTombstones } from './migration-data.ts'
 import { captureStudyLock, hasStudyBinding, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { inSelectedTier, tierOf } from './tiers.ts'
@@ -177,7 +177,23 @@ function activityRows(tx: IDBTransaction): Promise<ActivityRow[]> {
     ? value(tx.objectStore('activity').getAll()) as Promise<ActivityRow[]> : Promise.resolve([])
 }
 function activityFromRows(rows: ActivityRow[]): ReviewActivity {
-  return parseReviewActivity(Object.fromEntries(rows.map(({ id, ...event }) => [id, event])))
+  return parseStoredReviewActivity(Object.fromEntries(rows.map(({ id, ...event }) => [id, event])))
+}
+
+/** Persist zone repairs and remove unusable events/marks in the same transaction. */
+function repairStoredActivity(tx: IDBTransaction, rows: ActivityRow[], settings: Settings): ReviewActivity {
+  const activity = activityFromRows(rows)
+  let changed = false
+  for (const row of rows) {
+    const event = activity[row.id]
+    if (!event) tx.objectStore('activity').delete(row.id)
+    else if (event.timeZone !== row.timeZone) tx.objectStore('activity').put({ id: row.id, ...event })
+  }
+  for (const id of Object.keys(settings.pending.activity ?? {})) {
+    if (!activity[id]) { delete settings.pending.activity![id]; changed = true }
+  }
+  if (changed) tx.objectStore('settings').put(settings)
+  return activity
 }
 
 function mergeActivityInTransaction(tx: IDBTransaction, current: Loaded, incoming: ReviewActivity, pending: boolean,
@@ -198,8 +214,10 @@ export async function getReviewActivity(): Promise<ReviewActivity> {
   const db = await openDb(name, false)
   try {
     if (!studyLockCurrent(lock) || !db.objectStoreNames.contains('activity')) return {}
-    const rows = await value(db.transaction('activity', 'readonly').objectStore('activity').getAll()) as ActivityRow[]
-    return studyLockCurrent(lock) ? activityFromRows(rows) : {}
+    const tx = db.transaction(dataStores(db), 'readwrite')
+    const { activity, done } = await load(tx)
+    await done
+    return studyLockCurrent(lock) ? activity : {}
   } finally { db.close() }
 }
 
@@ -218,11 +236,11 @@ export async function saveReview(cardId: string, grade: Grade, eventId: string, 
         activityRows(tx),
       ])
       if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return null }
-      const activity = activityFromRows(rows)
+      const settings = normalizeSettings(rawSettings)
+      const activity = repairStoredActivity(tx, rows, settings)
       if (!card || activity[eventId]) { await done; return card ?? null }
       const event = { at, timeZone: streakTimeZone(activity, zone) }
       if (!validReviewEvent(eventId, event)) throw new Error('Invalid review activity')
-      const settings = normalizeSettings(rawSettings)
       const rev = settings.localRevision + 1
       const saved = { ...card, srs: { ...review(card.srs, grade, at), updated_at: Math.max(at, (card.srs.updated_at ?? 0) + 1) } }
       noteCardWrite(settings, card, saved, rev)
@@ -256,10 +274,10 @@ async function load(tx: IDBTransaction): Promise<Loaded> {
     value(settingsRequest) as Promise<Settings | undefined>,
     activityRows(tx),
   ])
-  let activity: ReviewActivity
-  try { activity = activityFromRows(rows) }
-  catch (error) { tx.abort(); await done.catch(() => {}); throw error }
   const settings = normalizeSettings(stored)
+  let activity: ReviewActivity
+  try { activity = repairStoredActivity(tx, rows, settings) }
+  catch (error) { tx.abort(); await done.catch(() => {}); throw error }
   let dirty = false
   // A legacy row has no revision clock and may hold an unsynced grade, so its
   // first sync has to upload.
@@ -792,7 +810,7 @@ export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug())
 
 /** Apply one user's scheduling file. Ignores progress for cards this deck does not have. */
 export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlug()): Promise<MergeResult> {
-  const incomingActivity = parseReviewActivity(remote.activity)
+  const incomingActivity = parseStoredReviewActivity(remote.activity)
   const { lock, name } = namesFor(user)
   const db = await openDb(name)
   try {

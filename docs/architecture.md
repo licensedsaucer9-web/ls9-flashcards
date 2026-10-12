@@ -159,7 +159,11 @@ format while the app checks that same format and validates the actual zone with
 Intl. Before the first saved event fixes the profile zone, device `GMT` and zero
 offsets become `UTC`; whole-hour offsets become equivalent `Etc/GMT` zones
 (whose signs are inverted). Unsupported offsets are refused rather than changing
-their calendar boundaries. Sync pulls and unions
+their calendar boundaries. Reads of stored activity and user-file imports repair
+legacy raw whole-hour offsets and `GMT` to those canonical forms. Unsupported
+stored zones are skipped with a once-per-event aggregate warning; local reads
+atomically persist the repairs and remove skipped events and their pending marks.
+Other event fields and cloud/restore validation remain strict. Sync pulls and unions
 the account's activity and pushes pending UUIDs with create-or-identical-no-op
 transactions. Different devices retain both events even when the SRS merge picks
 one schedule. Conflicting payloads for a UUID are refused. Activity remains after

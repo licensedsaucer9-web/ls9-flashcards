@@ -1,6 +1,6 @@
 import type { Card, CardContent, DeckFile, PublicSettings, Snapshot, Srs, UserFile } from './types.ts'
 import { normalizeWordTypes } from './word-types.ts'
-import { parseReviewActivity } from './streak.ts'
+import { parseStoredReviewActivity } from './streak.ts'
 
 export function emptyDeck(now = Date.now()): DeckFile {
   return { version: 2, kind: 'deck', updated_at: now, cards: [], deleted_ids: {} }
@@ -78,7 +78,7 @@ export function parseUserFile(raw: unknown): UserFile | null {
     },
     settings_updated_at: typeof o.settings_updated_at === 'number' ? o.settings_updated_at : undefined,
     progress: o.progress as Record<string, Srs>,
-    ...(o.activity !== undefined ? { activity: parseReviewActivity(o.activity) } : {}),
+    ...(o.activity !== undefined ? { activity: parseStoredReviewActivity(o.activity) } : {}),
   }
 }
 

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 /** Shares the synthetic-auth browser harness; never accesses a real account. */
 export async function testStreakUI(newPage) {
+  await testLegacyStoredActivity(newPage)
   const page = await newPage()
   async function capture(name) {
     if (!process.env.STREAK_SCREENSHOT_DIR) return
@@ -51,15 +52,25 @@ export async function testStreakUI(newPage) {
       if (this.name !== 'activity') return original.apply(this, args)
       IDBObjectStore.prototype.getAll = original
       const request = { result: [] }
-      release = () => request.onsuccess()
-      started()
+      // Keep the real readwrite transaction active while this old read is delayed.
+      const tx = this.transaction
+      let released = false
+      const keepAlive = () => {
+        const pending = tx.objectStore('settings').get('settings')
+        pending.onsuccess = () => { if (!released) keepAlive() }
+      }
+      keepAlive()
+      release = () => { released = true; request.onsuccess() }
+      const actual = original.apply(this, args)
+      actual.onsuccess = () => { request.result = actual.result; started() }
       return request
     }
     try {
       const old = ui.refreshStreak()
       await ready
-      await ui.refreshStreak()
+      const newer = ui.refreshStreak()
       release()
+      await newer
       await old
     } finally { IDBObjectStore.prototype.getAll = original }
   })
@@ -200,4 +211,91 @@ export async function testStreakUI(newPage) {
   assert.equal(checks.mergedCount, 42)
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'counter fits mobile width')
   console.log('streak-ui: active/off/broken, repair, midnight, saved grades, idempotent retry, rollback, copy, merge and account isolation: ok')
+}
+
+/** Seed raw v2 rows directly, as left by the earlier installed build. */
+async function testLegacyStoredActivity(newPage) {
+  const page = await newPage()
+  const warnings = []
+  page.on('console', message => { if (message.type() === 'warning' && message.text().includes('stored review activity')) warnings.push(message.text()) })
+  await page.click('#guest-study')
+  await page.waitForSelector('#start')
+  await page.clock.install({ time: new Date('2026-10-01T12:00:00Z') })
+  const checks = await page.evaluate(async () => {
+    const db = await import('/src/db.ts')
+    const locks = await import('/src/study-lock.ts')
+    const streak = await import('/src/streak.ts')
+    const merge = await import('/src/merge.ts')
+    const sync = await import('/src/record-sync.ts')
+    const source = locks.captureStudyLock()
+    const card = (await db.getAllCards())[0]
+    const results = []
+    for (const entry of ['get', 'load', 'save']) {
+      const name = entry === 'load' ? source.dbName : `legacy-streak-${entry}`
+      locks.bindStudyDatabase({ uid: 'legacy-test', dbName: name })
+      await db.putCard(card)
+      const zones = ['+01:00', '+00:00', '-05:00', 'GMT', '+05:30']
+      const ids = zones.map(() => crypto.randomUUID())
+      const raw = Object.fromEntries(ids.map((id, index) => [id, { at: Date.now() - 1000 + index, timeZone: zones[index] }]))
+      const request = indexedDB.open(name)
+      const store = await new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+      const tx = store.transaction(['activity', 'settings'], 'readwrite')
+      for (const [id, event] of Object.entries(raw)) tx.objectStore('activity').put({ id, ...event })
+      const settingsRequest = tx.objectStore('settings').get('settings')
+      settingsRequest.onsuccess = () => {
+        const settings = settingsRequest.result
+        settings.localRevision++
+        settings.pending.activity = Object.fromEntries(ids.map(id => [id, { revision: settings.localRevision, acked: 0 }]))
+        tx.objectStore('settings').put(settings)
+      }
+      await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onabort = () => reject(tx.error) })
+      store.close()
+      if (entry === 'get') await db.getReviewActivity()
+      if (entry === 'load') await db.readLocalState('fixture')
+      const before = await db.getCard(card.id)
+      await db.saveReview(card.id, 'again', crypto.randomUUID(), Date.now(), 'Europe/Oslo')
+      const snapshot = await db.readCloudSnapshot()
+      const activity = snapshot.activity
+      const expected = ['Etc/GMT-1', 'UTC', 'Etc/GMT+5', 'UTC']
+      if (expected.some((zone, i) => activity[ids[i]]?.timeZone !== zone) || activity[ids[4]]) throw new Error('Legacy zone repair failed')
+      if (snapshot.settings.pending.activity[ids[4]]) throw new Error('Skipped event remains dirty')
+      if (Object.values(activity).some(event => !expected.includes(event.timeZone))) throw new Error('Grade inherited raw zone')
+      if (JSON.stringify(before.srs) === JSON.stringify(snapshot.cards.get(card.id).srs)) throw new Error('New grade did not save')
+      const exported = (await db.readLocalState('fixture')).snapshot.user
+      const parsed = merge.parseUserFile(JSON.parse(JSON.stringify(exported)))
+      const imported = merge.parseUserFile({ ...exported, activity: raw })
+      if (Object.keys(parsed.activity).length !== 5 || Object.keys(imported.activity).length !== 4) throw new Error('User-file repair failed')
+      const pushed = []
+      const lock = locks.captureStudyLock()
+      const queue = await sync.runDirtyQueue(sync.listPushItems(snapshot.settings.pending), {
+        locked: () => true,
+        push: async item => {
+          if (item.kind === 'activity') {
+            if (!streak.validReviewEvent(item.id, activity[item.id])) throw new Error('Invalid push payload')
+            pushed.push(activity[item.id])
+          }
+          return 'wrote'
+        },
+        ack: item => db.acknowledgePending(item, { uid: lock.uid, generation: lock.generation }),
+      })
+      if (!queue.clean || sync.hasDirty((await db.readCloudSnapshot()).settings.pending) || pushed.length !== 5) throw new Error('Repaired queue did not finish')
+      // Verify repairs are durable, rather than only modifying the returned snapshot.
+      const reopened = indexedDB.open(name)
+      const persisted = await new Promise(resolve => { reopened.onsuccess = () => resolve(reopened.result) })
+      const read = persisted.transaction('activity').objectStore('activity').getAll()
+      const rows = await new Promise(resolve => { read.onsuccess = () => resolve(read.result) })
+      persisted.close()
+      if (rows.length !== 5 || rows.some(({ id, ...event }) => !streak.validReviewEvent(id, event))) throw new Error('Repairs were not persisted')
+      results.push(queue.clean)
+    }
+    locks.bindStudyDatabase({ uid: source.uid, dbName: source.dbName })
+    await (await import('/src/streak-ui.ts')).refreshStreak()
+    return results
+  })
+  assert.deepEqual(checks, [true, true, true])
+  assert.equal(warnings.length, 3, 'unsupported stored zone is reported once per event, despite repeat reads/import')
+  await page.reload()
+  await page.waitForFunction(() => document.querySelector('[data-streak-label]')?.textContent === '🌙 0-day streak · 5/10 today')
+  await page.close()
+  console.log('streak-ui: preexisting raw zones repaired through read/load/save, persisted, exported/imported and queue acknowledged: ok')
 }

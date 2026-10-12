@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { canonicalReviewTimeZone, deviceTimeZone, REVIEW_TIME_ZONE_PATTERN, validReviewEvent, filterReviewEvents, calculateStreak, calendarDay, mergeReviewActivity, parseReviewActivity, streakLabel, streakTimeZone } from '../src/streak.ts'
+import { canonicalReviewTimeZone, deviceTimeZone, REVIEW_TIME_ZONE_PATTERN, validReviewEvent, filterReviewEvents, calculateStreak, calendarDay, mergeReviewActivity, parseReviewActivity, parseStoredReviewActivity, streakLabel, streakTimeZone } from '../src/streak.ts'
 import { filesToDocs, docsToFiles } from '../src/firestore-docs.ts'
 import { parseUserFile } from '../src/merge.ts'
 import { emptyPending, listPushItems, hasDirty, applyAck } from '../src/record-sync.ts'
@@ -99,3 +99,16 @@ const filtered = filterReviewEvents([
 ])
 assert.equal(filtered.skipped, 4)
 assert.deepEqual(filtered.activity, [{ id: goodId, data: { at: time(1), timeZone: 'Europe/Oslo' } }])
+
+// Stored/user-file compatibility does not relax cloud shapes or other event fields.
+for (const [raw, expected] of [['+01:00', 'Etc/GMT-1'], ['+00:00', 'UTC'], ['-05:00', 'Etc/GMT+5'], ['GMT', 'UTC']]) {
+  const legacy = { [goodId]: { at: time(1), timeZone: raw } }
+  assert.equal(parseStoredReviewActivity(legacy)[goodId].timeZone, expected)
+  assert.equal(parseUserFile({ ...file, activity: legacy }).activity[goodId].timeZone, expected)
+  assert.throws(() => parseReviewActivity(legacy), /Invalid/)
+  assert.equal(filterReviewEvents([{ id: goodId, data: legacy[goodId] }]).skipped, 1)
+}
+for (const raw of [{ ...event, at: -1 }, { ...event, extra: true }, { ...event, timeZone: null }]) {
+  assert.throws(() => parseStoredReviewActivity({ [goodId]: raw }), /Invalid/)
+}
+assert.throws(() => parseStoredReviewActivity({ invalid: { ...event, timeZone: '+05:30' } }), /Invalid/)

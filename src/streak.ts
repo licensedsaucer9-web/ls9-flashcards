@@ -53,6 +53,29 @@ export function parseReviewActivity(value: unknown): ReviewActivity {
   return activity
 }
 
+const warnedStoredEvents = new Set<string>()
+
+/** Repair only legacy zone spellings; retain strict validation of every other field. */
+export function parseStoredReviewActivity(value: unknown): ReviewActivity {
+  if (value === undefined) return {}
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid review activity')
+  const activity: ReviewActivity = {}
+  let skipped = 0
+  for (const [id, raw] of Object.entries(value)) {
+    // Validate the entire shape before tolerating an unsupported legacy zone.
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)
+      || typeof (raw as ReviewEvent).timeZone !== 'string'
+      || !validReviewEvent(id, { ...raw, timeZone: 'UTC' })) throw new Error('Invalid review activity')
+    const event = raw as ReviewEvent
+    try { activity[id] = { ...event, timeZone: canonicalReviewTimeZone(event.timeZone) } }
+    catch {
+      if (!warnedStoredEvents.has(id)) { warnedStoredEvents.add(id); skipped++ }
+    }
+  }
+  if (skipped) console.warn(`Skipped ${skipped} stored review activity events with unsupported time zones`)
+  return activity
+}
+
 /** Refuse a corrupt/colliding ID instead of silently changing earned credit. */
 export function mergeReviewActivity(local: ReviewActivity, incoming: ReviewActivity): ReviewActivity {
   const merged = { ...local }
@@ -88,7 +111,7 @@ export function streakTimeZone(activity: ReviewActivity, fallback = deviceTimeZo
   for (const entry of Object.entries(activity)) {
     if (!first || entry[1].at < first[1].at || (entry[1].at === first[1].at && entry[0] < first[0])) first = entry
   }
-  return first?.[1].timeZone ?? canonicalReviewTimeZone(fallback)
+  return canonicalReviewTimeZone(first?.[1].timeZone ?? fallback)
 }
 
 /** Calendar-date ordinal; DST changes do not make a short/long day count twice. */
