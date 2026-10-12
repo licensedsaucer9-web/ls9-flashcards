@@ -155,7 +155,11 @@ version-2 database.
 Events store only `{ at, timeZone }`, with no card content or grade. Firestore
 allows owner reads/creates/deletes and prohibits updates. Invalid external events
 are skipped during pull and restore with aggregate counts; rules check timezone
-format while the app validates the actual zone with Intl. Sync pulls and unions
+format while the app checks that same format and validates the actual zone with
+Intl. Before the first saved event fixes the profile zone, device `GMT` and zero
+offsets become `UTC`; whole-hour offsets become equivalent `Etc/GMT` zones
+(whose signs are inverted). Unsupported offsets are refused rather than changing
+their calendar boundaries. Sync pulls and unions
 the account's activity and pushes pending UUIDs with create-or-identical-no-op
 transactions. Different devices retain both events even when the SRS merge picks
 one schedule. Conflicting payloads for a UUID are refused. Activity remains after

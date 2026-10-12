@@ -5,6 +5,9 @@ export type ReviewActivity = Record<string, ReviewEvent>
 export const DAILY_TARGET = 10
 const DAY = 86_400_000
 const formatters = new Map<string, Intl.DateTimeFormat>()
+// Kept identical to the activity timeZone pattern in firestore.rules (tested).
+export const REVIEW_TIME_ZONE_PATTERN = '^(UTC|[A-Za-z_]+/[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)?)$'
+const reviewTimeZonePattern = new RegExp(REVIEW_TIME_ZONE_PATTERN)
 
 function formatter(timeZone: string): Intl.DateTimeFormat {
   let value = formatters.get(timeZone)
@@ -21,7 +24,8 @@ export function validReviewEvent(id: string, value: unknown): value is ReviewEve
   const row = value as ReviewEvent
   if (Object.keys(row).sort().join(',') !== 'at,timeZone'
     || !Number.isSafeInteger(row.at) || row.at < 0 || row.at > 253402214400000
-    || typeof row.timeZone !== 'string' || row.timeZone.length > 100) return false
+    || typeof row.timeZone !== 'string' || row.timeZone.length > 100
+    || !reviewTimeZonePattern.test(row.timeZone)) return false
   try { formatter(row.timeZone); return true } catch { return false }
 }
 
@@ -60,8 +64,22 @@ export function mergeReviewActivity(local: ReviewActivity, incoming: ReviewActiv
   return merged
 }
 
+/** Chromium can report raw offsets; Etc/GMT uses the opposite sign. */
+export function canonicalReviewTimeZone(zone: string): string {
+  if (zone === 'GMT' || zone === 'UTC') return 'UTC'
+  const offset = /^([+-])(\d{2}):00$/.exec(zone)
+  if (offset) {
+    const hours = Number(offset[2])
+    zone = hours === 0 ? 'UTC' : `Etc/GMT${offset[1] === '+' ? '-' : '+'}${hours}`
+  }
+  if (zone.length > 100 || !reviewTimeZonePattern.test(zone)) throw new Error('Invalid review time zone')
+  // Do not replace unsupported offsets/zones with UTC and change their day boundary.
+  formatter(zone)
+  return zone
+}
+
 export function deviceTimeZone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  return canonicalReviewTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
 }
 
 /** Earliest saved event wins, with ID as a deterministic tie-break after offline merges. */
@@ -70,7 +88,7 @@ export function streakTimeZone(activity: ReviewActivity, fallback = deviceTimeZo
   for (const entry of Object.entries(activity)) {
     if (!first || entry[1].at < first[1].at || (entry[1].at === first[1].at && entry[0] < first[0])) first = entry
   }
-  return first?.[1].timeZone ?? fallback
+  return first?.[1].timeZone ?? canonicalReviewTimeZone(fallback)
 }
 
 /** Calendar-date ordinal; DST changes do not make a short/long day count twice. */

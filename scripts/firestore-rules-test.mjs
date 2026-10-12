@@ -1,6 +1,8 @@
 // Firestore rules against the emulator. Run via `npm run test:rules`, not `npm test`.
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
+import { chromium } from 'playwright-core'
+import { canonicalReviewTimeZone, validReviewEvent } from '../src/streak.ts'
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing'
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
 
@@ -88,6 +90,23 @@ try {
   await assertSucceeds(deleteDoc(eventRef(ALICE)))
   for (const timeZone of ['UTC', 'Etc/UTC', 'Etc/GMT+1', 'America/Argentina/Buenos_Aires']) {
     await assertSucceeds(setDoc(eventRef(ALICE, randomUUID()), { ...event, timeZone }))
+  }
+  // Use Chromium's actual device zone, including its raw-offset responses.
+  for (const [TZ, expected] of [['GMT', 'UTC'], ['GMT+1', 'Etc/GMT-1'], ['GMT-5', 'Etc/GMT+5']]) {
+    const browser = await chromium.launch({
+      executablePath: process.env.CHROME || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()),
+      headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'], env: { ...process.env, TZ },
+    })
+    try {
+      const page = await browser.newPage()
+      const raw = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
+      const timeZone = canonicalReviewTimeZone(raw)
+      assert(timeZone === expected, `Chromium TZ=${TZ}: canonical zone`)
+      const id = randomUUID()
+      const data = { ...event, timeZone }
+      assert(validReviewEvent(id, data), `Chromium TZ=${TZ}: valid client event`)
+      await assertSucceeds(setDoc(eventRef(ALICE, id), data))
+    } finally { await browser.close() }
   }
   for (const timeZone of ['Factory', 'UTC+1', '+01:00', 'Europe/', 'Europe/Oslo:bad']) {
     await denied(setDoc(eventRef(ALICE, randomUUID()), { ...event, timeZone }), 'invalid timezone format')

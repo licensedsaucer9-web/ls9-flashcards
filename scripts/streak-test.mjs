@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { filterReviewEvents, calculateStreak, calendarDay, mergeReviewActivity, parseReviewActivity, streakLabel, streakTimeZone } from '../src/streak.ts'
+import { readFileSync } from 'node:fs'
+import { canonicalReviewTimeZone, deviceTimeZone, REVIEW_TIME_ZONE_PATTERN, validReviewEvent, filterReviewEvents, calculateStreak, calendarDay, mergeReviewActivity, parseReviewActivity, streakLabel, streakTimeZone } from '../src/streak.ts'
 import { filesToDocs, docsToFiles } from '../src/firestore-docs.ts'
 import { parseUserFile } from '../src/merge.ts'
 import { emptyPending, listPushItems, hasDirty, applyAck } from '../src/record-sync.ts'
@@ -9,7 +10,23 @@ const time = (day) => Date.parse(`2026-10-${String(day).padStart(2, '0')}T12:00:
 const reviews = (day, count, zone = 'Europe/Oslo') => Object.fromEntries(Array.from({ length: count }, (_, i) =>
   [randomUUID(), { at: time(day) + i, timeZone: zone }]))
 const status = (activity, day) => calculateStreak(activity, time(day) + 10000)
-assert.deepEqual(status({}, 5), { state: 'off', today: 0, days: 0, repair: 0, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+assert.deepEqual(status({}, 5), { state: 'off', today: 0, days: 0, repair: 0, timeZone: deviceTimeZone() })
+const rules = readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8')
+assert.equal(rules.match(/timeZone\.matches\('([^']+)'\)/)?.[1], REVIEW_TIME_ZONE_PATTERN, 'client and rules use the same timezone pattern')
+for (const [raw, canonical] of [['+00:00', 'UTC'], ['-00:00', 'UTC'], ['GMT', 'UTC'], ['UTC', 'UTC'],
+  ['+01:00', 'Etc/GMT-1'], ['-05:00', 'Etc/GMT+5'], ['+14:00', 'Etc/GMT-14'],
+  ['Europe/Oslo', 'Europe/Oslo'], ['America/Argentina/Buenos_Aires', 'America/Argentina/Buenos_Aires']]) {
+  assert.equal(canonicalReviewTimeZone(raw), canonical)
+  assert.equal(streakTimeZone({}, raw), canonical, 'canonicalized before the first event freezes the zone')
+  assert.equal(validReviewEvent(randomUUID(), { at: time(1), timeZone: canonical }), true)
+  assert.equal(calendarDay(Date.parse('2026-10-01T23:30:00Z'), canonical), calendarDay(Date.parse('2026-10-01T23:30:00Z'), raw), 'canonicalization preserves calendar boundaries')
+}
+for (const zone of ['GMT', '+00:00', '+01:00', '-05:00', 'Factory', 'UTC+1', 'Europe/', 'Europe/Oslo:bad']) {
+  assert.equal(validReviewEvent(randomUUID(), { at: time(1), timeZone: zone }), false, 'Intl acceptance alone is insufficient')
+}
+for (const zone of ['+05:30', '+25:00', 'Not/AZone']) {
+  assert.throws(() => canonicalReviewTimeZone(zone), undefined, 'unsupported zones must not silently change to UTC')
+}
 for (const count of [9, 10, 11]) {
   const state = status(reviews(1, count), 1)
   assert.equal(state.state, count < 10 ? 'off' : 'on')

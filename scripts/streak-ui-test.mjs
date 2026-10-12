@@ -16,6 +16,24 @@ export async function testStreakUI(newPage) {
   await page.evaluate(async () => {
     const db = await import('/src/db.ts')
     const card = (await db.getAllCards())[0]
+    const locks = await import('/src/study-lock.ts')
+    const source = locks.captureStudyLock()
+    const streak = await import('/src/streak.ts')
+    const zones = [['+00:00', 'UTC'], ['GMT', 'UTC'], ['+01:00', 'Etc/GMT-1'], ['-05:00', 'Etc/GMT+5'],
+      [undefined, streak.deviceTimeZone()]]
+    for (const [index, [raw, expected]] of zones.entries()) {
+      locks.bindStudyDatabase({ uid: null, dbName: `streak-zone-${index}` })
+      await db.putCard(card)
+      const id = crypto.randomUUID()
+      await db.saveReview(card.id, 'again', id, Date.now(), raw)
+      const activity = await db.getReviewActivity()
+      if (activity[id].timeZone !== expected || !streak.validReviewEvent(id, activity[id])) throw new Error('Invalid saved device zone')
+      // Travelling must preserve the canonical zone already frozen in activity.
+      const next = crypto.randomUUID()
+      await db.saveReview(card.id, 'again', next, Date.now(), 'Europe/Oslo')
+      if ((await db.getReviewActivity())[next].timeZone !== expected) throw new Error('Saved zone changed')
+    }
+    locks.bindStudyDatabase({ uid: source.uid, dbName: source.dbName })
     await db.putCard({ ...card, article: 'der', tier: 1 })
     await db.putSettings({ sessionSize: 1, tier: 1, wordTypes: [] })
     window.streakCardId = card.id
@@ -48,6 +66,9 @@ export async function testStreakUI(newPage) {
   assert.equal(await page.locator('[data-streak-label]').textContent(), '🌙 0-day streak · 9/10 today', 'older refresh cannot overwrite newer activity')
   await capture('off')
   await page.click('#start')
+  // Home has the same summary selector. Wait for the async IndexedDB-backed
+  // review render before focusing it, or that render can replace the focused node.
+  await page.waitForSelector('#card')
   const summary = page.locator('[data-streak] summary')
   await summary.focus()
   await page.keyboard.press('Enter')
