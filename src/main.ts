@@ -72,6 +72,7 @@ type Route =
   | { name: 'home' }
   | { name: 'review' }
   | { name: 'deck' }
+  | { name: 'decks' }
   | { name: 'edit'; id: string | null }
   | { name: 'import' }
   | { name: 'settings' }
@@ -88,6 +89,7 @@ function parseRoute(): Route {
   if (parts.length === 0) return { name: 'home' }
   if (parts[0] === 'review') return { name: 'review' }
   if (parts[0] === 'deck') return { name: 'deck' }
+  if (parts[0] === 'decks') return { name: 'decks' }
   if (parts[0] === 'import') return { name: 'import' }
   if (parts[0] === 'settings') return { name: 'settings' }
   if (parts[0] === 'card' && parts[1] === 'new') return { name: 'edit', id: null }
@@ -228,7 +230,7 @@ function syncLineText(): string {
   return 'On this device'
 }
 
-function setTabbar(active: 'home' | 'deck' | 'settings' | 'none') {
+function setTabbar(active: 'home' | 'deck' | 'decks' | 'settings' | 'none') {
   const show = active !== 'none'
   app.classList.toggle('has-tabbar', show)
   tabbar.hidden = !show
@@ -247,13 +249,17 @@ function iconReview() {
 function iconDeck() {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h11v12H8z"/><path d="M5 8v10a2 2 0 0 0 2 2h10"/></svg>`
 }
+function iconCards() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>`
+}
 function iconSettings() {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg>`
 }
 
 tabbar.innerHTML = `
   <a class="tab" data-tab="home" href="#/">${iconReview()}Review</a>
-  <a class="tab" data-tab="deck" href="#/deck">${iconDeck()}Deck</a>
+  <a class="tab" data-tab="deck" href="#/deck">${iconCards()}Cards</a>
+  <a class="tab" data-tab="decks" href="#/decks">${iconDeck()}Decks</a>
   <a class="tab" data-tab="settings" href="#/settings">${iconSettings()}Settings</a>
 `
 
@@ -535,6 +541,25 @@ async function renderReview() {
   paint()
 }
 
+async function renderDecks() {
+  setTabbar('decks')
+  const cards = await getAllCards()
+  main.innerHTML = `
+    <section class="screen scroll">
+      <header class="topbar"><h1>Decks</h1></header>
+      <ul class="card-list">
+        <li class="card-row">
+          <div class="left">
+            <div class="de">German</div>
+            <div class="en">${cards.length} ${cards.length === 1 ? 'card' : 'cards'}</div>
+          </div>
+          <span class="badge">Active</span>
+        </li>
+      </ul>
+    </section>
+  `
+}
+
 async function renderDeck() {
   setTabbar('deck')
   const all = await getAllCards()
@@ -564,7 +589,7 @@ async function renderDeck() {
     const shown = list(filter)
     main.innerHTML = `
       <section class="screen scroll">
-        <header class="topbar"><h1>Deck</h1><span class="badge">${shown.length} of ${all.length}</span></header>
+        <header class="topbar"><h1>Cards</h1><span class="badge">${shown.length} of ${all.length}</span></header>
         <div class="chips" id="tier-chips">${tierChips(maxTier, dueByTier)}</div>
         <div class="fab-row">
           <a class="secondary" href="#/card/new" style="display:flex;align-items:center;justify-content:center">Add card</a>
@@ -937,6 +962,7 @@ async function render() {
   if (route.name === 'home') await renderHome()
   else if (route.name === 'review') await renderReview()
   else if (route.name === 'deck') await renderDeck()
+  else if (route.name === 'decks') await renderDecks()
   else if (route.name === 'edit') await renderEdit(route.id)
   else if (route.name === 'import') await renderImport()
   else await renderSettings()
@@ -993,7 +1019,7 @@ async function boot() {
     void bootSync().finally(() => {
       openingEmptyDeck = false
       const now = parseRoute().name
-      if (now === 'home' || now === 'deck') scheduleRender()
+      if (now === 'home' || now === 'deck' || now === 'decks') scheduleRender()
     })
   }
   window.addEventListener('hashchange', () => {
@@ -1007,13 +1033,13 @@ async function boot() {
     quietlyRefreshStreak()
     if (accountSignIn && !captureStudyLock().uid) {
       const route = parseRoute().name
-      if (route === 'home' || route === 'deck') scheduleRender()
+      if (route === 'home' || route === 'deck' || route === 'decks') scheduleRender()
       return
     }
     void syncNow()
       .then(() => {
         const now = parseRoute().name
-        if (now === 'home' || now === 'deck') scheduleRender()
+        if (now === 'home' || now === 'deck' || now === 'decks') scheduleRender()
       })
       .catch(() => {
         /* status already set */
