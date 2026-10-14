@@ -59,18 +59,24 @@ publication and physical installation updates remain #38's operational gate.
 
 ## 1. Tiers
 
-1. Home shows **Deck tier** chips with word and due counts. Tier 1 is selected
+1. Decks shows saved **Deck tier** chips with word and due counts. Tier 1 is selected
    on a fresh profile and includes 100 words.
 2. Tier 2 includes 250 words and all of tier 1; its due count cannot decrease
    simply because the tier widened.
 3. Tier 3 includes all 514 built-in words.
-4. Deck has the same tier filter, and rows show `T1` / `T2` / `T3` badges.
+4. Cards has an unsaved browse tier filter, and rows show `T1` / `T2` / `T3` badges.
+   Changing this filter must leave the saved Decks tier and next review unchanged.
 5. Spot-check tier 1's frequency order against the README: it opens with
    `haben`, `gut`, `sein`, `werden`, `können` and ends at `groß` / `Hand`.
 
+6. Decks also saves review direction: **DE → EN** shows German first;
+   **EN → DE** shows English first. Change it and start a new review to verify.
+7. Review has no tier or word-type chips. Session size appears only on Review.
+   Settings retains account controls, Install/version, and the SRS note.
+
 ## 2. Review loop and exit
 
-1. Home shows the selected tier's due count, **This session** cap
+1. Review shows the selected tier's due count, **This session** cap
    (10 / 20 / 30 / All, plus custom), and **Start N of M**.
 2. Choose a cap and start. Only that many due cards enter the initial session;
    leftover cards remain due on home.

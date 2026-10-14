@@ -28,6 +28,7 @@ jobs:
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
       - run: npm test
       - run: npm run test:account-ui
+      - run: npm run test:decks-ui
       - name: Set up Java for the Firestore emulator
         uses: actions/setup-java@v4
         with:

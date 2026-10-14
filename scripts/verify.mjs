@@ -30,6 +30,12 @@ page.setDefaultTimeout(8000)
 try {
   await page.goto(BASE, { waitUntil: 'networkidle' })
   await dismissWelcome(page)
+  // This smoke fixture exercises all seeded cards, including tier-3 imports.
+  await page.goto(BASE + '#/decks', { waitUntil: 'networkidle' })
+  await page.click('[data-tier="3"]')
+  await page.waitForSelector('[data-tier="3"].is-on')
+  await page.goto(BASE + '#/', { waitUntil: 'networkidle' })
+  await page.waitForSelector('[data-due-count]')
   const due0 = Number(await page.locator('[data-due-count]').innerText())
   assert(due0 >= 400, `seed due should be >= 400, got ${due0}`)
   console.log(`slice1: seeded ${due0} due cards`)
@@ -118,7 +124,7 @@ try {
   assert(/Imported 0/.test(toast2) && /skipped/.test(toast2), `dup import: ${toast2}`)
   console.log('slice3: CSV import + duplicate skip')
 
-  await page.goto(BASE + '#/settings', { waitUntil: 'networkidle' })
+  await page.goto(BASE + '#/decks', { waitUntil: 'networkidle' })
   await page.click('[data-dir="en-de"]')
   await page.waitForFunction(() => /EN → DE/.test(document.getElementById('toast')?.textContent || ''))
   await page.waitForSelector('[data-dir="en-de"].is-on')
@@ -132,8 +138,9 @@ try {
   assert((await page.locator('.face.front .word-type').count()) === 1, 'EN→DE front shows the word type')
   console.log('slice4: reverse direction EN→DE')
 
-  await page.goto(BASE + '#/settings', { waitUntil: 'networkidle' })
+  await page.goto(BASE + '#/decks', { waitUntil: 'networkidle' })
   await page.click('[data-dir="de-en"]')
+  await page.waitForSelector('[data-dir="de-en"].is-on')
 
   const sw = await page.evaluate(async () => {
     if (!('serviceWorker' in navigator)) return { ready: false }
@@ -166,7 +173,7 @@ try {
   console.log('session: 10-card cap works')
 
   await page.goto(BASE + '#/settings', { waitUntil: 'networkidle' })
-  await page.waitForSelector('#dir')
+  await page.waitForSelector('#app-version')
   assert((await page.locator('#gh-form').count()) === 0, 'token form must be gone')
   assert((await page.locator('input[type="password"]').count()) === 0, 'token field must be gone')
   console.log('settings: no token form')
