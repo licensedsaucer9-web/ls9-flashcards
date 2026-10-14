@@ -561,7 +561,7 @@ async function renderDecks() {
   `
   bindWordTypeChips(settings.wordTypes, async (wordTypes) => {
     if (sameWordTypes(settings.wordTypes, wordTypes)) return
-    await putSettings({ wordTypes })
+    await patchSettings({ wordTypes })
     await renderDecks()
   })
 }
