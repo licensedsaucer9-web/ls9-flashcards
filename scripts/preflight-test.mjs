@@ -21,7 +21,7 @@ const firebaseJson = '{"firestore":{"rules":"firestore.rules"}}\n'
 const workflow = readFileSync(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8')
 publicationMode(workflow) // Reject partial/unguarded publication, including after the authorized cutover.
 // Readiness preflight still requires held publication. Test that phase with a
-// held fixture even after a future authorized workflow change.
+// held fixture because the authorized master workflow now publishes.
 const held = workflow.replaceAll("${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}", '${{ false }}')
 assert.equal(publicationHeld(held), true, 'both Pages publish steps stay disabled')
 assert.equal(publicationHeld(held.replace('name: Publish tested files\n        if: ${{ false }}', 'name: Publish tested files\n        if: ${{ true }}')), false)

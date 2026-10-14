@@ -31,7 +31,7 @@ offline client reports the version it is actually running. A source change
 alters the bundled identity and worker precache revision.
 
 `release:build` requires a clean committed source tree and matching publication
-gates (currently both held; future authorized gates must both be master-only),
+gates (both currently master-only and disabled on pull requests),
 explicitly selects production public configuration, clears preview/emulator
 modes, runs type/build/artifact checks, then writes `release-candidate.json`.
 That manifest binds the identity and sorted SHA-256 file inventory; local

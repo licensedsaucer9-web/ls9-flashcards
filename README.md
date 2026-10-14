@@ -4,11 +4,11 @@
 
 A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German vocabulary deck. It supports frequency tiers, SM-2-style review, card editing, CSV import, and offline study. The longer-term goal is multiple decks on different subjects; the current app assigns one deck per account and has no deck picker.
 
-**Release state, 2026-10-09:** Version `1.2.0` (adds the word-type filter, #49; `1.1.0` added word-type badges, #50) is the Firebase client at the public URL; `1.0.0` shipped on 2026-10-07. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
+**Release state, 2026-10-14:** The public site’s `release.json` reports `1.3.0` with the Firebase production backend. This source includes forgiving streaks (#58) and saved tier/direction controls on Decks (#62). Version `1.2.0` added the word-type filter (#49), and `1.1.0` added word-type badges (#50); `1.0.0` shipped on 2026-10-07. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
 
-**In development:** `1.3.0` adds forgiving streaks (#58). Its activity rules and
-backup tooling must be deployed before merging/publishing the new client;
-see the [streak release checklist](docs/firebase-rollout-plan.md#forgiving-streaks--58).
+**Release evidence:** Publication does not establish installed-device acceptance,
+two-device activity reconciliation, rules-deployment evidence, or an off-machine
+backup. Keep those results separate in the [streak release checklist](docs/firebase-rollout-plan.md#forgiving-streaks--58).
 
 **Prod v1 scope:** ship the current single-deck app with reliable Google sync,
 offline study, safe device migration and tested recovery. The
@@ -85,7 +85,7 @@ copies merge into the signed-in account; the counter may update after sync.
 
 ## Account
 
-A Firebase build offers **Continue with Google** and **Study on this device**. New accounts get personal decks seeded from the bundled list; mapped legacy accounts share their assigned vocabulary deck. Each account has its own schedule. Signing in does not upload device-study data unless you confirm a copy; mapped legacy profiles use the separate recovery flow below. Two accounts cannot read each other’s progress. The public root does not serve this build yet.
+A Firebase build offers **Continue with Google** and **Study on this device**. New accounts get personal decks seeded from the bundled list; mapped legacy accounts share their assigned vocabulary deck. Each account has its own schedule. Signing in does not upload device-study data unless you confirm a copy; mapped legacy profiles use the separate recovery flow below. Two accounts cannot read each other’s progress. The public root serves the Firebase production build.
 
 A profile name on an older install is local data only. It does not select a cloud account. The first launch of this build removes the saved GitHub token (`german-flashcards.github` and `german-flashcards.github.shas`) from this browser.
 
@@ -99,7 +99,8 @@ npm run dev      # Vite dev server
 npm run build    # type-check + production build
 npm run preview  # serve the build on 127.0.0.1:4173
 npm test         # unit tests; no emulator and no Chromium
-npm run test:account-ui  # account UI with synthetic auth and real IndexedDB in Chromium
+npm run test:account-ui  # account/streak UI with synthetic auth and real IndexedDB in Chromium
+npm run test:decks-ui    # Decks preferences, unsaved Cards filters, navigation and preservation
 npm run test:rules  # Firestore rules, cloud sync, migration, and dump restore on the emulator (Java 21)
 ```
 
@@ -114,7 +115,7 @@ BASE=/ls9-flashcards-site/auth-spike/rehearsal/ npm run preview -- --outDir dist
 
 Open `http://127.0.0.1:4178/ls9-flashcards-site/auth-spike/rehearsal/`. This preview guards legacy import and uses separate storage. Real login requires an authorized hostname and a completed test assignment; guest study is available. See [the rehearsal guide](docs/firebase-rehearsal.md).
 
-An ordinary `VITE_SYNC_BACKEND=firebase` build defaults to production. Do not sign an unmigrated owner into it before the Admin import has preassigned the legacy deck. Build/project configuration is in [Firebase setup](docs/firebase-setup.md).
+An ordinary `VITE_SYNC_BACKEND=firebase` build defaults to production. The released configuration seeds new accounts with empty progress; legacy studied-data import was waived. Use the isolated auth-test project for live rehearsals. Build/project configuration is in [Firebase setup](docs/firebase-setup.md).
 
 ## Public site
 
@@ -140,7 +141,7 @@ The private repository secret
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-The release version is `1.2.0`. **Settings → Install** shows
+The current source and published artifact version is `1.3.0`. **Settings → Install** shows
 the running version and source revision, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI
@@ -152,14 +153,11 @@ publication uses that same `dist-firebase` build. See the
 
 The current app is the Firebase client at the new public URL. An old Home Screen icon still opens the compatibility address until that icon is deleted and added again from the new URL. Studied progress from the old client is not imported.
 
-1. Open the public URL in Safari, confirm the Firebase build, choose **Continue with Google**, and compare the imported schedule with a trusted device.
-2. Open the existing Home Screen installation and confirm it has received the Firebase build. If it still serves an older build or uses a different old URL, preserve it and follow the same-context recovery procedure before replacing its icon. The prepared bridge stays unpublished until that recovery operation; see the migration runbook.
-3. For each storage context with outstanding legacy work, use the confirmed mapping and **Recover a legacy profile on this device**, then verify its Firestore acknowledgement and second-device readback.
-4. Turn on Airplane Mode, review one card, and leave the app. Reopen it. The grade is still there and the status stays **Saved on this device** until you are online again. Then wait for **Synced**, and open a second device signed into the same account.
+1. Open the new public URL in Safari and confirm the Firebase build under Settings → Install. Choose **Continue with Google** or **Study on this device**. A new account starts with an unstudied personal deck; no legacy schedule is imported.
+2. Add the new URL to the Home Screen. The old icon uses a different origin and retains separate local storage; opening it does not upgrade it to the new Firebase client. Keep any old installation/data you still want to preserve until you deliberately retire it.
+3. Check the current installation's offline save and second-device acknowledgement using the backup check below.
 
-Replace an old icon only after those checks. Revoke the data-repo write token only after every active device is on the Firebase build and its pending work is acknowledged.
-
-Before production Firebase study exists, keep or restore the previously published artifact if cutover fails. Current `master` is not that legacy writer. Once production Firebase progress exists, rollback uses a Firebase-compatible client and retains its data.
+Legacy device recovery and studied-data import were waived for the 2026-10-07 release. The migration runbook and unpublished same-context bridge are retained for explicit future recovery work; they are not mandatory upgrade steps. Rollback after production Firebase study must use a Firebase-compatible client and preserve its data.
 
 ## iPhone backup check
 
@@ -185,7 +183,7 @@ A private Firestore export is described in [Firebase setup](docs/firebase-setup.
 - [Live import evidence](docs/issue-24-status.md): saved aggregate #24 readback and zero-write repeat results.
 - [TEST.md](TEST.md): manual acceptance and automated check commands.
 
-Completed plans, superseded proposals, and old reviews have been removed from the working tree; Git history retains them. Remaining proposal ideas are summarized in the single rollout plan.
+The [archived multi-deck proposal](docs/archive/multi-deck-proposal-20261010.md) and [mobile-store proposal](docs/archive/mobile-store-proposal-20261010.md) retain dated, unadopted designs. They are not active implementation plans. The rollout plan remains the operational plan; the archive preserves evidence without reopening completed or waived migration work.
 
 ## License
 

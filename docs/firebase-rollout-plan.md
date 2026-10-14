@@ -1,9 +1,11 @@
 # Prod v1 release plan
 
-Updated 2026-10-06; production preparation builds on master `63b1ee0`.
-This remains the repository's only active plan, now organized as the Prod v1
-milestone. Firebase implementation and the real-data test rehearsal are complete;
-production migration, device recovery, publication and verified recovery remain.
+Updated 2026-10-14. The historical production preparation used master `63b1ee0`.
+This remains the repository's operational plan. Firebase production publication
+is complete; studied-data import and legacy device recovery were waived on
+2026-10-07. The public artifact reports `1.3.0`. Off-machine backup and explicit
+installed-device/recovery evidence must remain separate from code or publication
+completion. The milestone procedures below retain their original gate definitions.
 
 ## Completed work
 
@@ -16,7 +18,7 @@ production migration, device recovery, publication and verified recovery remain.
 | Live import (#24) | 514 cards, 514 progress records, one settings record, zero tombstones; exact server readback and unchanged repeat with zero writes. |
 | Real second-device rehearsal (#25) | Google restoration on fresh iPhone Home Screen and Mac Safari clients; matching settings/due counts; 10 newer reviews and one settings change survived repeat import and client reopening. |
 | Guarded account UI (#28–#29) | Sign-out and authenticated welcome state merged and covered by synthetic browser checks. Published in the test preview during the rename; no new physical-device verification was performed. |
-| Project rename (2026-10-04) | LS9 Flashcards is the accepted product name. App/package/icons, GitHub repository names, and the public URL are renamed; the old Pages URL remains a compatibility site until device recovery is complete. See [the rename record](rename.md). |
+| Project rename (2026-10-04) | LS9 Flashcards is the accepted product name. App/package/icons, GitHub repository names, and the public URL are renamed; the old Pages URL remains a compatibility snapshot; legacy device recovery was later waived. See [the rename record](rename.md). |
 
 Evidence: [snapshot/baseline](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/22#issuecomment-5972398972),
 [test environment](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/23#issuecomment-5977823891),
@@ -286,8 +288,9 @@ per-deck settings/progress, and migration before implementing that expansion.
 rename before the remaining Firebase rollout. IndexedDB names/storage prefixes,
 Firebase project IDs, card IDs, and the private operator-directory variable
 retain their original values for compatibility. The old public URL stays
-available for existing installations; recovering every old storage context
-remains a rollout gate. See [the rename record](rename.md).
+available as a compatibility snapshot. Legacy studied-data import and recovery
+of old storage contexts were waived on 2026-10-07; retention is a separate
+owner decision, not an outstanding recovery gate. See [the rename record](rename.md).
 
 Retained optional ideas from the earlier proposal are an interval multiplier,
 clearer session-exit wording, and eventual review-history/FSRS evaluation.
@@ -306,9 +309,10 @@ release requirements.
 ## Forgiving streaks — #58
 
 The `1.3.0` source implements the 10-review target, carrying partial repair,
-passive fire/moon/skull counter, and immutable per-account activity. It is not
-yet published. The Pages workflow still publishes master automatically, so
-complete the following before merging the feature PR:
+passive fire/moon/skull counter, and immutable per-account activity. The public
+site now reports `1.3.0`; the master workflow publishes after CI. Publication
+alone does not prove the operational steps below. Retain or record their
+evidence rather than treating a merged feature PR as device/recovery acceptance:
 
 1. Review the passing unit/browser/emulator checks, including activity ownership,
    concurrent writes, idempotent retry, offline replay and backup/restore.
@@ -321,7 +325,8 @@ complete the following before merging the feature PR:
    Record a successful aggregate backup and isolated restore including activity.
 4. Merge/publish the tested Firebase candidate, verify served files and revision,
    and check installed-app update plus two-device offline activity reconciliation.
-   Record the publication before changing README's development status to released.
+   Keep served-artifact publication evidence distinct from installed-device and
+   two-device activity acceptance.
 
 The activity store upgrades IndexedDB from version 1 to 2 on writes. A rollback
 must retain activity and support version 2; publishing the old version-1 writer
