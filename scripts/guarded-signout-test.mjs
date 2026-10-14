@@ -315,7 +315,10 @@ try {
   await ahead.waitForSelector('#start')
 
   // Due cards are never padded with future cards, even with All selected.
+  await ahead.click('[data-tab="decks"]')
   await ahead.click('[data-word-type="all"]')
+  await ahead.waitForSelector('[data-word-type="all"][aria-pressed="true"]')
+  await ahead.click('[data-tab="home"]')
   await ahead.waitForFunction(() => document.querySelector('[data-due-count]')?.textContent === '1')
   assert.equal(await ahead.locator('#start').getAttribute('data-session-count'), '1')
   await ahead.click('#start')

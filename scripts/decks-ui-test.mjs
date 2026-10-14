@@ -35,6 +35,7 @@ try {
     const db = await import('/src/db.ts')
     const card = (await db.getAllCards())[0]
     await db.saveReview(card.id, 'good', crypto.randomUUID(), Date.now(), 'UTC')
+    await db.putSettings({ tier: 3, sessionSize: 0, direction: 'en-de' })
   })
   const snapshot = () => page.evaluate(async () => {
     const db = await import('/src/db.ts')
@@ -54,10 +55,68 @@ try {
     assert.equal(await page.locator('#main .de').textContent(), 'German')
     assert.equal(await page.locator('#main .en').textContent(), `${count} cards`)
     assert.equal(await page.locator('#main .badge').textContent(), 'Active')
-    assert.equal(await page.locator('#main a, #main button, #main input').count(), 0)
+    assert.equal(await page.locator('#main .card-row a, #main .card-row button, #main .card-row input').count(), 0)
+    assert.equal(await page.locator('[data-word-type]').count(), 4)
   }
   await tab('Decks', '#/decks', 'Decks')
   await assertDeckCount(514)
+  const settings = () => page.evaluate(async () => {
+    const db = await import('/src/db.ts')
+    const { direction, sessionSize, tier, wordTypes } = await db.getSettings()
+    return { direction, sessionSize, tier, wordTypes }
+  })
+  const originalSettings = await settings()
+  async function pickType(type, expected) {
+    await page.locator(`[data-word-type="${type}"]`).click()
+    await page.waitForFunction(async expected => {
+      const db = await import('/src/db.ts')
+      const selected = (await db.getSettings()).wordTypes
+      const pressed = [...document.querySelectorAll('[data-word-type][aria-pressed="true"]')].map(button => button.dataset.wordType)
+      return JSON.stringify(selected) === JSON.stringify(expected)
+        && JSON.stringify(pressed) === JSON.stringify(expected.length ? expected : ['all'])
+    }, expected)
+    assert.deepEqual(await settings(), { ...originalSettings, wordTypes: expected }, 'only the word-type preference changes')
+  }
+  async function assertReviewQueue(typeLabel) {
+    await tab('Review', '#/', 'LS9 Flashcards')
+    assert.equal(await page.locator('[data-word-type]').count(), 0, 'Review home has no word-type chips')
+    if (typeLabel) assert.match(await page.locator('.due-hero > .kicker').textContent(), new RegExp(typeLabel))
+    const expected = await page.evaluate(async () => {
+      const db = await import('/src/db.ts')
+      const { selectReviewCandidates, sessionCount } = await import('/src/session.ts')
+      const settings = await db.getSettings()
+      const candidates = selectReviewCandidates(await db.getAllCards(), settings.tier, settings.wordTypes)
+      return sessionCount(candidates.cards.length, settings.sessionSize)
+    })
+    assert.equal(Number(await page.locator('#start').getAttribute('data-session-count')), expected)
+    await page.locator('#start').click()
+    await page.waitForSelector('#card')
+    assert.equal(Number(await page.locator('[data-remaining]').textContent()), expected, 'Decks preference controls the next review queue')
+    assert.equal(await page.locator('[data-word-type]').count(), 0, 'active Review has no word-type chips')
+    if (typeLabel === 'Nouns') assert.equal(await page.locator('.front .word-type').textContent(), 'noun')
+    await page.locator('#back').click()
+    await page.waitForSelector('#start')
+    return expected
+  }
+  assert.equal(await page.locator('[data-word-type="all"]').getAttribute('aria-pressed'), 'true')
+  await pickType('noun', ['noun'])
+  await page.reload()
+  await page.waitForSelector('[data-word-type="noun"][aria-pressed="true"]')
+  assert.deepEqual((await settings()).wordTypes, ['noun'], 'choice survives reload')
+  await tab('Settings', '#/settings', 'Settings')
+  assert.equal(await page.locator('[data-word-type]').count(), 0, 'Settings has no word-type chips')
+  const nounQueue = await assertReviewQueue('Nouns')
+  await tab('Decks', '#/decks', 'Decks')
+  await pickType('verb', ['noun', 'verb'])
+  await pickType('noun', ['verb'])
+  await pickType('verb', [])
+  assert.equal(await page.locator('[data-word-type="all"]').getAttribute('aria-pressed'), 'true', 'last deselection returns to All')
+  await pickType('adj', ['adj'])
+  await pickType('all', [])
+  const allQueue = await assertReviewQueue()
+  assert(allQueue > nounQueue, 'All restores the wider review queue')
+  assert.deepEqual(await snapshot(), before, 'filter changes and review entry preserve every card, schedule and streak event')
+  await tab('Decks', '#/decks', 'Decks')
   const boxes = await page.locator('#tabbar .tab').evaluateAll(tabs => tabs.map(tab => {
     const { x, y, width, height } = tab.getBoundingClientRect()
     return { x, y, width, height }
@@ -88,6 +147,15 @@ try {
   await page.waitForSelector('#main .card-row')
   await assertDeckCount(515)
   const after = await snapshot()
+  const allCount = await assertReviewQueue()
+  const eligible = await page.evaluate(async () => {
+    const db = await import('/src/db.ts')
+    const { inSelectedWordTypes } = await import('/src/word-types.ts')
+    const cards = (await db.getAllCards()).filter(card => card.srs.due <= Date.now())
+    return { all: cards.length, typed: cards.filter(card => inSelectedWordTypes(card, ['noun', 'verb', 'adj'])).length }
+  })
+  assert.equal(allCount, eligible.all, 'All includes every due card, including the imported untyped fixture')
+  assert(eligible.all > eligible.typed, 'fixture contains a due untyped card')
   assert.deepEqual(after.activity, before.activity, 'navigation/edit/import preserve streak events')
   for (const card of before.cards) {
     const saved = after.cards.find(c => c.id === card.id)
@@ -109,9 +177,27 @@ try {
   await page.locator('#back').click()
   await page.waitForSelector('#start')
   assert.deepEqual(await snapshot(), after, 'entering/flipping/leaving Review does not mutate study data')
+  // A local-only fixture with no typed cards exercises Review's empty-match recovery.
+  await page.evaluate(async () => {
+    const db = await import('/src/db.ts')
+    await db.putCards((await db.getAllCards()).map(card => ({ ...card, tags: ['other'] })))
+  })
+  const untypedFixture = await snapshot()
+  await tab('Decks', '#/decks', 'Decks')
+  await pickType('noun', ['noun'])
+  await tab('Review', '#/', 'LS9 Flashcards')
+  assert.equal(await page.locator('[data-word-type]').count(), 0)
+  assert.match(await page.locator('.due-hero > .kicker').textContent(), /Nouns/)
+  assert.equal(await page.locator('#start').isDisabled(), true)
+  await page.locator('#show-all-types').click()
+  await page.waitForFunction(() => document.querySelector('#start')?.disabled === false && !document.querySelector('#show-all-types'))
+  assert.deepEqual(await settings(), originalSettings, 'empty-match All button clears only wordTypes')
+  await tab('Decks', '#/decks', 'Decks')
+  assert.equal(await page.locator('[data-word-type="all"]').getAttribute('aria-pressed'), 'true')
+  assert.deepEqual(await snapshot(), untypedFixture, 'empty-match recovery preserves cards, schedules and streaks')
   assert.deepEqual(errors, [], 'no browser errors')
   assert.deepEqual(externalRequests, [], 'no external service access')
-  console.log('decks-ui: four tabs, distinct routes, display-only count, edit/import, Review, German schedules/streak preservation: ok')
+  console.log('decks-ui: four tabs, distinct routes, deck count, Decks-only word-type chips, persisted review filter, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()

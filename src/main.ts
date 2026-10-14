@@ -276,7 +276,6 @@ async function renderHome() {
   const suggested = suggestSessionSize(available)
   const n = sessionCount(available, settings.sessionSize)
   const next = candidates.dueCount === 0 ? candidates.cards[0] : undefined
-  const typeCounts = wordTypeCountsFor(all, settings.tier, now)
   const noneOfType = settings.wordTypes.length > 0 && available === 0
   const ready = candidates.dueCount > 0
   const canStart = available > 0
@@ -318,9 +317,7 @@ async function renderHome() {
         <div class="session-box">
           <p class="kicker" style="margin:0">Deck tier</p>
           <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
-          <p class="kicker" style="margin:0">Word type</p>
-          <div class="chips" id="type-chips" role="group" aria-label="Word type">${wordTypeChips(settings.wordTypes, typeCounts)}</div>
-          <p class="note" style="margin:0">${esc(TIER_NOTES[settings.tier])} All includes every word type.</p>
+          <p class="note" style="margin:0">${esc(TIER_NOTES[settings.tier])}</p>
         </div>
         <div class="session-box">
           <p class="kicker" style="margin:0">This session</p>
@@ -345,11 +342,6 @@ async function renderHome() {
   })
   bindTierChips(async (tier) => {
     await patchSettings({ tier })
-    await renderHome()
-  })
-  bindWordTypeChips(settings.wordTypes, async (wordTypes) => {
-    if (sameWordTypes(settings.wordTypes, wordTypes)) return
-    await patchSettings({ wordTypes })
     await renderHome()
   })
   $('#session-chips').querySelectorAll<HTMLButtonElement>('[data-session]').forEach((btn) => {
@@ -542,8 +534,12 @@ async function renderReview() {
 }
 
 async function renderDecks() {
+  const lock = captureStudyLock()
   setTabbar('decks')
   const cards = await getAllCards()
+  const settings = await getSettings()
+  if (!studyLockCurrent(lock)) return
+  const typeCounts = wordTypeCountsFor(cards, settings.tier)
   main.innerHTML = `
     <section class="screen scroll">
       <header class="topbar"><h1>Decks</h1></header>
@@ -556,8 +552,18 @@ async function renderDecks() {
           <span class="badge">Active</span>
         </li>
       </ul>
+      <div class="setting">
+        <p class="kicker" style="margin:0">Word type</p>
+        <div class="chips" id="type-chips" role="group" aria-label="Word type">${wordTypeChips(settings.wordTypes, typeCounts)}</div>
+        <p class="note">All reviews every word type, including words with no type. Pick nouns, verbs, adjectives, or any combination. Turning the last type off returns to All. A card with more than one type is still reviewed once. This does not change when a card is due.</p>
+      </div>
     </section>
   `
+  bindWordTypeChips(settings.wordTypes, async (wordTypes) => {
+    if (sameWordTypes(settings.wordTypes, wordTypes)) return
+    await patchSettings({ wordTypes })
+    await renderDecks()
+  })
 }
 
 async function renderDeck() {
@@ -869,7 +875,6 @@ async function renderCloudSettings() {
   const cards = await getAllCards()
   if (!studyLockCurrent(lock)) return
   const counts = tierCounts(cards)
-  const typeCounts = wordTypeCountsFor(cards, settings.tier)
   const suggested = suggestSessionSize(selectReviewCandidates(cards, settings.tier, settings.wordTypes).cards.length)
   main.innerHTML = `
     <section class="screen scroll">
@@ -878,10 +883,7 @@ async function renderCloudSettings() {
       <div class="setting">
         <p class="kicker" style="margin:0">Deck tier</p>
         <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
-        <p class="kicker" style="margin:0">Word type</p>
-        <div class="chips" id="type-chips" role="group" aria-label="Word type">${wordTypeChips(settings.wordTypes, typeCounts)}</div>
         <p class="note">${esc(TIER_NOTES[settings.tier])} Higher tiers include the lower ones, so tier 2 reviews everything in tier 1 too. ${counts[1]} / ${counts[1] + counts[2]} / ${cards.length} words.</p>
-        <p class="note">All reviews every word type, including words with no type. Pick nouns, verbs, adjectives, or any combination. Turning the last type off returns to All. A card with more than one type is still reviewed once. This does not change when a card is due.</p>
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">Review direction</p>
@@ -913,11 +915,6 @@ async function renderCloudSettings() {
   bindAccountPanel(accountHooks)
   bindTierChips(async (tier) => {
     await patchSettings({ tier })
-    scheduleRender()
-  })
-  bindWordTypeChips(settings.wordTypes, async (wordTypes) => {
-    if (sameWordTypes(settings.wordTypes, wordTypes)) return
-    await patchSettings({ wordTypes })
     scheduleRender()
   })
   $('#dir').querySelectorAll<HTMLButtonElement>('button').forEach((btn) => {
