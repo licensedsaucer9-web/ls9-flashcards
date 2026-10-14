@@ -41,8 +41,22 @@ export interface Card {
   srs: Srs
 }
 
+/** Metadata for the one existing local deck; cards remain in their current store. */
+export interface LocalDeck {
+  id: string
+  name: string
+  targetLang: string
+  baseLang: string
+  articles: boolean
+  wordTypes: boolean
+  tiers: boolean
+  origin: 'original'
+}
+
 export interface Settings {
   id: 'settings'
+  /** Local selection only; never included in PublicSettings or Firestore. */
+  activeDeckId: string
   direction: Direction
   /** 0 means all matching due cards, or all matching cards when none are due. */
   sessionSize: number

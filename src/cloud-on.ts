@@ -22,7 +22,7 @@ import { copyAlreadyDecided, rememberCopyDecision, sessionCopyMode, type CopyDec
 import { includeGuestVocabulary } from './guest-copy.ts'
 import { setCloudFirestore } from './cloud-handle.ts'
 import { publicFirebaseWeb } from './firebase-web.ts'
-import { copyGuestDatabase, getSettings, importLegacyData, localDatabaseHasWork } from './db.ts'
+import { copyGuestDatabase, recordAssignedDeck, getSettings, importLegacyData, localDatabaseHasWork } from './db.ts'
 import { esc } from './dom.ts'
 import { provisionAccount } from './provision.ts'
 import { cancelPopupWhenPageReturns, deckOpenFailure, retryableDeckOpen } from './sign-in-flow.ts'
@@ -121,7 +121,7 @@ function showDeckOpenFailure(error: unknown): void {
   }
 }
 
-async function openProvisionedAccount(user: User): Promise<{ personal: boolean; created: boolean }> {
+async function openProvisionedAccount(user: User): Promise<{ deckId: string; personal: boolean; created: boolean }> {
   if (!firestore) throw Object.assign(new Error('missing config'), { code: 'missing-config' })
   const options = {
     requiredLegacyDeckId: rehearsalPreview || recoveryBridge ? 'legacy-german' : undefined,
@@ -265,10 +265,12 @@ async function adoptUser(user: User): Promise<void> {
     showAuthError({ code: 'missing-config' })
     return
   }
+  let deckId = ''
   let personal = false
   let created = false
   try {
     const provisioned = await openProvisionedAccount(user)
+    deckId = provisioned.deckId
     personal = provisioned.personal
     created = provisioned.created
   } catch (error) {
@@ -305,6 +307,8 @@ async function adoptUser(user: User): Promise<void> {
   if (ticket !== ticketId) return
   const mode = sessionCopyMode(alreadyDecided, chosen)
   bindStudyDatabase({ uid: user.uid, dbName })
+  await recordAssignedDeck(deckId)
+  if (ticket !== ticketId) return
   await applyCopy(guestName, mode, ticket)
   if (ticket !== ticketId) return
   if (chosen) rememberCopyDecision(localStorage, user.uid, guestName, chosen)

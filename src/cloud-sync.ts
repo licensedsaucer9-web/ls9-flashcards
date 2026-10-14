@@ -1,6 +1,7 @@
 import { cloudFirestore } from './cloud-handle.ts'
 import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettings, pullCloud } from './cloud-push.ts'
 import {
+  recordAssignedDeck,
   acknowledgePending,
   applyStagedProgress,
   acknowledgeRevision,
@@ -72,6 +73,8 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
   try {
     if (!studyLockCurrent(lock)) return 'idle'
     const deckId = await accountDeckId(db, uid)
+    if (!studyLockCurrent(lock)) return 'idle'
+    await recordAssignedDeck(deckId)
     if (!studyLockCurrent(lock)) return 'idle'
     const docs = await pullCloud(db, uid, deckId)
     if (!studyLockCurrent(lock)) return 'idle'

@@ -88,6 +88,13 @@ project/credential pairing.
 
 ## Local commits and synchronization
 
+IndexedDB version 3 adds one `decks` metadata row for the existing German deck,
+without copying cards, changing schedules, or reseeding. Its id is the known
+account assignment, otherwise `local-german`; learning the assignment replaces
+that fallback row rather than adding another deck. `activeDeckId` lives only on
+the local settings row and is omitted from public settings and Firestore writes.
+Decks renders this stored row. Reads still use the existing unfiltered card store.
+
 IndexedDB is the durable offline store. Every mutation commits data, its
 local revision, and the affected records' pending markers atomically.
 Firestore uses an in-memory cache, leaving the durable queue in IndexedDB.
