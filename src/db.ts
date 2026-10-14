@@ -146,7 +146,11 @@ function openDb(name: string, upgrade = true, assignedDeckId?: string): Promise<
         } satisfies LocalDeck)
         const settings = req.transaction!.objectStore('settings')
         const stored = settings.get('settings')
-        stored.onsuccess = () => settings.put({ ...(stored.result ?? normalizeSettings()), activeDeckId: id })
+        stored.onsuccess = () => {
+          // Metadata alone is not device-study work. Keep a new database's
+          // settings empty so welcome and guest-copy checks remain accurate.
+          if (stored.result) settings.put({ ...stored.result, activeDeckId: id })
+        }
       }
     }
     req.onblocked = () => {
@@ -185,7 +189,7 @@ export async function recordAssignedDeck(deckId: string): Promise<void> {
     const done = txDone(tx)
     const [decks, stored] = await Promise.all([
       value(tx.objectStore('decks').getAll()) as Promise<LocalDeck[]>,
-      value(tx.objectStore('settings').get('settings')) as Promise<Settings>,
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
     ])
     if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return }
     const deck = decks[0]
@@ -193,7 +197,7 @@ export async function recordAssignedDeck(deckId: string): Promise<void> {
       tx.objectStore('decks').delete(deck.id)
       tx.objectStore('decks').put({ ...deck, id: deckId })
     }
-    if (stored.activeDeckId !== deckId) tx.objectStore('settings').put({ ...stored, activeDeckId: deckId })
+    if (stored?.activeDeckId !== deckId) tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deckId })
     await done
   } finally { db.close() }
 }
