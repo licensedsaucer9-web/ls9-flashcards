@@ -267,7 +267,6 @@ async function renderHome() {
   const lock = captureStudyLock()
   setTabbar('home')
   const settings = await getSettings()
-  const dueByTier = await getDueByTier()
   const all = await getAllCards()
   if (!studyLockCurrent(lock)) return
   const now = Date.now()
@@ -315,11 +314,6 @@ async function renderHome() {
         }</p>
         ${noneOfType ? '<button type="button" class="secondary" id="show-all-types">All</button>' : ''}
         <div class="session-box">
-          <p class="kicker" style="margin:0">Deck tier</p>
-          <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
-          <p class="note" style="margin:0">${esc(TIER_NOTES[settings.tier])}</p>
-        </div>
-        <div class="session-box">
           <p class="kicker" style="margin:0">This session</p>
           <div class="chips" id="session-chips">${presets}</div>
           <label class="inline-num">Custom
@@ -338,10 +332,6 @@ async function renderHome() {
   })
   document.getElementById('show-all-types')?.addEventListener('click', async () => {
     await patchSettings({ wordTypes: [] })
-    await renderHome()
-  })
-  bindTierChips(async (tier) => {
-    await patchSettings({ tier })
     await renderHome()
   })
   $('#session-chips').querySelectorAll<HTMLButtonElement>('[data-session]').forEach((btn) => {
@@ -539,6 +529,9 @@ async function renderDecks() {
   const cards = await getAllCards()
   const settings = await getSettings()
   if (!studyLockCurrent(lock)) return
+  const dueByTier = await getDueByTier()
+  if (!studyLockCurrent(lock)) return
+  const counts = tierCounts(cards)
   const typeCounts = wordTypeCountsFor(cards, settings.tier)
   main.innerHTML = `
     <section class="screen scroll">
@@ -553,16 +546,41 @@ async function renderDecks() {
         </li>
       </ul>
       <div class="setting">
+        <p class="kicker" style="margin:0">Deck tier</p>
+        <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
+        <p class="note">${esc(TIER_NOTES[settings.tier])} Higher tiers include the lower ones, so tier 2 reviews everything in tier 1 too. ${counts[1]} / ${counts[1] + counts[2]} / ${cards.length} words.</p>
+      </div>
+      <div class="setting">
+        <p class="kicker" style="margin:0">Review direction</p>
+        <div class="seg" id="dir">
+          <button type="button" data-dir="de-en" class="${settings.direction === 'de-en' ? 'is-on' : ''}">DE → EN</button>
+          <button type="button" data-dir="en-de" class="${settings.direction === 'en-de' ? 'is-on' : ''}">EN → DE</button>
+        </div>
+        <p class="note">DE → EN shows the German word first. EN → DE shows English first.</p>
+      </div>
+      <div class="setting">
         <p class="kicker" style="margin:0">Word type</p>
         <div class="chips" id="type-chips" role="group" aria-label="Word type">${wordTypeChips(settings.wordTypes, typeCounts)}</div>
         <p class="note">All reviews every word type, including words with no type. Pick nouns, verbs, adjectives, or any combination. Turning the last type off returns to All. A card with more than one type is still reviewed once. This does not change when a card is due.</p>
       </div>
     </section>
   `
+  bindTierChips(async (tier) => {
+    await patchSettings({ tier })
+    scheduleRender()
+  })
+  $('#dir').querySelectorAll<HTMLButtonElement>('button').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const direction = btn.dataset.dir as Direction
+      await patchSettings({ direction })
+      toast(direction === 'de-en' ? 'DE → EN' : 'EN → DE')
+      scheduleRender()
+    })
+  })
   bindWordTypeChips(settings.wordTypes, async (wordTypes) => {
     if (sameWordTypes(settings.wordTypes, wordTypes)) return
     await patchSettings({ wordTypes })
-    await renderDecks()
+    scheduleRender()
   })
 }
 
@@ -870,36 +888,11 @@ async function renderImport() {
 async function renderCloudSettings() {
   const lock = captureStudyLock()
   setTabbar('settings')
-  const settings = await getSettings()
-  const dueByTier = await getDueByTier()
-  const cards = await getAllCards()
   if (!studyLockCurrent(lock)) return
-  const counts = tierCounts(cards)
-  const suggested = suggestSessionSize(selectReviewCandidates(cards, settings.tier, settings.wordTypes).cards.length)
   main.innerHTML = `
     <section class="screen scroll">
       <header class="topbar"><h1>Settings</h1><span class="badge">${esc(accountBadge())}</span></header>
       ${accountPanelHtml()}
-      <div class="setting">
-        <p class="kicker" style="margin:0">Deck tier</p>
-        <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
-        <p class="note">${esc(TIER_NOTES[settings.tier])} Higher tiers include the lower ones, so tier 2 reviews everything in tier 1 too. ${counts[1]} / ${counts[1] + counts[2]} / ${cards.length} words.</p>
-      </div>
-      <div class="setting">
-        <p class="kicker" style="margin:0">Review direction</p>
-        <div class="seg" id="dir">
-          <button type="button" data-dir="de-en" class="${settings.direction === 'de-en' ? 'is-on' : ''}">DE → EN</button>
-          <button type="button" data-dir="en-de" class="${settings.direction === 'en-de' ? 'is-on' : ''}">EN → DE</button>
-        </div>
-        <p class="note">DE → EN shows the German word first. EN → DE shows English first.</p>
-      </div>
-      <div class="setting">
-        <p class="kicker" style="margin:0">Session size</p>
-        <p class="note">Cap how many cards a review starts with. Suggested now: ${suggested}. Due cards come first. When none are due, review the soonest-due cards ahead. 0 / All means every eligible card matching the tier and word type.</p>
-        <label>Cards per session
-          <input id="session-size" type="number" min="0" step="1" inputmode="numeric" value="${settings.sessionSize}" />
-        </label>
-      </div>
       <div class="setting">
         <p class="kicker" style="margin:0">Install</p>
         <p class="note" id="app-version" data-version="${esc(buildInfo.version)}" data-source="${esc(buildInfo.sourceCommit)}">Version ${esc(buildInfo.version)} · ${esc(buildInfo.sourceCommit.slice(0, 7))}${buildInfo.sourceDirty ? ' (local changes)' : ''}</p>
@@ -913,24 +906,6 @@ async function renderCloudSettings() {
     </section>
   `
   bindAccountPanel(accountHooks)
-  bindTierChips(async (tier) => {
-    await patchSettings({ tier })
-    scheduleRender()
-  })
-  $('#dir').querySelectorAll<HTMLButtonElement>('button').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const direction = btn.dataset.dir as Direction
-      await patchSettings({ direction })
-      toast(direction === 'de-en' ? 'DE → EN' : 'EN → DE')
-      scheduleRender()
-    })
-  })
-  $('#session-size').addEventListener('change', async () => {
-    const v = Math.floor(Number(($('#session-size') as HTMLInputElement).value))
-    if (!Number.isFinite(v) || v < 0) return
-    await patchSettings({ sessionSize: v })
-    toast(v === 0 ? 'Session: all eligible cards' : `Session: ${v}`)
-  })
   const sw = 'serviceWorker' in navigator
   $('#sw-status').textContent = sw
     ? 'Service worker APIs are available in this browser.'

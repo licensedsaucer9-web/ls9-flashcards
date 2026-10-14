@@ -134,6 +134,12 @@ first Easy = 4 days. Again and Gender requeue immediately, with a smaller ease
 penalty for Gender. The account stores the latest SRS state per card, with
 no interval multiplier, detailed review history, or FSRS.
 
+Decks saves the account-wide tier, direction, and word-type preferences.
+Review alone sets session size. Cards starts its browse tier filter at the saved
+tier, but browsing does not write preferences. Settings retains account, install,
+and SRS information. These control locations do not change storage or deck
+assignment.
+
 A review session starts from a captured queue within the selected cumulative
 tier and word-type filter. It uses only due cards when any match. When none
 are due, it selects future cards in ascending due-time order and applies the

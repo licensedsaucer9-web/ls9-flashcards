@@ -166,7 +166,7 @@ try {
   console.log('session: 10-card cap works')
 
   await page.goto(BASE + '#/settings', { waitUntil: 'networkidle' })
-  await page.waitForSelector('#dir')
+  await page.waitForSelector('#app-version')
   assert((await page.locator('#gh-form').count()) === 0, 'token form must be gone')
   assert((await page.locator('input[type="password"]').count()) === 0, 'token field must be gone')
   console.log('settings: no token form')
