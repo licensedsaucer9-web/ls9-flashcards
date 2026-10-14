@@ -233,7 +233,7 @@ a {
   height: calc(var(--tabbar-h) + var(--safe-b));
   padding: 6px 8px var(--safe-b);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(16px);
   border-top: 1px solid var(--line);
