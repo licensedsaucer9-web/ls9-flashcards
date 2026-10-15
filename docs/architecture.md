@@ -93,7 +93,14 @@ without copying cards, changing schedules, or reseeding. Its id is the known
 account assignment, otherwise `local-german`; learning the assignment replaces
 that fallback row rather than adding another deck. `activeDeckId` lives only on
 the local settings row and is omitted from public settings and Firestore writes.
-Decks renders this stored row. Reads still use the existing unfiltered card store.
+Decks renders this stored row. IndexedDB version 4 stamps cards missing `deckId`
+with that original deck id, preserving their content, schedules, and streak events.
+Learning a cloud assignment also renames ownership on the original deck's cards
+and tombstones. Local reads, review queues, counts, edits and sync projections
+use the active deck; schedules remain on each card. Deletion clocks retain a
+local deck-ownership map alongside `deletedIds`. Seed insertion always targets
+the original deck, including when another deck is active. Deck creation and a
+picker are not implemented.
 
 IndexedDB is the durable offline store. Every mutation commits data, its
 local revision, and the affected records' pending markers atomically.

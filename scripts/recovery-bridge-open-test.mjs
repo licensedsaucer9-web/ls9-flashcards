@@ -78,6 +78,10 @@ try {
 
   await page.goto(base)
   await page.waitForSelector('[data-due-count]')
+  // Reading the Decks tab must also preserve the original schema and records.
+  await page.evaluate(() => { location.hash = '#/decks' })
+  await page.waitForSelector('.card-row')
+  assert.equal(await page.locator('.card-row .de').first().textContent(), 'German')
   const result = await page.evaluate(async (keys) => {
     const request = indexedDB.open('german-flashcards:synthetic', 1)
     const db = await new Promise((resolve, reject) => {

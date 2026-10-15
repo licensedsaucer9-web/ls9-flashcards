@@ -37,14 +37,17 @@ try {
     await db.saveReview(card.id, 'good', crypto.randomUUID(), Date.now(), 'UTC')
     await db.putSettings({ tier: 3, sessionSize: 0, direction: 'en-de' })
   })
-  // Upgrade real v2 stores in isolated fixture databases; no cloud or account provisioning.
+  // Upgrade real v2/v3 stores in isolated fixture databases; no cloud or account provisioning.
   const upgrades = await page.evaluate(async () => {
     const api = await import('/src/db.ts')
     const { bindStudyDatabase, clearStudyBinding } = await import('/src/study-lock.ts')
     const { settingsToDoc } = await import('/src/firestore-docs.ts')
-    const existing = (await api.getAllCards())[0]
+    const { deckId: _deckId, ...existing } = (await api.getAllCards())[0]
+    existing.srs = { ...existing.srs, due: 63 }
     const preferences = await api.getSettings()
     const { activeDeckId, ...oldSettings } = preferences
+    // This isolated database has its own activity fixture, not the source event.
+    oldSettings.pending = { ...oldSettings.pending, activity: {} }
     const read = name => new Promise((resolve, reject) => {
       const req = indexedDB.open(name)
       req.onerror = () => reject(req.error)
@@ -61,14 +64,15 @@ try {
     })
     const results = []
     try {
-      for (const assigned of [false, true]) {
-        const name = `deck-upgrade-fixture-${assigned}`
+      for (const version of [2, 3]) for (const assigned of [false, true]) {
+        const name = `deck-upgrade-fixture-${version}-${assigned}`
         await new Promise((resolve, reject) => {
-          const req = indexedDB.open(name, 2)
+          const req = indexedDB.open(name, version)
           req.onupgradeneeded = () => {
             for (const store of ['cards', 'settings', 'activity']) req.result.createObjectStore(store, { keyPath: 'id' })
             req.transaction.objectStore('cards').put(existing)
-            req.transaction.objectStore('settings').put(oldSettings)
+            req.transaction.objectStore('settings').put({ ...oldSettings, deletedIds: { 'deleted-fixture': 63 }, ...(version === 3 ? { activeDeckId: 'local-german' } : {}) })
+            if (version === 3) req.result.createObjectStore('decks', { keyPath: 'id' }).put({ id: 'local-german', name: 'German', targetLang: 'German', baseLang: 'English', articles: true, wordTypes: true, tiers: true, origin: 'original' })
             req.transaction.objectStore('activity').put({ id: '00000000-0000-4000-8000-000000000063', at: Date.now(), timeZone: 'UTC' })
           }
           req.onerror = () => reject(req.error)
@@ -77,6 +81,7 @@ try {
         const before = await read(name)
         bindStudyDatabase({ uid: assigned ? 'fixture-account' : null, dbName: name })
         if (assigned) await api.recordAssignedDeck('fixture-cloud-deck')
+        else await api.insertMissingSeeds([]) // The normal seed write upgrades device-study storage.
         const decks = await api.getDecks()
         const after = await read(name)
         await api.getDecks()
@@ -91,32 +96,178 @@ try {
           await api.recordAssignedDeck('fixture-cloud-deck')
           attached = await read(name)
         }
-        results.push({ assigned, before, after, reopened, decks, publicSettings, cloudSettings, attached })
+        results.push({ assigned, before, after, reopened, decks, publicSettings, cloudSettings, attached, due: (await api.getDueCards()).length, expectedDue: existing.srs.due <= Date.now() ? 1 : 0 })
       }
     } finally { clearStudyBinding() }
     return results
   })
   for (const result of upgrades) {
     const id = result.assigned ? 'fixture-cloud-deck' : 'local-german'
-    assert.equal(result.after.version, 3)
-    assert.deepEqual(result.after.cards, result.before.cards, 'upgrade retains exact cards and due dates')
+    assert.equal(result.after.version, 4)
+    assert.equal(result.due, result.expectedDue, 'one-deck upgrade preserves due count')
+    assert.deepEqual(result.after.cards, result.before.cards.map(card => ({ ...card, deckId: id })), 'upgrade only stamps deck ownership; exact cards and due dates survive')
     assert.deepEqual(result.after.activity, result.before.activity, 'upgrade retains exact streak events')
-    assert.deepEqual(result.after.settings, [{ ...result.before.settings[0], activeDeckId: id }], 'upgrade changes only local selection')
+    assert.deepEqual(result.after.settings, [{ ...result.before.settings[0], activeDeckId: id, deletedDeckIds: { 'deleted-fixture': id } }], 'upgrade changes only local selection')
     assert.deepEqual(result.decks, [{ id, name: 'German', targetLang: 'German', baseLang: 'English', articles: true, wordTypes: true, tiers: true, origin: 'original' }])
     assert.deepEqual(result.reopened, result.after, 'reopening does not insert another deck')
     assert.equal(Object.hasOwn(result.publicSettings, 'activeDeckId'), false)
     assert.equal(Object.hasOwn(result.cloudSettings, 'activeDeckId'), false)
     if (result.attached) {
       assert.deepEqual(result.attached.decks, [{ ...result.decks[0], id: 'fixture-cloud-deck' }], 'learning an assignment keeps exactly one deck')
-      assert.deepEqual(result.attached.cards, result.before.cards)
+      assert.deepEqual(result.attached.cards, result.before.cards.map(card => ({ ...card, deckId: 'fixture-cloud-deck' })))
       assert.deepEqual(result.attached.activity, result.before.activity)
-      assert.deepEqual(result.attached.settings, [{ ...result.before.settings[0], activeDeckId: 'fixture-cloud-deck' }])
+      assert.deepEqual(result.attached.settings, [{ ...result.before.settings[0], activeDeckId: 'fixture-cloud-deck', deletedDeckIds: { 'deleted-fixture': 'fixture-cloud-deck' } }])
     }
+  }
+  // Guest vocabulary copies must preserve another deck's tombstones and pending revisions.
+  const guestCopy = await page.evaluate(async () => {
+    const api = await import('/src/db.ts')
+    const { bindStudyDatabase, clearStudyBinding } = await import('/src/study-lock.ts')
+    const fixture = (await api.getAllCards())[0]
+    const sourceName = 'guest-tombstone-source-64'
+    const targetName = 'guest-tombstone-target-64'
+    const ids = ['foreign-older-64', 'foreign-newer-64', 'active-deletion-64']
+    const settingsRow = () => new Promise((resolve, reject) => {
+      const req = indexedDB.open(targetName)
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => {
+        const db = req.result
+        const tx = db.transaction('settings', 'readonly')
+        const row = tx.objectStore('settings').get('settings')
+        tx.oncomplete = () => { db.close(); resolve(row.result) }
+        tx.onabort = () => { db.close(); reject(tx.error) }
+      }
+    })
+    try {
+      bindStudyDatabase({ uid: null, dbName: sourceName })
+      for (const id of ids) {
+        await api.putCard({ ...fixture, id })
+        await api.deleteCard(id, 64001)
+      }
+      bindStudyDatabase({ uid: null, dbName: targetName })
+      await api.putSettings({ tier: 3 })
+      await new Promise((resolve, reject) => {
+        const req = indexedDB.open(targetName)
+        req.onerror = () => reject(req.error)
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction('settings', 'readwrite')
+          const store = tx.objectStore('settings')
+          const row = store.get('settings')
+          row.onsuccess = () => {
+            const settings = row.result
+            settings.deletedIds = { [ids[0]]: 64000, [ids[1]]: 64002 }
+            settings.deletedDeckIds = { [ids[0]]: 'other-deck', [ids[1]]: 'other-deck' }
+            settings.pending.tombstones = { [ids[0]]: { revision: 7, acked: 6 }, [ids[1]]: { revision: 8, acked: 8 } }
+            store.put(settings)
+          }
+          tx.oncomplete = () => { db.close(); resolve() }
+          tx.onabort = () => { db.close(); reject(tx.error) }
+        }
+      })
+      const before = await settingsRow()
+      const copies = []
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (!await api.copyGuestDatabase(sourceName, 'vocabulary')) throw new Error('Guest copy failed')
+        const after = await settingsRow()
+        const cloud = await api.readCloudSnapshot()
+        copies.push({ after, cloudDeleted: cloud.settings.deletedIds })
+      }
+      return { before, copies }
+    } finally { clearStudyBinding() }
+  })
+  for (const { after, cloudDeleted } of guestCopy.copies) {
+    for (const id of ['foreign-older-64', 'foreign-newer-64']) {
+      assert.equal(after.deletedIds[id], guestCopy.before.deletedIds[id], 'guest copy preserves foreign deletion clock')
+      assert.equal(after.deletedDeckIds[id], guestCopy.before.deletedDeckIds[id], 'guest copy preserves foreign tombstone owner')
+      assert.deepEqual(after.pending.tombstones[id], guestCopy.before.pending.tombstones[id], 'guest copy preserves foreign pending revision')
+      assert.equal(Object.hasOwn(cloudDeleted, id), false, 'guest copy cannot expose foreign tombstone to active-deck sync')
+    }
+    assert.equal(after.deletedDeckIds['active-deletion-64'], after.activeDeckId)
+    assert.equal(cloudDeleted['active-deletion-64'], 64001, 'guest deletion still copies into active deck')
   }
   const snapshot = () => page.evaluate(async () => {
     const db = await import('/src/db.ts')
     return { cards: await db.getAllCards(), activity: await db.getReviewActivity() }
   })
+  // A second deck exists only as a fixture: no deck-creation UI or live data.
+  const isolation = await page.evaluate(async () => {
+    const api = await import('/src/db.ts')
+    const { activeUserSlug, dbNameForUser } = await import('/src/user.ts')
+    const cards = await api.getAllCards()
+    const due = (await api.getDueCards()).length
+    const foreign = { ...cards[0], id: 'foreign-card-64', deckId: 'fixture-other-deck', de: 'FOREIGN_FIXTURE_64', srs: { ...cards[0].srs, due: 0 } }
+    const mutate = work => new Promise((resolve, reject) => {
+      const req = indexedDB.open(dbNameForUser(activeUserSlug()))
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => {
+        const db = req.result
+        const tx = db.transaction(['cards', 'settings'], 'readwrite')
+        work(tx)
+        tx.oncomplete = () => { db.close(); resolve() }
+        tx.onabort = () => { db.close(); reject(tx.error) }
+      }
+    })
+    await mutate(tx => tx.objectStore('cards').put(foreign))
+    const actual = await api.getAllCards()
+    const result = {
+      unchanged: JSON.stringify(actual) === JSON.stringify(cards),
+      due, afterDue: (await api.getDueCards()).length,
+      count: await api.countCards(),
+      foreign: await api.getCard(foreign.id),
+      foreignReview: await api.saveReview(foreign.id, 'good', crypto.randomUUID()),
+    }
+    await api.deleteCard(foreign.id)
+    // Switch local selection directly: seeds must still belong to original German.
+    await mutate(tx => {
+      const req = tx.objectStore('settings').get('settings')
+      req.onsuccess = () => tx.objectStore('settings').put({ ...req.result, activeDeckId: foreign.deckId })
+    })
+    const seed = { ...cards[0], id: 'seed-fixture-64', de: 'Seed fixture 64', en: 'Seed fixture 64' }
+    result.seedAdded = await api.insertMissingSeeds([seed])
+    result.otherCards = (await api.getAllCards()).map(card => card.id)
+    await api.putCard({ ...seed, id: 'put-fixture-64', deckId: 'ignored-input-deck' })
+    await api.putCards([{ ...seed, id: 'bulk-fixture-64', deckId: 'ignored-input-deck' }])
+    result.writeDecks = [(await api.getCard('put-fixture-64')).deckId, (await api.getCard('bulk-fixture-64')).deckId]
+    await mutate(tx => { tx.objectStore('cards').delete('put-fixture-64'); tx.objectStore('cards').delete('bulk-fixture-64') })
+    await api.deleteCard(foreign.id, 64000)
+    result.otherTombstone = (await api.readLocalState()).snapshot.deck.deleted_ids[foreign.id]
+    await mutate(tx => {
+      const req = tx.objectStore('settings').get('settings')
+      req.onsuccess = () => tx.objectStore('settings').put({ ...req.result, activeDeckId: cards[0].deckId })
+    })
+    const state = await api.readLocalState()
+    result.originalTombstone = state.snapshot.deck.deleted_ids[foreign.id]
+    // Pulling the original deck/progress cannot erase or grade the other deck.
+    await api.mergeDeckIntoDb(state.snapshot.deck)
+    await api.mergeProgressIntoDb({ ...state.snapshot.user, progress: { ...state.snapshot.user.progress, [foreign.id]: { ...foreign.srs, due: 12345 } } })
+    const cloud = await api.readCloudSnapshot()
+    result.cloudHasForeign = cloud.cards.has(foreign.id) || Object.hasOwn(cloud.settings.deletedIds, foreign.id)
+    await mutate(tx => tx.objectStore('cards').put(foreign))
+    await api.mergeDeckIntoDb(state.snapshot.deck)
+    await api.mergeProgressIntoDb({ ...state.snapshot.user, progress: { [foreign.id]: { ...foreign.srs, due: 12345, updated_at: Date.now() } } })
+    await mutate(tx => {
+      const req = tx.objectStore('cards').get(foreign.id)
+      req.onsuccess = () => { result.preservedForeign = JSON.stringify(req.result) === JSON.stringify(foreign) }
+    })
+    result.seedDeck = (await api.getCard(seed.id)).deckId
+    // Leave a foreign card present throughout UI navigation and review checks.
+    await mutate(tx => { tx.objectStore('cards').delete(seed.id); tx.objectStore('cards').put(foreign) })
+    return result
+  })
+  assert.equal(isolation.unchanged, true, 'foreign fixture leaves German cards and schedules unchanged')
+  assert.equal(isolation.afterDue, isolation.due, 'foreign due card is absent from due counts')
+  assert.equal(isolation.count, 514)
+  assert.equal(isolation.foreign, undefined)
+  assert.equal(isolation.foreignReview, null)
+  assert.equal(isolation.seedAdded, 1)
+  assert.deepEqual(isolation.otherCards, ['foreign-card-64'], 'seed insertion never targets second deck')
+  assert.equal(isolation.seedDeck, 'local-german')
+  assert.deepEqual(isolation.writeDecks, ['fixture-other-deck', 'fixture-other-deck'], 'single and bulk writes stamp active deck')
+  assert.equal(isolation.otherTombstone, 64000)
+  assert.equal(isolation.cloudHasForeign, false, 'sync snapshots exclude foreign deck records')
+  assert.equal(isolation.preservedForeign, true, 'sync merges preserve foreign cards and schedules')
+  assert.equal(isolation.originalTombstone, undefined, 'deletion stays with its own deck')
   const before = await snapshot()
   assert.equal(before.cards.length, 514)
   assert.equal(Object.keys(before.activity).length, 1)
@@ -125,6 +276,7 @@ try {
     await page.locator('#tabbar .tab').filter({ hasText: new RegExp(`^${name}$`) }).click()
     await page.waitForFunction(({ hash, heading }) => location.hash === hash && document.querySelector('h1')?.textContent === heading, { hash, heading })
     assert.equal(await page.locator('#tabbar .is-active').textContent(), name)
+    assert.equal(await page.getByText('FOREIGN_FIXTURE_64', { exact: true }).count(), 0, 'foreign card never appears in UI')
   }
   async function assertDeckCount(count) {
     assert.equal(await page.locator('#main .card-row').count(), 1)
@@ -354,7 +506,7 @@ try {
   assert.deepEqual(await snapshot(), untypedFixture, 'empty-match recovery preserves cards, schedules and streaks')
   assert.deepEqual(errors, [], 'no browser errors')
   assert.deepEqual(externalRequests, [], 'no external service access')
-  console.log('decks-ui: four tabs, distinct routes, deck count, Decks-only saved tier/direction/word-type controls, unsaved Cards filters, Review-only session size, Settings content, persisted review filters, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')
+  console.log('decks-ui: v2/v3 card and tombstone upgrades, deck-isolated reads/writes/counts/sync, original-only seed insertion, four tabs, distinct routes, deck count, Decks-only saved tier/direction/word-type controls, unsaved Cards filters, Review-only session size, Settings content, persisted review filters, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()

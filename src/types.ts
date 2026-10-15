@@ -25,6 +25,8 @@ export interface Srs {
 }
 
 export interface Card {
+  /** Present on every stored card; omitted by legacy/import inputs. */
+  deckId?: string
   id: string
   de: string
   en: string
@@ -68,6 +70,8 @@ export interface Settings {
    */
   wordTypes: WordType[]
   deletedIds: Record<string, number>
+  /** Local ownership of deletion records; omitted from cloud payloads. */
+  deletedDeckIds?: Record<string, string>
   /** Local writes are numbered in the same transaction as their data. */
   localRevision: number
   acknowledgedRevision: number
