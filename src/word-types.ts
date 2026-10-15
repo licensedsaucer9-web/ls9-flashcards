@@ -222,6 +222,14 @@ export function tagsWithWordType(
   return next
 }
 
+/** Edit free tags while leaving hidden type metadata exactly as saved. */
+export function tagsWithoutTypeEdit(tagsField: string, previousTags: readonly string[] = []): string[] {
+  const types = previousTags.filter(isReservedTag)
+  const other = tagsField.split(',').map(tag => tag.trim()).filter(tag => tag && !isReservedTag(tag))
+  if (editorTagField(previousTags) === other.join(', ')) return [...previousTags]
+  return [...types, ...other]
+}
+
 export type ReviewFace = {
   className: string
   kickerHtml: string
@@ -251,12 +259,13 @@ function kicker(parts: string[]): string {
 export function reviewFaces(
   card: { de: string; en: string; article: Article; tags?: readonly string[] | null },
   direction: Direction,
-  languages: { targetLang: string; baseLang: string } = { targetLang: 'German', baseLang: 'English' },
+  languages: { targetLang: string; baseLang: string; articles?: boolean; supportsWordTypes?: boolean } = { targetLang: 'German', baseLang: 'English' },
 ): { front: ReviewFace; back: ReviewFace } {
-  const gender = genderToken(card.article)
-  const badge = wordTypeBadgeHtml(card)
-  const article = articleHtml(card.article)
-  const deText = germanHead(card.article, card.de)
+  const visibleArticle = languages.articles === false ? 'none' : card.article
+  const gender = genderToken(visibleArticle)
+  const badge = languages.supportsWordTypes === false ? '' : wordTypeBadgeHtml(card)
+  const article = articleHtml(visibleArticle)
+  const deText = germanHead(visibleArticle, card.de)
   const frontIsDe = direction === 'de-en'
   const target = `<span class="prompt">${esc(languages.targetLang)}</span>`
   const base = `<span class="prompt">${esc(languages.baseLang)}</span>`

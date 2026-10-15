@@ -241,6 +241,22 @@ export async function getActiveDeck(): Promise<LocalDeck | undefined> {
   return decks.find(deck => deck.id === settings.activeDeckId)
 }
 
+/** Capability switches are local metadata; changing them never edits cards or schedules. */
+export async function putDeckFeatures(next: Partial<Pick<LocalDeck, 'articles' | 'supportsWordTypes' | 'tiers'>>): Promise<void> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return
+    const tx = db.transaction(['decks', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const settings = normalizeSettings(await value(tx.objectStore('settings').get('settings')) as Settings | undefined)
+    const deck = await value(tx.objectStore('decks').get(settings.activeDeckId)) as LocalDeck | undefined
+    if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return }
+    if (deck) tx.objectStore('decks').put({ ...deck, ...next })
+    await done
+  } finally { db.close() }
+}
+
 /** Card counts per deck, grouped by the same deck id that scopes reviews. */
 export async function getDeckCardCounts(): Promise<Map<string, number>> {
   const { lock, name } = namesFor()

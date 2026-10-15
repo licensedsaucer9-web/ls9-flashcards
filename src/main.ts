@@ -1,6 +1,6 @@
 import './style.css'
 import { registerSW } from 'virtual:pwa-register'
-import type { Article, Card, Direction, Grade, PublicSettings, Tier, WordType } from './types.ts'
+import type { Article, Card, Direction, Grade, LocalDeck, PublicSettings, Tier, WordType } from './types.ts'
 import { ARTICLES } from './types.ts'
 import { deckSyncs } from './record-sync.ts'
 import {
@@ -25,6 +25,7 @@ import {
   getDeckCardCounts,
   getDecks,
   createLocalDeck,
+  putDeckFeatures,
   switchActiveDeck,
   getCard,
   getDueByTier,
@@ -53,6 +54,7 @@ import {
   sameWordTypes,
   savedWordTypes,
   tagsWithWordType,
+  tagsWithoutTypeEdit,
   toggleWordType,
   wordTypeBadgeHtml,
   wordTypeSelectionLabel,
@@ -223,9 +225,9 @@ function bindWordTypeChips(current: readonly WordType[], onPick: (next: WordType
   })
 }
 
-function scopeLabel(tier: Tier, types: readonly WordType[]): string {
+function scopeLabel(tier: Tier, types: readonly WordType[], deck?: LocalDeck): string {
   const typesLabel = wordTypeSelectionLabel(types)
-  const tierText = tierLabel(tier)
+  const tierText = deck?.tiers === false ? 'All cards' : tierLabel(tier)
   return typesLabel ? `${tierText} · ${typesLabel}` : tierText
 }
 
@@ -279,12 +281,14 @@ async function renderHome() {
   const activeDeck = await getActiveDeck()
   if (!studyLockCurrent(lock)) return
   const now = Date.now()
-  const candidates = selectReviewCandidates(all, settings.tier, settings.wordTypes, now)
+  const reviewTier = activeDeck?.tiers === false ? 3 : settings.tier
+  const reviewTypes = activeDeck?.supportsWordTypes === false ? [] : settings.wordTypes
+  const candidates = selectReviewCandidates(all, reviewTier, reviewTypes, now)
   const available = candidates.cards.length
   const suggested = suggestSessionSize(available)
   const n = sessionCount(available, settings.sessionSize)
   const next = candidates.dueCount === 0 ? candidates.cards[0] : undefined
-  const noneOfType = settings.wordTypes.length > 0 && available === 0
+  const noneOfType = reviewTypes.length > 0 && available === 0
   const ready = candidates.dueCount > 0
   const canStart = available > 0
   const startLabel = ready
@@ -306,11 +310,11 @@ async function renderHome() {
       </header>
       ${streakPlaceholder()}
       <div class="due-hero">
-        <p class="kicker">Due now · ${esc(scopeLabel(settings.tier, settings.wordTypes))}</p>
+        <p class="kicker">Due now · ${esc(scopeLabel(reviewTier, reviewTypes, activeDeck))}</p>
         <div class="due-count ${ready ? '' : 'caught-up'}" data-due-count>${candidates.dueCount}</div>
         <p class="due-label">${
           noneOfType
-            ? esc(noDueWordTypeMessage(settings.wordTypes, settings.tier))
+            ? esc(noDueWordTypeMessage(reviewTypes, reviewTier))
             : ready
             ? candidates.dueCount === 1
               ? 'card waiting'
@@ -369,7 +373,9 @@ async function renderReview() {
   if (!studyLockCurrent(lock)) return
   const all = await getAllCards()
   if (!studyLockCurrent(lock)) return
-  const candidates = selectReviewCandidates(all, settings.tier, settings.wordTypes)
+  const reviewTier = activeDeck?.tiers === false ? 3 : settings.tier
+  const reviewTypes = activeDeck?.supportsWordTypes === false ? [] : settings.wordTypes
+  const candidates = selectReviewCandidates(all, reviewTier, reviewTypes)
   const reviewingAhead = candidates.dueCount === 0
   const ordered = reviewingAhead ? candidates.cards : shuffle(candidates.cards)
   const queue = ordered.slice(0, sessionCount(ordered.length, settings.sessionSize))
@@ -426,7 +432,7 @@ async function renderReview() {
       <section class="screen review">
         <header class="topbar">
           <button class="ghost" id="back">Close</button>
-          <div class="review-meta">${reviewingAhead ? 'Review ahead · ' : ''}<span data-remaining>${remaining}</span> left · ${esc(scopeLabel(settings.tier, settings.wordTypes))}</div>
+          <div class="review-meta">${reviewingAhead ? 'Review ahead · ' : ''}<span data-remaining>${remaining}</span> left · ${esc(scopeLabel(reviewTier, reviewTypes, activeDeck))}</div>
           <span></span>
         </header>
         ${streakPlaceholder()}
@@ -453,10 +459,10 @@ async function renderReview() {
             </div>
           </button>
         </div>
-        <div class="grades ${card.article !== 'none' ? 'noun' : ''}" ${flipped ? '' : 'hidden'}>
+        <div class="grades ${activeDeck?.articles !== false && card.article !== 'none' ? 'noun' : ''}" ${flipped ? '' : 'hidden'}>
           <button class="grade again" data-grade="again">Again<small>1</small></button>
           ${
-            card.article !== 'none'
+            activeDeck?.articles !== false && card.article !== 'none'
               ? `<button class="grade gender" data-grade="wrong_gender">Gender<small>5</small></button>`
               : ''
           }
@@ -524,7 +530,7 @@ async function renderReview() {
       '5': 'wrong_gender',
     }
     const g = map[e.key]
-    if (g === 'wrong_gender' && queue[0]?.article === 'none') return
+    if (g === 'wrong_gender' && (activeDeck?.articles === false || queue[0]?.article === 'none')) return
     if (g) void grade(g)
   }
 
@@ -549,7 +555,7 @@ async function renderDecks() {
   if (!activeDeck) return
   const { targetLang, baseLang } = activeDeck
   const counts = tierCounts(cards)
-  const typeCounts = wordTypeCountsFor(cards, settings.tier)
+  const typeCounts = wordTypeCountsFor(cards, activeDeck.tiers ? settings.tier : 3)
   main.innerHTML = `
     <section class="screen scroll">
       <header class="topbar"><h1>Decks</h1></header>
@@ -573,11 +579,14 @@ async function renderDecks() {
         <p class="note">English is the base language. The new deck starts empty and stays on this device.</p>
         <button type="submit" class="chip">Create and switch</button>
       </form>
-      <div class="setting">
+      <div class="setting" role="group" aria-label="Deck extras">
+        ${([['articles', 'Articles'], ['supportsWordTypes', 'Word types'], ['tiers', 'Tiers']] as const).map(([key, label]) => `<label><input type="checkbox" role="switch" data-feature="${key}" ${activeDeck[key] ? 'checked' : ''} /> ${label}</label>`).join('')}
+      </div>
+      ${activeDeck.tiers ? `<div class="setting">
         <p class="kicker" style="margin:0">Deck tier</p>
         <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
         <p class="note">${esc(TIER_NOTES[settings.tier])} Higher tiers include the lower ones, so tier 2 reviews everything in tier 1 too. ${counts[1]} / ${counts[1] + counts[2]} / ${cards.length} words.</p>
-      </div>
+      </div>` : ''}
       <div class="setting">
         <p class="kicker" style="margin:0">Review direction</p>
         <div class="seg" id="dir">
@@ -586,13 +595,19 @@ async function renderDecks() {
         </div>
         <p class="note">${esc(targetLang)} → ${esc(baseLang)} shows the ${esc(targetLang)} word first. ${esc(baseLang)} → ${esc(targetLang)} shows ${esc(baseLang)} first.</p>
       </div>
-      <div class="setting">
+      ${activeDeck.supportsWordTypes ? `<div class="setting">
         <p class="kicker" style="margin:0">Word type</p>
         <div class="chips" id="type-chips" role="group" aria-label="Word type">${wordTypeChips(settings.wordTypes, typeCounts)}</div>
         <p class="note">All reviews every word type, including words with no type. Pick nouns, verbs, adjectives, or any combination. Turning the last type off returns to All. A card with more than one type is still reviewed once. This does not change when a card is due.</p>
-      </div>
+      </div>` : ''}
     </section>
   `
+  main.querySelectorAll<HTMLInputElement>('[data-feature]').forEach(input => {
+    input.addEventListener('change', async () => {
+      await putDeckFeatures({ [input.dataset.feature!]: input.checked })
+      scheduleRender()
+    })
+  })
   $('#new-deck').addEventListener('submit', async (e) => {
     e.preventDefault()
     const form = e.currentTarget as HTMLFormElement
@@ -640,14 +655,15 @@ async function renderDecks() {
 
 async function renderDeck() {
   setTabbar('deck')
-  const { targetLang, baseLang } = (await getActiveDeck())!
+  const activeDeck = (await getActiveDeck())!
+  const { targetLang, baseLang } = activeDeck
   const all = await getAllCards()
   const settings = await getSettings()
   const dueByTier = await getDueByTier()
   const now = Date.now()
   // The deck list is a browser, not a review queue, so it starts on the chosen
   // tier and can be widened with the filter.
-  let maxTier: Tier = settings.tier
+  let maxTier: Tier = activeDeck.tiers ? settings.tier : 3
   const list = (filter: string) => {
     const q = filter.trim().toLowerCase()
     return all
@@ -669,7 +685,7 @@ async function renderDeck() {
     main.innerHTML = `
       <section class="screen scroll">
         <header class="topbar"><h1>Cards</h1><span class="badge">${shown.length} of ${all.length}</span></header>
-        <div class="chips" id="tier-chips">${tierChips(maxTier, dueByTier)}</div>
+        ${activeDeck.tiers ? `<div class="chips" id="tier-chips">${tierChips(maxTier, dueByTier)}</div>` : ''}
         <div class="fab-row">
           <a class="secondary" href="#/card/new" style="display:flex;align-items:center;justify-content:center">Add card</a>
           <a class="secondary" href="#/import" style="display:flex;align-items:center;justify-content:center">CSV import</a>
@@ -685,13 +701,13 @@ async function renderDeck() {
                     <a class="card-row" href="#/card/${esc(c.id)}">
                       <div class="left">
                         <div class="de-line">
-                          <div class="de ${genderClass(c.article)}">${esc(germanHead(c.article, c.de))}</div>
-                          ${wordTypeBadgeHtml(c)}
+                          <div class="de ${genderClass(activeDeck.articles ? c.article : 'none')}">${esc(germanHead(activeDeck.articles ? c.article : 'none', c.de))}</div>
+                          ${activeDeck.supportsWordTypes ? wordTypeBadgeHtml(c) : ''}
                         </div>
                         <div class="en">${esc(c.en)}</div>
                       </div>
                       <span class="row-badges">
-                        <span class="badge tier t${tierOf(c)}">T${tierOf(c)}</span>
+                        ${activeDeck.tiers ? `<span class="badge tier t${tierOf(c)}">T${tierOf(c)}</span>` : ''}
                         <span class="badge ${due ? 'due' : ''}">${due ? 'due' : formatDue(c.srs.due, now)}</span>
                       </span>
                     </a>
@@ -740,7 +756,8 @@ function wordTypeOptions(selected: string): string {
 
 async function renderEdit(id: string | null) {
   setTabbar('deck')
-  const { targetLang, baseLang } = (await getActiveDeck())!
+  const activeDeck = (await getActiveDeck())!
+  const { targetLang, baseLang } = activeDeck
   const existing = id ? await getCard(id) : undefined
   if (id && !existing) {
     toast('Card not found')
@@ -764,14 +781,14 @@ async function renderEdit(id: string | null) {
         <label>${esc(baseLang)}
           <input name="en" type="text" required value="${esc(c?.en ?? '')}" autocomplete="off" />
         </label>
-        <label>Article
-          <select name="article">${articleOptions(c?.article ?? 'der')}</select>
-        </label>
-        <label>Word type
+        ${activeDeck.articles ? `<label>Article
+          <select name="article">${articleOptions(c?.article ?? 'none')}</select>
+        </label>` : ''}
+        ${activeDeck.supportsWordTypes ? `<label>Word type
           <select name="wordType">${wordTypeOptions(typeChoice)}</select>
-        </label>
+        </label>` : ''}
         ${
-          extraTypes.length
+          activeDeck.supportsWordTypes && extraTypes.length
             ? `<p class="note">Also ${esc(extraTypes.join(' and '))}. Choosing a different type replaces the extra labels.</p>`
             : ''
         }
@@ -784,14 +801,14 @@ async function renderEdit(id: string | null) {
         <label>Tags (comma separated)
           <input name="tags" type="text" value="${esc(editorTagField(c?.tags ?? []))}" />
         </label>
-        <label>Tier
+        ${activeDeck.tiers ? `<label>Tier
           <select name="tier">${tierOptions(c)}</select>
         </label>
         <p class="note">${
           typeof c?.rank === 'number'
             ? `Corpus rank ${c.rank} of 50,000, so this card sits in tier ${tierOf(c)} by default. The tier box overrides that.`
             : 'A card of your own has no corpus rank, so it lives in the tier you pick here.'
-        }</p>
+        }</p>` : ''}
         <button class="primary" type="submit">Save</button>
         ${c ? `<button class="danger" type="button" id="delete">Delete</button>` : ''}
       </form>
@@ -803,18 +820,22 @@ async function renderEdit(id: string | null) {
     const fd = new FormData(e.target as HTMLFormElement)
     const de = String(fd.get('de') ?? '').trim()
     const en = String(fd.get('en') ?? '').trim()
-    const article = String(fd.get('article') ?? 'none') as Article
+    const article = activeDeck.articles ? String(fd.get('article') ?? 'none') as Article : c?.article ?? 'none'
     const example_de = String(fd.get('example_de') ?? '').trim()
     const example_en = String(fd.get('example_en') ?? '').trim()
-    const tags = tagsWithWordType(String(fd.get('tags') ?? ''), String(fd.get('wordType') ?? 'other'), c?.tags ?? [])
-    const tier = Math.min(3, Math.max(1, Number(fd.get('tier')) || 3)) as Tier
+    const tagsField = String(fd.get('tags') ?? '')
+    const tags = activeDeck.supportsWordTypes
+      ? tagsWithWordType(tagsField, String(fd.get('wordType') ?? 'other'), c?.tags ?? [])
+      : tagsWithoutTypeEdit(tagsField, c?.tags ?? [])
+    const tier = activeDeck.tiers ? Math.min(3, Math.max(1, Number(fd.get('tier')) || 3)) as Tier : c?.tier
     if (!de || !en) {
       toast(`${targetLang} and ${baseLang} are required`)
       return
     }
     const now = Date.now()
     if (c) {
-      // Re-read so a foreground merge cannot lose remote SRS or resurrect a deletion.
+      // Re-read so a foreground merge cannot lose remote SRS or hidden extras,
+      // or resurrect a deletion.
       const fresh = await getCard(c.id)
       if (!fresh) {
         toast('Card was deleted')
@@ -825,11 +846,11 @@ async function renderEdit(id: string | null) {
         ...fresh,
         de,
         en,
-        article,
+        article: activeDeck.articles ? article : fresh.article,
         example_de,
         example_en,
-        tags,
-        tier,
+        tags: activeDeck.supportsWordTypes ? tags : tagsWithoutTypeEdit(tagsField, fresh.tags),
+        tier: activeDeck.tiers ? tier : fresh.tier,
       })
       await putCard(card)
       pushSoon()
