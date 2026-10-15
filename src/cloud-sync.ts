@@ -93,7 +93,13 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     await applyStagedProgress(scope)
     if (!studyLockCurrent(lock)) return 'idle'
     const snapshot = await readCloudSnapshot(scope)
-    if (!snapshot || !studyLockCurrent(lock)) return 'idle'
+    if (!studyLockCurrent(lock)) return 'idle'
+    if (!snapshot) {
+      // A different tab can change the selection without invalidating this tab's lock.
+      // Re-read the binding so the foreground loop reports the selected deck's status.
+      control.requestAgain()
+      return 'idle'
+    }
     const result = await runDirtyQueue(listPushItems(snapshot.settings.pending), {
       locked: () => {
         const live = captureStudyLock()
@@ -107,7 +113,10 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     })
     if (!studyLockCurrent(lock)) return 'idle'
     const after = await readCloudSnapshot(scope)
-    if (!after) return 'idle'
+    if (!after) {
+      control.requestAgain()
+      return 'idle'
+    }
     const dirty = hasDirty(after.settings.pending)
     if (result.rejected.length) {
       const first = result.rejected[0]

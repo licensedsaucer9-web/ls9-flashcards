@@ -15,6 +15,7 @@ try {
   server = await createServer({ cacheDir, plugins: [{
     name: 'isolated-cloud-transport', enforce: 'pre',
     load(id) {
+      if (id.endsWith('/src/sync-backend.ts')) return `export * from './cloud-sync.ts'`
       if (id.endsWith('/src/cloud-handle.ts')) return 'export function cloudFirestore() { return {} }'
       if (id.endsWith('/src/cloud-push.ts')) return `
         export async function accountDeckId() { return 'fixture-original' }
@@ -57,8 +58,8 @@ try {
       cards: [{ ...sample, id: 'fixture-remote', updated_at: 100 }], deleted_ids: {} }
     globalThis.cloudDocs = filesToDocs(globalThis.remote, null)
     globalThis.pushes = []; globalThis.waitForPull = true
-    const cloud = await import('/src/cloud-sync.ts')
-    globalThis.pass = cloud.cloudSyncPass({ requestAgain() {} })
+    const sync = await import('/src/sync.ts')
+    globalThis.pass = sync.syncNow()
   })
   await a.waitForFunction(() => globalThis.pullStarted)
   const localId = await b.evaluate(async () => {
@@ -72,15 +73,17 @@ try {
     const locks = await import('/src/study-lock.ts')
     const originalLockStillValid = locks.studyLockCurrent(globalThis.scope.lock)
     globalThis.releasePull()
-    const outcome = await globalThis.pass
-    return { originalLockStillValid, outcome, cards: await api.getAllCards(), pushes: globalThis.pushes.length,
+    await globalThis.pass
+    const { getSyncStatus } = await import('/src/sync.ts')
+    return { originalLockStillValid, status: getSyncStatus(), cards: await api.getAllCards(), pushes: globalThis.pushes.length,
       active: (await api.getSettings()).activeDeckId }
   })
   assert.equal(result.originalLockStillValid, true, 'reproduces a foreign-tab switch without local generation invalidation')
   assert.equal(result.active, localId)
   assert.deepEqual(result.cards, [], 'the new local deck must not receive cloud cards')
   assert.equal(result.pushes, 0, 'a switched-away pass never pushes local data')
-  assert.equal(result.outcome, 'idle')
+  assert.deepEqual(result.status, { state: 'idle', message: 'On this device', at: null },
+    'the originating tab must settle on device-only status after the foreign-tab switch')
 
   // The guards must also hold between stages, not just before/after the fetch.
   const guards = await a.evaluate(async () => {
