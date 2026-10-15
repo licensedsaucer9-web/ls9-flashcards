@@ -53,6 +53,7 @@ try {
     globalThis.sample = sample
     locks.bindStudyDatabase({ uid: 'fixture-user', dbName: 'fixture-shared' })
     await api.recordAssignedDeck('fixture-original')
+    await api.putSettings({ sessionSize: 20, tier: 2, direction: 'en-de', wordTypes: ['noun'] })
     globalThis.scope = { lock: locks.captureStudyLock(), deckId: 'fixture-original' }
     globalThis.remote = { version: 2, kind: 'deck', updated_at: 1,
       cards: [{ ...sample, id: 'fixture-remote', updated_at: 100 }], deleted_ids: {} }
@@ -89,7 +90,7 @@ try {
   const guards = await a.evaluate(async () => {
     const api = await import('/src/db.ts')
     await api.putCard({ ...globalThis.sample, id: 'fixture-local' })
-    await api.putSettings({ direction: 'en-de' })
+    await api.putSettings({ direction: 'de-en', sessionSize: 5, tier: 3, wordTypes: ['verb'] })
     const before = await api.getSettings()
     const progress = { version: 2, kind: 'user', user: 'fixture-user', updated_at: 999,
       settings: { direction: 'de-en', sessionSize: 1, tier: 1, wordTypes: [] }, settings_updated_at: 9999999999999,
@@ -98,7 +99,7 @@ try {
     await api.mergeDeckIntoDb(globalThis.remote, undefined, globalThis.scope)
     await api.mergeProgressIntoDb(progress, undefined, globalThis.scope)
     const snapshot = await api.readCloudSnapshot(globalThis.scope)
-    const ack = await api.acknowledgePending({ kind: 'settings', revision: before.pending.settings.revision },
+    const ack = await api.acknowledgePending({ kind: 'settings', revision: before.pending.settings?.revision ?? 0 },
       { uid: 'fixture-user', generation: globalThis.scope.lock.generation, scope: globalThis.scope })
     await api.acknowledgeRevision(before.localRevision, undefined, globalThis.scope)
     return { before, after: await api.getSettings(), cardsBefore, cardsAfter: await api.getAllCards(), snapshot, ack }
@@ -114,9 +115,24 @@ try {
     globalThis.waitForPull = false
     const cloud = await import('/src/cloud-sync.ts'), api = await import('/src/db.ts')
     const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
-    return { outcome, ids: (await api.getAllCards()).map(c => c.id) }
+    return { outcome, ids: (await api.getAllCards()).map(c => c.id), settings: await api.getSettings(), pushes: globalThis.pushes }
   })
   assert.equal(resumed.outcome, 'synced')
+  assert.equal(resumed.settings.sessionSize, 20)
+  assert.equal(resumed.settings.direction, 'en-de')
+  assert.equal(resumed.settings.tier, 2)
+  assert.deepEqual(resumed.settings.wordTypes, ['noun'])
+  assert(resumed.pushes.some(args => args[2]?.sessionSize === 20 && args[2]?.direction === 'en-de'), 'cloud writes original preferences')
+  assert(!resumed.pushes.some(args => args[2]?.sessionSize === 5), 'cloud never writes local deck preferences')
+  const returned = await a.evaluate(async (id) => {
+    const api = await import('/src/db.ts')
+    await api.switchActiveDeck(id)
+    return api.getSettings()
+  }, localId)
+  assert.equal(returned.sessionSize, 5)
+  assert.equal(returned.direction, 'de-en')
+  assert.equal(returned.tier, 3)
+  assert.deepEqual(returned.wordTypes, ['verb'])
   assert(resumed.ids.includes('fixture-remote'))
   assert(!resumed.ids.includes('fixture-local'))
   assert.deepEqual(external, [])

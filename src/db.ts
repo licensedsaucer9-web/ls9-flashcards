@@ -17,7 +17,7 @@ import { inSelectedTier, tierOf } from './tiers.ts'
 import { inSelectedWordTypes, normalizeWordTypes, sameWordTypes } from './word-types.ts'
 import { accountDatabaseName, activeUserSlug, dbNameForUser, hasMigrated, LEGACY_DB_NAME, listUsers, markMigrated } from './user.ts'
 
-const DB_VERSION = 4
+const DB_VERSION = 5
 const LOCAL_DECK_ID = 'local-german'
 
 export class DatabaseBlockedError extends Error {
@@ -122,6 +122,16 @@ export function normalizeSettings(s?: Partial<Settings> | null): Settings {
   }
 }
 
+/** Account settings remain the original deck's cloud-compatible mirror. */
+function storeOriginalPreferences(tx: IDBTransaction, settings: Settings): void {
+  const request = tx.objectStore('decks').getAll()
+  const preferences = publicSettings(settings)
+  request.onsuccess = () => {
+    const original = (request.result as LocalDeck[]).find(deck => deck.origin === 'original')
+    if (original) tx.objectStore('decks').put({ ...original, ...preferences })
+  }
+}
+
 function openDb(name: string, upgrade = true, assignedDeckId?: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = upgrade ? indexedDB.open(name, DB_VERSION) : indexedDB.open(name)
@@ -152,8 +162,9 @@ function openDb(name: string, upgrade = true, assignedDeckId?: string): Promise<
         const id = assignedDeckId ?? LOCAL_DECK_ID
         db.createObjectStore('decks', { keyPath: 'id' }).add({
           id, name: 'German', targetLang: 'German', baseLang: 'English',
-          articles: true, wordTypes: true, tiers: true, origin: 'original',
-        } satisfies LocalDeck)
+          articles: true, supportsWordTypes: true, tiers: true,
+          origin: 'original',
+        })
         const settings = req.transaction!.objectStore('settings')
         const stored = settings.get('settings')
         stored.onsuccess = () => {
@@ -176,8 +187,17 @@ function openDb(name: string, upgrade = true, assignedDeckId?: string): Promise<
         }
         const settings = tx.objectStore('settings').get('settings')
         settings.onsuccess = () => {
-          if (!settings.result) return
-          const stored = settings.result as Settings
+          const stored = settings.result as Settings | undefined
+          for (const deck of decks.result as LocalDeck[]) {
+            if (deck.direction !== undefined) continue
+            tx.objectStore('decks').put({
+              ...deck,
+              supportsWordTypes: deck.supportsWordTypes ?? (deck as unknown as { wordTypes: unknown }).wordTypes === true,
+              ...(deck.origin === 'original' ? publicSettings(normalizeSettings(stored))
+                : { direction: 'de-en', sessionSize: 20, tier: 3, wordTypes: [] }),
+            })
+          }
+          if (!stored) return
           const owners = { ...stored.deletedDeckIds }
           for (const id of Object.keys(stored.deletedIds ?? {})) owners[id] ??= deckId
           if (Object.keys(owners).length) tx.objectStore('settings').put({ ...stored, deletedDeckIds: owners })
@@ -207,7 +227,8 @@ export async function getDecks(): Promise<LocalDeck[]> {
     // Legacy recovery reads must not upgrade or stamp the source database.
     if (!db.objectStoreNames.contains('decks')) return [{
       id: LOCAL_DECK_ID, name: 'German', targetLang: 'German', baseLang: 'English',
-      articles: true, wordTypes: true, tiers: true, origin: 'original',
+      articles: true, supportsWordTypes: true, tiers: true,
+          ...publicSettings(normalizeSettings(null)), origin: 'original',
     }]
     const decks = await value(db.transaction('decks', 'readonly').objectStore('decks').getAll()) as LocalDeck[]
     return studyLockCurrent(lock) ? decks : []
@@ -254,7 +275,8 @@ export async function createLocalDeck(name: string, targetLang: string): Promise
     if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return null }
     const deck: LocalDeck = {
       id: crypto.randomUUID(), name, targetLang, baseLang: 'English',
-      articles: false, wordTypes: false, tiers: false, origin: 'local',
+      articles: false, supportsWordTypes: false, tiers: false, origin: 'local',
+      direction: 'de-en', sessionSize: 20, tier: 3, wordTypes: [],
     }
     tx.objectStore('decks').add(deck)
     tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deck.id })
@@ -392,7 +414,7 @@ export async function saveReview(cardId: string, grade: Grade, eventId: string, 
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return null
-    const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
+    const tx = db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite')
     const done = txDone(tx)
     try {
       const [card, rawSettings, rows] = await Promise.all([
@@ -480,7 +502,7 @@ function contentTime(c: Pick<Card, 'updated_at' | 'created_at'>): number {
   return c.updated_at || c.created_at || 0
 }
 
-function publicSettings(settings: Settings): PublicSettings {
+function publicSettings(settings: PublicSettings): PublicSettings {
   return {
     direction: settings.direction,
     sessionSize: settings.sessionSize,
@@ -523,7 +545,7 @@ export async function importLegacyData(destination?: string): Promise<number> {
 
   const db = await openDb(target)
   try {
-    const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
+    const tx = db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite')
     const current = await load(tx)
     const store = tx.objectStore('cards')
     let mergedActivity: ReviewActivity
@@ -538,6 +560,7 @@ export async function importLegacyData(destination?: string): Promise<number> {
     }
     const next = normalizeSettings(settings)
     next.activeDeckId = current.settings.activeDeckId
+    storeOriginalPreferences(tx, next)
     // A row that already exists on this device wins; only fill the gaps.
     if (next.localRevision > current.settings.localRevision || added) next.localRevision = current.settings.localRevision + 1
     next.deletedIds = { ...next.deletedIds, ...current.settings.deletedIds }
@@ -641,42 +664,13 @@ export async function readLocalState(user = activeUserSlug()): Promise<{ snapsho
       const settings = normalizeSettings(null)
       return { snapshot: { deck: localDeckFile([], settings), user: localUserFile([], settings, user) }, settings }
     }
-    const { cards, settings, activity, done } = await load(db.transaction(['cards', 'settings', 'activity'], 'readwrite'))
+    const { cards, settings, activity, done } = await load(db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite'))
     await done
     if (!studyLockCurrent(lock)) {
       const empty = normalizeSettings(null)
       return { snapshot: { deck: localDeckFile([], empty), user: localUserFile([], empty, user) }, settings: empty }
     }
     return { snapshot: { deck: localDeckFile(cards, settings), user: localUserFile(cards, settings, user, activity) }, settings }
-  } finally {
-    db.close()
-  }
-}
-
-async function changeLocal(change: (tx: IDBTransaction, settings: Settings) => void): Promise<void> {
-  const { lock, name } = namesFor()
-  const db = await openDb(name)
-  try {
-    if (!studyLockCurrent(lock)) return
-    const tx = db.transaction(['cards', 'settings'], 'readwrite')
-    const done = txDone(tx)
-    let aborted = false
-    const request = tx.objectStore('settings').get('settings')
-    request.onsuccess = () => {
-      if (!studyLockCurrent(lock)) {
-        aborted = true
-        tx.abort()
-        return
-      }
-      const settings = normalizeSettings(request.result as Settings | undefined)
-      change(tx, settings)
-      settings.localRevision += 1
-      tx.objectStore('settings').put(settings)
-    }
-    await done.catch((error) => {
-      if (aborted || !studyLockCurrent(lock) || upgradeAbort(db, error)) return
-      throw error
-    })
   } finally {
     db.close()
   }
@@ -913,8 +907,12 @@ export async function getSettings(): Promise<Settings> {
   const db = await openDb(name, false)
   try {
     if (!studyLockCurrent(lock)) return normalizeSettings(null)
-    const tx = db.transaction('settings', 'readonly')
+    const tx = db.transaction(db.objectStoreNames.contains('decks') ? ['settings', 'decks'] : ['settings'], 'readonly')
     const settings = normalizeSettings((await value(tx.objectStore('settings').get('settings'))) as Settings | undefined)
+    if (tx.objectStoreNames.contains('decks')) {
+      const deck = await value(tx.objectStore('decks').get(settings.activeDeckId)) as LocalDeck | undefined
+      if (deck?.direction !== undefined) Object.assign(settings, publicSettings(deck))
+    }
     return studyLockCurrent(lock) ? settings : normalizeSettings(null)
   } finally {
     db.close()
@@ -922,25 +920,35 @@ export async function getSettings(): Promise<Settings> {
 }
 
 export async function putSettings(next: Partial<PublicSettings>): Promise<void> {
-  await changeLocal((_tx, settings) => {
-    const direction = next.direction ?? settings.direction
-    const sessionSize = next.sessionSize ?? settings.sessionSize
-    const nextTier = tier(next.tier ?? settings.tier)
-    const nextTypes = next.wordTypes === undefined ? settings.wordTypes : normalizeWordTypes(next.wordTypes)
-    if (
-      settings.direction !== direction
-      || settings.sessionSize !== sessionSize
-      || settings.tier !== nextTier
-      || !sameWordTypes(settings.wordTypes, nextTypes)
-    ) {
-      settings.settingsUpdatedAt = Math.max(Date.now(), settings.settingsUpdatedAt + 1)
-      settings.pending.settings = bumpMark(settings.pending.settings, settings.localRevision + 1)
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return
+    const tx = db.transaction(['decks', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const settings = normalizeSettings(await value(tx.objectStore('settings').get('settings')) as Settings | undefined)
+    const deck = await value(tx.objectStore('decks').get(settings.activeDeckId)) as LocalDeck | undefined
+    if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return }
+    if (!deck) { await done; return }
+    const preferences: PublicSettings = {
+      direction: next.direction ?? deck.direction,
+      sessionSize: next.sessionSize === undefined ? deck.sessionSize : normalizeSettings(next).sessionSize,
+      tier: tier(next.tier ?? deck.tier),
+      wordTypes: next.wordTypes === undefined ? deck.wordTypes : normalizeWordTypes(next.wordTypes),
     }
-    settings.direction = direction
-    settings.sessionSize = sessionSize
-    settings.tier = nextTier
-    settings.wordTypes = nextTypes
-  })
+    tx.objectStore('decks').put({ ...deck, ...preferences })
+    if (deck.origin === 'original') {
+      if (settings.direction !== preferences.direction || settings.sessionSize !== preferences.sessionSize
+        || settings.tier !== preferences.tier || !sameWordTypes(settings.wordTypes, preferences.wordTypes)) {
+        settings.settingsUpdatedAt = Math.max(Date.now(), settings.settingsUpdatedAt + 1)
+        settings.pending.settings = bumpMark(settings.pending.settings, settings.localRevision + 1)
+      }
+      Object.assign(settings, preferences)
+      settings.localRevision += 1
+      tx.objectStore('settings').put(settings)
+    }
+    await done
+  } finally { db.close() }
 }
 
 // --- remote merges --------------------------------------------------------
@@ -963,7 +971,7 @@ export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug(),
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return untouchedMerge(user)
-    const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
+    const tx = db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite')
     const current = await load(tx)
     if (!studyLockCurrent(lock) || !cloudScopeCurrent(scope, current.settings)) {
       tx.abort()
@@ -1011,7 +1019,7 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return untouchedMerge(user)
-    const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
+    const tx = db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite')
     const current = await load(tx)
     if (!studyLockCurrent(lock) || !cloudScopeCurrent(scope, current.settings)) {
       tx.abort()
@@ -1045,6 +1053,7 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
     current.settings.tier = settings.tier
     current.settings.wordTypes = settings.wordTypes
     current.settings.settingsUpdatedAt = Math.max(localSettingsAt, remoteSettingsAt || 0)
+    storeOriginalPreferences(tx, current.settings)
     current.activity = mergeActivityInTransaction(tx, current, incomingActivity, false)
     tx.objectStore('settings').put(current.settings)
     await current.done
@@ -1108,7 +1117,7 @@ export async function readCloudSnapshot(scope?: CloudScope): Promise<CloudSnapsh
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return null
-    const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
+    const tx = db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite')
     const { cards, settings, activity, done } = await load(tx)
     if (!studyLockCurrent(lock) || !cloudScopeCurrent(scope, settings)) {
       tx.abort()
@@ -1200,7 +1209,7 @@ export async function applyStagedProgress(scope?: CloudScope): Promise<void> {
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return
-    const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
+    const tx = db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite')
     const current = await load(tx)
     const staged = current.settings.stagedProgress
     if (!staged || !studyLockCurrent(lock) || !cloudScopeCurrent(scope, current.settings)) {
@@ -1290,7 +1299,7 @@ export async function copyMappedLegacyProfile(
   const db = await openDb(lock.dbName)
   try {
     if (!studyLockCurrent(lock)) throw new Error('Account changed before the copy')
-    const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
+    const tx = db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite')
     const current = await load(tx)
     if (!studyLockCurrent(lock)) { tx.abort(); await current.done.catch(() => {}); throw new Error('Account changed during the copy') }
     const merged = mergeDeck(localDeckFile(cards, sourceSettings), localDeckFile(current.cards, current.settings))
@@ -1341,6 +1350,7 @@ export async function copyMappedLegacyProfile(
       || current.settings.tier !== preferences.tier || !sameWordTypes(current.settings.wordTypes, preferences.wordTypes)
       || sourceAt > localAt || !current.settings.pending.settings) {
       Object.assign(current.settings, preferences)
+      storeOriginalPreferences(tx, current.settings)
       current.settings.settingsUpdatedAt = Math.max(localAt, sourceAt)
       current.settings.pending.settings = bumpMark(current.settings.pending.settings, rev)
       changed = true
@@ -1388,7 +1398,7 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
   const db = await openDb(lock.dbName)
   try {
     if (!studyLockCurrent(lock)) return false
-    const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
+    const tx = db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite')
     const current = await load(tx)
     if (!studyLockCurrent(lock)) {
       tx.abort()
@@ -1449,6 +1459,7 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
       current.settings.sessionSize = sourceSettings.sessionSize
       current.settings.tier = sourceSettings.tier
       current.settings.wordTypes = sourceSettings.wordTypes
+      storeOriginalPreferences(tx, current.settings)
       if (sourceSettings.settingsUpdatedAt > current.settings.settingsUpdatedAt) {
         current.settings.settingsUpdatedAt = sourceSettings.settingsUpdatedAt
       }
