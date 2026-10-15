@@ -116,6 +116,15 @@ formats. Local deck edits do not change that mirror, its settings clock, or its
 pending upload marker. Cloud settings merges update the original deck atomically;
 new deck preferences stay on this device.
 
+Decks also stores local Articles, Word types, and Tiers switches on each deck.
+The original German deck enables all three; New deck disables all three.
+Disabled extras hide their controls, editor fields, and study badges. Disabled
+word types and tiers ignore the saved filters when building the review queue;
+turning them back on restores those selections. Article switches never populate
+or clear card articles. Hidden editor fields preserve existing card metadata,
+and Gender is offered only when Articles is enabled and the card has an article.
+These switches stay on this device and do not change cloud document formats.
+
 Database connections close after operations and on `versionchange`;
 blocked upgrades surface an actionable notice.
 
