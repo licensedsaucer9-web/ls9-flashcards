@@ -301,7 +301,7 @@ async function renderHome() {
   main.innerHTML = `
     <section class="screen">
       <header class="topbar">
-        <h1>${esc(activeDeck?.name ?? 'LS9 Flashcards')}</h1>
+        <h1>${esc(activeDeck && activeDeck.origin !== 'original' ? activeDeck.name : 'LS9 Flashcards')}</h1>
         <span class="badge" id="sync-line">${esc(syncLineText())}</span>
       </header>
       ${streakPlaceholder()}
@@ -556,7 +556,7 @@ async function renderDecks() {
           return `<li class="card-row">
             <div class="left">
               <div class="de">${esc(deck.name)}</div>
-              <div class="en">${esc(deck.targetLang)} · ${n} ${n === 1 ? 'card' : 'cards'}</div>
+              <div class="en">${deck.origin === 'original' ? '' : `${esc(deck.targetLang)} · `}${n} ${n === 1 ? 'card' : 'cards'}</div>
             </div>
             ${active ? '<span class="badge">Active</span>' : `<button type="button" class="chip" data-switch="${esc(deck.id)}">Switch</button>`}
           </li>`
