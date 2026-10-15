@@ -127,8 +127,7 @@ function pushSoon(): void {
 }
 
 async function ensureSeed(): Promise<number> {
-  // Only the original deck gets the built-in German words.
-  if (!deckSyncs(await getActiveDeck())) return 0
+  // insertMissingSeeds only writes rows into the original deck, whichever deck is active.
   const added = await insertMissingSeeds(seedCards())
   if (added) pushSoon()
   return added
@@ -609,6 +608,8 @@ async function renderDecks() {
         toast('Could not switch decks')
         return
       }
+      // Returning to the original deck resumes its pending cloud sync right away.
+      if (deckSyncs(await getActiveDeck())) schedulePush()
       go('/')
     })
   })

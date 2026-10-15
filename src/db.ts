@@ -12,7 +12,7 @@ import {
 import { newSrs, review } from './srs.ts'
 import { deviceTimeZone, mergeReviewActivity, parseStoredReviewActivity, streakTimeZone, validReviewEvent, type ReviewActivity, type ReviewEvent } from './streak.ts'
 import { validateCard, validateMapping, validateSettings, validateSrs, validateTombstones } from './migration-data.ts'
-import { captureStudyLock, hasStudyBinding, studyLockCurrent, type StudyLock } from './study-lock.ts'
+import { bumpStudyGeneration, captureStudyLock, hasStudyBinding, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { inSelectedTier, tierOf } from './tiers.ts'
 import { inSelectedWordTypes, normalizeWordTypes, sameWordTypes } from './word-types.ts'
 import { accountDatabaseName, activeUserSlug, dbNameForUser, hasMigrated, LEGACY_DB_NAME, listUsers, markMigrated } from './user.ts'
@@ -250,7 +250,10 @@ export async function createLocalDeck(name: string, targetLang: string): Promise
     tx.objectStore('decks').add(deck)
     tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deck.id })
     await done
-    return studyLockCurrent(lock) ? deck : null
+    if (!studyLockCurrent(lock)) return null
+    // Any sync pass started against the previous deck must not merge or push now.
+    bumpStudyGeneration()
+    return deck
   } finally { db.close() }
 }
 
@@ -269,7 +272,9 @@ export async function switchActiveDeck(deckId: string): Promise<boolean> {
     if (!deck || !studyLockCurrent(lock)) { await done.catch(() => {}); return false }
     tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deck.id })
     await done
-    return studyLockCurrent(lock)
+    if (!studyLockCurrent(lock)) return false
+    bumpStudyGeneration()
+    return true
   } finally { db.close() }
 }
 

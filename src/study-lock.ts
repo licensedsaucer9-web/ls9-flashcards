@@ -28,6 +28,11 @@ export function bindStudyDatabase(next: { uid: string | null; dbName: string }):
   return captureStudyLock()
 }
 
+/** Drop in-flight work that was started against the previous active deck. */
+export function bumpStudyGeneration(): void {
+  generation += 1
+}
+
 export function clearStudyBinding(): void {
   generation += 1
   boundUid = null
