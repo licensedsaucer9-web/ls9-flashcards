@@ -889,6 +889,7 @@ async function renderEdit(id: string | null) {
 
 async function renderImport() {
   setTabbar('deck')
+  const activeDeck = (await getActiveDeck())!
   main.innerHTML = `
     <section class="screen scroll">
       <header class="topbar">
@@ -896,7 +897,7 @@ async function renderImport() {
         <h1>CSV import</h1>
         <span></span>
       </header>
-      <p class="note">Columns: <code>de,en,article,example_de</code>. An optional <code>type</code> column can be noun, verb, adjective, or other. Article is der, die, das, or none. A noun is assumed when the article is set and type is left blank. Duplicates of an existing de+en pair are skipped.</p>
+      <p class="note">Import into ${esc(activeDeck.name)}. Columns: <code>front,back</code> (${esc(activeDeck.targetLang)}, ${esc(activeDeck.baseLang)}) or <code>de,en</code>. Optional columns: <code>article,example_front,example_back</code> (also <code>example_de,example_en</code>). An optional <code>type</code> column can be noun, verb, adjective, or other. Article is der, die, das, or none. A noun is assumed when the article is set and type is left blank. Duplicates of an existing front+back pair in the active deck are skipped.</p>
       <div class="drop" id="drop">
         <span>Drop a .csv file here</span>
         <label class="file-btn">Choose file
@@ -904,7 +905,7 @@ async function renderImport() {
         </label>
       </div>
       <label>Or paste CSV
-        <textarea id="paste" placeholder="de,en,article,example_de,type"></textarea>
+        <textarea id="paste" placeholder="front,back,article,example_front,example_back,type"></textarea>
       </label>
       <button class="primary" id="run">Import</button>
       <div id="result"></div>
@@ -946,7 +947,8 @@ async function renderImport() {
       return
     }
     const existing = await getAllCards()
-    const result = importCsv(text, existing)
+    const deck = (await getActiveDeck())!
+    const result = importCsv(text, existing, Date.now(), deck.id)
     if (result.imported.length) {
       await putCards(result.imported)
       pushSoon()

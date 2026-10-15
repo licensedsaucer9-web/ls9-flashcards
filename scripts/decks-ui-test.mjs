@@ -515,6 +515,32 @@ try {
   await page.click('#new-deck [type="submit"]')
   await page.waitForSelector('#session-custom')
   assert.deepEqual(await settings(), { direction: 'de-en', sessionSize: 20, tier: 3, wordTypes: [] })
+  // Exercise actual editor and import writes on the second deck using a German pair.
+  const sharedPair = untypedFixture.cards[0]
+  await tab('Cards', '#/deck', 'Cards')
+  await page.click('a[href="#/card/new"]')
+  await page.waitForSelector('#form')
+  await page.fill('[name="de"]', 'éditeur')
+  await page.fill('[name="en"]', 'editor')
+  await page.click('#form [type="submit"]')
+  await page.waitForSelector('#search')
+  await page.click('a[href="#/import"]')
+  await page.waitForSelector('#paste')
+  assert((await page.locator('#main').textContent()).includes('Import into French fixture'))
+  const csvCell = value => `"${value.replaceAll('"', '""')}"`
+  await page.fill('#paste', `front,back\n${csvCell(sharedPair.de)},${csvCell(sharedPair.en)}\nbonjour,hello`)
+  await page.click('#run')
+  await page.waitForFunction(() => document.querySelector('#result')?.textContent.includes('2 new cards'))
+  await page.click('#run')
+  await page.waitForFunction(() => document.querySelector('#result')?.textContent.includes('0 new cards'))
+  const secondDeck = await page.evaluate(async () => {
+    const db = await import('/src/db.ts')
+    return { id: (await db.getActiveDeck()).id, cards: await db.getAllCards() }
+  })
+  assert.equal(secondDeck.cards.length, 3, 'editor plus two CSV rows; repeated import skips duplicates')
+  assert(secondDeck.cards.every(card => card.deckId === secondDeck.id && card.srs.reps === 0 && card.srs.due <= Date.now()), 'second-deck cards have ownership and are immediately due')
+  assert(secondDeck.cards.some(card => card.de === sharedPair.de && card.en === sharedPair.en), 'same pair exists in both decks')
+  await tab('Review', '#/', 'French')
   await page.fill('#session-custom', '5')
   await page.locator('#session-custom').dispatchEvent('change')
   await page.waitForFunction(async () => (await (await import('/src/db.ts')).getSettings()).sessionSize === 5)

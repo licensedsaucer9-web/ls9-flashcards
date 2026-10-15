@@ -54,6 +54,22 @@ assert(result.skipped === 2, `skipped Bahnhof + Hund, got ${result.skipped}`)
 const againCsv = importCsv(csv, [...seed, ...result.imported], now)
 assert(againCsv.imported.length === 0, 'duplicates skipped on second import')
 
+// Active-deck imports permit the same pair in another deck and stamp ownership.
+const german = seed.map(card => ({ ...card, deckId: 'german' }))
+const beforeGerman = JSON.stringify(german)
+const otherCsv = 'front,back\nHund,dog\nbonjour,hello\n'
+const other = importCsv(otherCsv, german, now, 'second')
+assert(other.imported.length === 2 && other.errors.length === 0, 'front/back imports two rows into second deck')
+assert(other.imported.every(card => card.deckId === 'second' && card.srs.due === now), 'import stamps active deck and is due immediately')
+assert(JSON.stringify(german) === beforeGerman, 'German cards and schedules unchanged')
+assert(importCsv(otherCsv, [...german, ...other.imported], now, 'second').skipped === 2, 'duplicates skipped only within active deck')
+const oldFormat = importCsv('de,en,article,example_de\nImportprobe,import test,die,Eine Importprobe.\n', [...german, ...other.imported], now, 'german')
+assert(oldFormat.imported.length === 1 && oldFormat.imported[0].deckId === 'german', 'German CSV still imports into German deck')
+const optional = importCsv('back,type,example_back,front,example_front\nhello,other,Hello!,bonjour,Bonjour!\n', [], now, 'second')
+assert(optional.errors.length === 0 && optional.imported.length === 1, 'reordered generic headers and missing article accepted')
+assert(optional.imported[0].article === 'none' && optional.imported[0].example_de === 'Bonjour!' && optional.imported[0].example_en === 'Hello!', 'optional examples mapped by header')
+assert(importCsv('front,back,type\ncourir,to run,verb', [], now).imported[0]?.tags.includes('verb'), 'type without article or examples accepted')
+
 const { sessionCount, suggestSessionSize } = await import('../src/session.ts')
 assert(sessionCount(50, 20) === 20, 'session cap 20')
 assert(sessionCount(8, 20) === 8, 'session cannot exceed due')
