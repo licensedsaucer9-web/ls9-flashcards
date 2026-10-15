@@ -1,6 +1,7 @@
 import { cloudFirestore } from './cloud-handle.ts'
 import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettings, pullCloud } from './cloud-push.ts'
 import {
+  getActiveDeck,
   recordAssignedDeck,
   acknowledgePending,
   applyStagedProgress,
@@ -12,7 +13,7 @@ import {
   type CloudSnapshot,
 } from './db.ts'
 import { docsToFiles } from './firestore-docs.ts'
-import { hasDirty, listPushItems, runDirtyQueue, type PushItem } from './record-sync.ts'
+import { deckSyncs, hasDirty, listPushItems, runDirtyQueue, type PushItem } from './record-sync.ts'
 import { seedCards } from './seed.ts'
 import { captureStudyLock, studyLockCurrent } from './study-lock.ts'
 import type { Card, CardContent, PublicSettings } from './types.ts'
@@ -64,13 +65,16 @@ async function pushLoaded(
 
 export const cloudTransport = true
 
-export async function cloudSyncPass(control: { requestAgain: () => void }): Promise<'synced' | 'pending' | 'idle' | { state: 'rejected'; message: string }> {
+export async function cloudSyncPass(control: { requestAgain: () => void }): Promise<'synced' | 'pending' | 'idle' | 'local' | { state: 'rejected'; message: string }> {
   const lock = captureStudyLock()
   if (!lock.uid) return 'idle'
   const db = cloudFirestore()
   if (!db) return 'pending'
   const uid = lock.uid
   try {
+    if (!studyLockCurrent(lock)) return 'idle'
+    // A created deck stays on this device: no pull, merge, or push touches the cloud deck.
+    if (!deckSyncs(await getActiveDeck())) return 'local'
     if (!studyLockCurrent(lock)) return 'idle'
     const deckId = await accountDeckId(db, uid)
     if (!studyLockCurrent(lock)) return 'idle'

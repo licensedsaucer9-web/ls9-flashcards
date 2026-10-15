@@ -2,6 +2,7 @@ import './style.css'
 import { registerSW } from 'virtual:pwa-register'
 import type { Article, Card, Direction, Grade, PublicSettings, Tier, WordType } from './types.ts'
 import { ARTICLES } from './types.ts'
+import { deckSyncs } from './record-sync.ts'
 import {
   accountBadge,
   accountHomeNote,
@@ -20,7 +21,11 @@ import {
   DatabaseBlockedError,
   deleteCard,
   getAllCards,
+  getActiveDeck,
+  getDeckCardCounts,
   getDecks,
+  createLocalDeck,
+  switchActiveDeck,
   getCard,
   getDueByTier,
   getSettings,
@@ -122,6 +127,8 @@ function pushSoon(): void {
 }
 
 async function ensureSeed(): Promise<number> {
+  // Only the original deck gets the built-in German words.
+  if (!deckSyncs(await getActiveDeck())) return 0
   const added = await insertMissingSeeds(seedCards())
   if (added) pushSoon()
   return added
@@ -269,6 +276,7 @@ async function renderHome() {
   setTabbar('home')
   const settings = await getSettings()
   const all = await getAllCards()
+  const activeDeck = await getActiveDeck()
   if (!studyLockCurrent(lock)) return
   const now = Date.now()
   const candidates = selectReviewCandidates(all, settings.tier, settings.wordTypes, now)
@@ -293,7 +301,7 @@ async function renderHome() {
   main.innerHTML = `
     <section class="screen">
       <header class="topbar">
-        <h1>LS9 Flashcards</h1>
+        <h1>${esc(activeDeck?.name ?? 'LS9 Flashcards')}</h1>
         <span class="badge" id="sync-line">${esc(syncLineText())}</span>
       </header>
       ${streakPlaceholder()}
@@ -531,24 +539,36 @@ async function renderDecks() {
   const cards = await getAllCards()
   const settings = await getSettings()
   if (!studyLockCurrent(lock)) return
+  const deckCounts = await getDeckCardCounts()
+  if (!studyLockCurrent(lock)) return
   const dueByTier = await getDueByTier()
   if (!studyLockCurrent(lock)) return
-  const deck = decks.find(deck => deck.id === settings.activeDeckId)
-  if (!deck) return
+  if (!decks.some(deck => deck.id === settings.activeDeckId)) return
   const counts = tierCounts(cards)
   const typeCounts = wordTypeCountsFor(cards, settings.tier)
   main.innerHTML = `
     <section class="screen scroll">
       <header class="topbar"><h1>Decks</h1></header>
       <ul class="card-list">
-        <li class="card-row">
-          <div class="left">
-            <div class="de">${esc(deck.name)}</div>
-            <div class="en">${cards.length} ${cards.length === 1 ? 'card' : 'cards'}</div>
-          </div>
-          <span class="badge">Active</span>
-        </li>
+        ${decks.map((deck) => {
+          const n = deckCounts.get(deck.id) ?? 0
+          const active = deck.id === settings.activeDeckId
+          return `<li class="card-row">
+            <div class="left">
+              <div class="de">${esc(deck.name)}</div>
+              <div class="en">${esc(deck.targetLang)} · ${n} ${n === 1 ? 'card' : 'cards'}</div>
+            </div>
+            ${active ? '<span class="badge">Active</span>' : `<button type="button" class="chip" data-switch="${esc(deck.id)}">Switch</button>`}
+          </li>`
+        }).join('')}
       </ul>
+      <form class="setting" id="new-deck">
+        <p class="kicker" style="margin:0">New deck</p>
+        <input name="name" type="text" placeholder="Deck name" required maxlength="60" autocomplete="off" />
+        <input name="targetLang" type="text" placeholder="Target language" required maxlength="40" autocomplete="off" />
+        <p class="note">English is the base language. The new deck starts empty and stays on this device.</p>
+        <button type="submit" class="chip">Create and switch</button>
+      </form>
       <div class="setting">
         <p class="kicker" style="margin:0">Deck tier</p>
         <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
@@ -569,6 +589,29 @@ async function renderDecks() {
       </div>
     </section>
   `
+  $('#new-deck').addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const form = e.currentTarget as HTMLFormElement
+    const name = (form.elements.namedItem('name') as HTMLInputElement).value.trim()
+    const targetLang = (form.elements.namedItem('targetLang') as HTMLInputElement).value.trim()
+    if (!name || !targetLang) return
+    const created = await createLocalDeck(name, targetLang)
+    if (!created) {
+      toast('Could not create the deck')
+      return
+    }
+    toast(`Switched to ${created.name}`)
+    go('/')
+  })
+  main.querySelectorAll<HTMLButtonElement>('[data-switch]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!(await switchActiveDeck(btn.dataset.switch!))) {
+        toast('Could not switch decks')
+        return
+      }
+      go('/')
+    })
+  })
   bindTierChips(async (tier) => {
     await patchSettings({ tier })
     scheduleRender()

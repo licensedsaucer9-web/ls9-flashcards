@@ -43,6 +43,7 @@ async function syncPass(): Promise<void> {
   if (!studyLockCurrent(lock)) return
   if (typeof outcome === 'object') setStatus({ state: 'error', message: outcome.message, at: null })
   else if (outcome === 'synced') setStatus({ state: 'ok', message: 'Synced', at: Date.now() })
+  else if (outcome === 'local') setStatus({ state: 'idle', message: 'On this device', at: null })
   else setStatus({ state: 'waiting', message: 'Saved on this device', at: null })
 }
 

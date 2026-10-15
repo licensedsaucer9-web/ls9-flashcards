@@ -205,6 +205,74 @@ export async function getDecks(): Promise<LocalDeck[]> {
   } finally { db.close() }
 }
 
+/** The deck this device is studying. Its id lives only in local settings. */
+export async function getActiveDeck(): Promise<LocalDeck | undefined> {
+  const [decks, settings] = await Promise.all([getDecks(), getSettings()])
+  return decks.find(deck => deck.id === settings.activeDeckId)
+}
+
+/** Card counts per deck, grouped by the same deck id that scopes reviews. */
+export async function getDeckCardCounts(): Promise<Map<string, number>> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name, false)
+  try {
+    if (!studyLockCurrent(lock)) return new Map()
+    const tx = db.transaction(['cards', 'settings'], 'readonly')
+    const [cards, stored] = await Promise.all([
+      value(tx.objectStore('cards').getAll()) as Promise<Card[]>,
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
+    ])
+    if (!studyLockCurrent(lock)) return new Map()
+    const activeId = normalizeSettings(stored).activeDeckId
+    const counts = new Map<string, number>()
+    for (const card of cards) {
+      const id = card.deckId || activeId
+      counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+    return counts
+  } finally { db.close() }
+}
+
+/** Create an empty local deck and make it the active deck in one transaction. */
+export async function createLocalDeck(name: string, targetLang: string): Promise<LocalDeck | null> {
+  const { lock, name: dbName } = namesFor()
+  const db = await openDb(dbName)
+  try {
+    if (!studyLockCurrent(lock)) return null
+    const tx = db.transaction(['decks', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const stored = await value(tx.objectStore('settings').get('settings')) as Settings | undefined
+    if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return null }
+    const deck: LocalDeck = {
+      id: crypto.randomUUID(), name, targetLang, baseLang: 'English',
+      articles: false, wordTypes: false, tiers: false, origin: 'local',
+    }
+    tx.objectStore('decks').add(deck)
+    tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deck.id })
+    await done
+    return studyLockCurrent(lock) ? deck : null
+  } finally { db.close() }
+}
+
+/** Local selection only: no revision, no pending mark, no cloud write. */
+export async function switchActiveDeck(deckId: string): Promise<boolean> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return false
+    const tx = db.transaction(['decks', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const [deck, stored] = await Promise.all([
+      value(tx.objectStore('decks').get(deckId)) as Promise<LocalDeck | undefined>,
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
+    ])
+    if (!deck || !studyLockCurrent(lock)) { await done.catch(() => {}); return false }
+    tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deck.id })
+    await done
+    return studyLockCurrent(lock)
+  } finally { db.close() }
+}
+
 /** Attach the known assignment to this account's sole deck, including offline fallback upgrades. */
 export async function recordAssignedDeck(deckId: string): Promise<void> {
   const { lock, name } = namesFor()
