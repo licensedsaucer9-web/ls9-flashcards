@@ -1,4 +1,4 @@
-import type { Card, CardContent, DeckFile, Grade, PublicSettings, Settings, Srs, Tier, UserFile, WordType } from './types.ts'
+import type { Card, CardContent, DeckFile, Grade, LocalDeck, PublicSettings, Settings, Srs, Tier, UserFile, WordType } from './types.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
 import {
   applyAck,
@@ -17,7 +17,8 @@ import { inSelectedTier, tierOf } from './tiers.ts'
 import { inSelectedWordTypes, normalizeWordTypes, sameWordTypes } from './word-types.ts'
 import { accountDatabaseName, activeUserSlug, dbNameForUser, hasMigrated, LEGACY_DB_NAME, listUsers, markMigrated } from './user.ts'
 
-const DB_VERSION = 2
+const DB_VERSION = 3
+const LOCAL_DECK_ID = 'local-german'
 
 export class DatabaseBlockedError extends Error {
   constructor() {
@@ -94,6 +95,7 @@ export function normalizeSettings(s?: Partial<Settings> | null): Settings {
   const staged = stagedProgress(s?.stagedProgress)
   return {
     id: 'settings',
+    activeDeckId: s?.activeDeckId || LOCAL_DECK_ID,
     direction: s?.direction === 'en-de' ? 'en-de' : 'de-en',
     sessionSize:
       typeof s?.sessionSize === 'number' && Number.isFinite(s.sessionSize)
@@ -110,7 +112,7 @@ export function normalizeSettings(s?: Partial<Settings> | null): Settings {
   }
 }
 
-function openDb(name: string, upgrade = true): Promise<IDBDatabase> {
+function openDb(name: string, upgrade = true, assignedDeckId?: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = upgrade ? indexedDB.open(name, DB_VERSION) : indexedDB.open(name)
     let settled = false
@@ -136,6 +138,20 @@ function openDb(name: string, upgrade = true): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('cards')) db.createObjectStore('cards', { keyPath: 'id' })
       if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'id' })
       if (!db.objectStoreNames.contains('activity')) db.createObjectStore('activity', { keyPath: 'id' })
+      if (!db.objectStoreNames.contains('decks')) {
+        const id = assignedDeckId ?? LOCAL_DECK_ID
+        db.createObjectStore('decks', { keyPath: 'id' }).add({
+          id, name: 'German', targetLang: 'German', baseLang: 'English',
+          articles: true, wordTypes: true, tiers: true, origin: 'original',
+        } satisfies LocalDeck)
+        const settings = req.transaction!.objectStore('settings')
+        const stored = settings.get('settings')
+        stored.onsuccess = () => {
+          // Metadata alone is not device-study work. Keep a new database's
+          // settings empty so welcome and guest-copy checks remain accurate.
+          if (stored.result) settings.put({ ...stored.result, activeDeckId: id })
+        }
+      }
     }
     req.onblocked = () => {
       reportDatabaseEvent('blocked')
@@ -149,6 +165,41 @@ function openDb(name: string, upgrade = true): Promise<IDBDatabase> {
       fail(error)
     }
   })
+}
+
+/** Read metadata without copying, filtering or reseeding the existing cards. */
+export async function getDecks(): Promise<LocalDeck[]> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return []
+    const decks = await value(db.transaction('decks', 'readonly').objectStore('decks').getAll()) as LocalDeck[]
+    return studyLockCurrent(lock) ? decks : []
+  } finally { db.close() }
+}
+
+/** Attach the known assignment to this account's sole deck, including offline fallback upgrades. */
+export async function recordAssignedDeck(deckId: string): Promise<void> {
+  const { lock, name } = namesFor()
+  if (!lock.uid || !deckId) return
+  const db = await openDb(name, true, deckId)
+  try {
+    if (!studyLockCurrent(lock)) return
+    const tx = db.transaction(['decks', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const [decks, stored] = await Promise.all([
+      value(tx.objectStore('decks').getAll()) as Promise<LocalDeck[]>,
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
+    ])
+    if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return }
+    const deck = decks[0]
+    if (deck && deck.id !== deckId) {
+      tx.objectStore('decks').delete(deck.id)
+      tx.objectStore('decks').put({ ...deck, id: deckId })
+    }
+    if (stored?.activeDeckId !== deckId) tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deckId })
+    await done
+  } finally { db.close() }
 }
 
 function txDone(tx: IDBTransaction): Promise<void> {
@@ -371,6 +422,7 @@ export async function importLegacyData(destination?: string): Promise<number> {
       added += 1
     }
     const next = normalizeSettings(settings)
+    next.activeDeckId = current.settings.activeDeckId
     // A row that already exists on this device wins; only fill the gaps.
     if (next.localRevision > current.settings.localRevision || added) next.localRevision = current.settings.localRevision + 1
     next.deletedIds = { ...next.deletedIds, ...current.settings.deletedIds }

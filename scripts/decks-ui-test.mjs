@@ -37,6 +37,82 @@ try {
     await db.saveReview(card.id, 'good', crypto.randomUUID(), Date.now(), 'UTC')
     await db.putSettings({ tier: 3, sessionSize: 0, direction: 'en-de' })
   })
+  // Upgrade real v2 stores in isolated fixture databases; no cloud or account provisioning.
+  const upgrades = await page.evaluate(async () => {
+    const api = await import('/src/db.ts')
+    const { bindStudyDatabase, clearStudyBinding } = await import('/src/study-lock.ts')
+    const { settingsToDoc } = await import('/src/firestore-docs.ts')
+    const existing = (await api.getAllCards())[0]
+    const preferences = await api.getSettings()
+    const { activeDeckId, ...oldSettings } = preferences
+    const read = name => new Promise((resolve, reject) => {
+      const req = indexedDB.open(name)
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => {
+        const db = req.result
+        const tx = db.transaction([...db.objectStoreNames], 'readonly')
+        const result = { version: db.version }
+        for (const store of db.objectStoreNames) {
+          const request = tx.objectStore(store).getAll()
+          request.onsuccess = () => { result[store] = request.result }
+        }
+        tx.oncomplete = () => { db.close(); resolve(result) }
+      }
+    })
+    const results = []
+    try {
+      for (const assigned of [false, true]) {
+        const name = `deck-upgrade-fixture-${assigned}`
+        await new Promise((resolve, reject) => {
+          const req = indexedDB.open(name, 2)
+          req.onupgradeneeded = () => {
+            for (const store of ['cards', 'settings', 'activity']) req.result.createObjectStore(store, { keyPath: 'id' })
+            req.transaction.objectStore('cards').put(existing)
+            req.transaction.objectStore('settings').put(oldSettings)
+            req.transaction.objectStore('activity').put({ id: '00000000-0000-4000-8000-000000000063', at: Date.now(), timeZone: 'UTC' })
+          }
+          req.onerror = () => reject(req.error)
+          req.onsuccess = () => { req.result.close(); resolve() }
+        })
+        const before = await read(name)
+        bindStudyDatabase({ uid: assigned ? 'fixture-account' : null, dbName: name })
+        if (assigned) await api.recordAssignedDeck('fixture-cloud-deck')
+        const decks = await api.getDecks()
+        const after = await read(name)
+        await api.getDecks()
+        const reopened = await read(name)
+        const settings = await api.getSettings()
+        const publicSettings = api.localUserFile([existing], settings).settings
+        const cloudSettings = settingsToDoc(settings, settings.settingsUpdatedAt)
+        let attached
+        if (!assigned) {
+          bindStudyDatabase({ uid: 'fixture-account', dbName: name })
+          await api.recordAssignedDeck('fixture-cloud-deck')
+          await api.recordAssignedDeck('fixture-cloud-deck')
+          attached = await read(name)
+        }
+        results.push({ assigned, before, after, reopened, decks, publicSettings, cloudSettings, attached })
+      }
+    } finally { clearStudyBinding() }
+    return results
+  })
+  for (const result of upgrades) {
+    const id = result.assigned ? 'fixture-cloud-deck' : 'local-german'
+    assert.equal(result.after.version, 3)
+    assert.deepEqual(result.after.cards, result.before.cards, 'upgrade retains exact cards and due dates')
+    assert.deepEqual(result.after.activity, result.before.activity, 'upgrade retains exact streak events')
+    assert.deepEqual(result.after.settings, [{ ...result.before.settings[0], activeDeckId: id }], 'upgrade changes only local selection')
+    assert.deepEqual(result.decks, [{ id, name: 'German', targetLang: 'German', baseLang: 'English', articles: true, wordTypes: true, tiers: true, origin: 'original' }])
+    assert.deepEqual(result.reopened, result.after, 'reopening does not insert another deck')
+    assert.equal(Object.hasOwn(result.publicSettings, 'activeDeckId'), false)
+    assert.equal(Object.hasOwn(result.cloudSettings, 'activeDeckId'), false)
+    if (result.attached) {
+      assert.deepEqual(result.attached.decks, [{ ...result.decks[0], id: 'fixture-cloud-deck' }], 'learning an assignment keeps exactly one deck')
+      assert.deepEqual(result.attached.cards, result.before.cards)
+      assert.deepEqual(result.attached.activity, result.before.activity)
+      assert.deepEqual(result.attached.settings, [{ ...result.before.settings[0], activeDeckId: 'fixture-cloud-deck' }])
+    }
+  }
   const snapshot = () => page.evaluate(async () => {
     const db = await import('/src/db.ts')
     return { cards: await db.getAllCards(), activity: await db.getReviewActivity() }
@@ -63,6 +139,27 @@ try {
   }
   await tab('Decks', '#/decks', 'Decks')
   await assertDeckCount(514)
+  async function renameFixtureDeck(name) {
+    await page.evaluate(async name => {
+      const { dbNameForUser, activeUserSlug } = await import('/src/user.ts')
+      await new Promise((resolve, reject) => {
+        const req = indexedDB.open(dbNameForUser(activeUserSlug()))
+        req.onerror = () => reject(req.error)
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction('decks', 'readwrite')
+          const stored = tx.objectStore('decks').getAll()
+          stored.onsuccess = () => tx.objectStore('decks').put({ ...stored.result[0], name })
+          tx.oncomplete = () => { db.close(); resolve() }
+        }
+      })
+    }, name)
+    await page.reload()
+    await page.waitForSelector('#main .card-row')
+    assert.equal(await page.locator('#main .de').textContent(), name, 'Decks renders the stored metadata')
+  }
+  await renameFixtureDeck('German fixture')
+  await renameFixtureDeck('German')
   const settings = () => page.evaluate(async () => {
     const db = await import('/src/db.ts')
     const { direction, sessionSize, tier, wordTypes } = await db.getSettings()

@@ -20,6 +20,7 @@ import {
   DatabaseBlockedError,
   deleteCard,
   getAllCards,
+  getDecks,
   getCard,
   getDueByTier,
   getSettings,
@@ -526,11 +527,14 @@ async function renderReview() {
 async function renderDecks() {
   const lock = captureStudyLock()
   setTabbar('decks')
+  const decks = await getDecks()
   const cards = await getAllCards()
   const settings = await getSettings()
   if (!studyLockCurrent(lock)) return
   const dueByTier = await getDueByTier()
   if (!studyLockCurrent(lock)) return
+  const deck = decks.find(deck => deck.id === settings.activeDeckId)
+  if (!deck) return
   const counts = tierCounts(cards)
   const typeCounts = wordTypeCountsFor(cards, settings.tier)
   main.innerHTML = `
@@ -539,7 +543,7 @@ async function renderDecks() {
       <ul class="card-list">
         <li class="card-row">
           <div class="left">
-            <div class="de">German</div>
+            <div class="de">${esc(deck.name)}</div>
             <div class="en">${cards.length} ${cards.length === 1 ? 'card' : 'cards'}</div>
           </div>
           <span class="badge">Active</span>

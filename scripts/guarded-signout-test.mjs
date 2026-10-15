@@ -143,6 +143,14 @@ try {
   // The issue's exact path: a fresh welcome, Google login, import guard, sign-out.
   const fresh = await newPage()
   await fresh.waitForSelector('#guest-study')
+  const emptyDevice = await fresh.evaluate(async () => {
+    const db = await import('/src/db.ts')
+    const { dbName } = (await import('/src/study-lock.ts')).captureStudyLock()
+    const decks = await db.getDecks()
+    return { decks: decks.length, hasWork: await db.localDatabaseHasWork(dbName) }
+  })
+  assert.deepEqual(emptyDevice, { decks: 1, hasWork: false },
+    'deck metadata alone must not skip welcome or offer a device-data copy')
   assert.equal(await fresh.locator('#sign-out-account').isVisible(), false)
   assert.equal(await fresh.locator('#google-session').isVisible(), false)
   await fresh.click('#google-sign-in')
