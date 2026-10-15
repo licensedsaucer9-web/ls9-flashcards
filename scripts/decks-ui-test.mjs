@@ -283,7 +283,8 @@ try {
     assert.equal(await page.locator('#main .de').textContent(), 'German')
     assert.equal(await page.locator('#main .en').textContent(), `${count} cards`)
     assert.equal(await page.locator('#main .badge').textContent(), 'Active')
-    assert.equal(await page.locator('#main .card-row a, #main .card-row button, #main .card-row input').count(), 0)
+    assert.equal(await page.locator('#main .card-row [data-rename]').count(), 1)
+    assert.equal(await page.locator('#main .card-row [data-delete-deck]').count(), 0)
     assert.equal(await page.locator('[data-word-type]').count(), 4)
     assert.equal(await page.locator('[data-tier]').count(), 3)
     assert.deepEqual(await page.locator('#dir button').allTextContents(), ['German → English', 'English → German'])
@@ -731,6 +732,112 @@ try {
   await page.waitForSelector('#card')
   await page.click('#card')
   assert.equal(await page.locator('[data-grade="wrong_gender"]').count(), 0, 'article none hides Gender even with Articles on')
+  // Rename and delete through the UI; compare exact retained storage, including due dates.
+  await page.click('#back')
+  await page.waitForSelector('#start')
+  await tab('Decks', '#/decks', 'Decks')
+  const retained = () => page.evaluate(async () => {
+    const { activeUserSlug, dbNameForUser } = await import('/src/user.ts')
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(dbNameForUser(activeUserSlug()))
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => {
+        const db = req.result
+        const tx = db.transaction([...db.objectStoreNames], 'readonly')
+        const result = {}
+        for (const store of db.objectStoreNames) {
+          const read = tx.objectStore(store).getAll()
+          read.onsuccess = () => { result[store] = read.result }
+        }
+        tx.oncomplete = () => { db.close(); resolve(result) }
+      }
+    })
+  })
+  assert.equal(await page.locator('[data-delete-deck="local-german"]').count(), 0, 'original has no delete control')
+  const originalName = await page.evaluate(async () => (await (await import('/src/db.ts')).getActiveDeck()).name)
+  page.once('dialog', dialog => dialog.accept('Renamed Spanish'))
+  await page.click(`[data-rename="${spanishId}"]`)
+  await page.getByText('Renamed Spanish', { exact: true }).waitFor()
+  await page.reload()
+  await page.getByText('Renamed Spanish', { exact: true }).waitFor()
+  assert.equal(originalName, 'Spanish')
+  // Original decks can also be renamed, without changing their protected origin.
+  page.once('dialog', dialog => dialog.accept('German study'))
+  await page.click('[data-rename="local-german"]')
+  await page.getByText('German study', { exact: true }).waitFor()
+  assert.equal(await page.locator('[data-delete-deck="local-german"]').count(), 0)
+  const beforeDelete = await retained()
+  page.once('dialog', async dialog => {
+    assert.match(dialog.message(), /Renamed Spanish/)
+    assert.match(dialog.message(), /1 card/)
+    await dialog.dismiss()
+  })
+  await page.click(`[data-delete-deck="${spanishId}"]`)
+  assert.deepEqual(await retained(), beforeDelete, 'cancelling deletion writes nothing')
+  page.once('dialog', dialog => dialog.accept())
+  await page.click(`[data-delete-deck="${spanishId}"]`)
+  await page.locator(`[data-delete-deck="${spanishId}"]`).waitFor({ state: 'detached' })
+  const deleted = await retained()
+  assert.deepEqual(deleted.decks, beforeDelete.decks.filter(d => d.id !== spanishId), 'only deleted deck preferences and metadata disappear')
+  assert.deepEqual(deleted.cards, beforeDelete.cards.filter(c => c.deckId !== spanishId), 'all retained cards and schedules survive exactly')
+  assert.deepEqual(deleted.activity, beforeDelete.activity, 'deleting a studied deck retains every streak event')
+  assert.equal(deleted.settings[0].activeDeckId, 'local-german', 'deleting active deck selects a remaining deck')
+  const removedIds = beforeDelete.cards.filter(c => c.deckId === spanishId).map(c => c.id)
+  const expectedSettings = structuredClone(beforeDelete.settings[0])
+  expectedSettings.activeDeckId = 'local-german'
+  for (const id of removedIds) {
+    delete expectedSettings.pending.cards[id]
+    delete expectedSettings.pending.progress[id]
+  }
+  assert.deepEqual(deleted.settings, [expectedSettings], 'original settings, pending work and activity markers survive')
+  await page.reload()
+  await page.getByText('German study', { exact: true }).waitFor()
+  assert.deepEqual(await retained(), deleted, 'deleted deck and cards stay absent after reload without reseeding')
+  // Delete an inactive deck with a card tombstone, preserving original selection.
+  const frenchId = secondDeck.id
+  await page.evaluate(async id => {
+    const api = await import('/src/db.ts')
+    await api.switchActiveDeck(id)
+    await api.deleteCard((await api.getAllCards())[0].id)
+    await api.switchActiveDeck('local-german')
+  }, frenchId)
+  await page.reload()
+  await page.locator(`[data-delete-deck="${frenchId}"]`).waitFor()
+  page.once('dialog', dialog => dialog.accept())
+  await page.click(`[data-delete-deck="${frenchId}"]`)
+  await page.locator(`[data-delete-deck="${frenchId}"]`).waitFor({ state: 'detached' })
+  const finalState = await retained()
+  assert.equal(finalState.decks.length, 1)
+  assert.equal(await page.locator('[data-delete-deck]').count(), 0)
+  assert.equal(finalState.settings[0].activeDeckId, 'local-german')
+  assert(!Object.values(finalState.settings[0].deletedDeckIds ?? {}).includes(frenchId), 'deleted deck tombstones are removed locally')
+  assert.deepEqual(finalState.cards, deleted.cards.filter(c => c.deckId !== frenchId))
+  assert.deepEqual(finalState.activity, deleted.activity)
+  const guards = await page.evaluate(async () => {
+    const api = await import('/src/db.ts')
+    const { bindStudyDatabase, clearStudyBinding } = await import('/src/study-lock.ts')
+    const original = await api.deleteLocalDeck('local-german')
+    const blank = await api.renameDeck('local-german', '   ')
+    const tooLong = await api.renameDeck('local-german', 'x'.repeat(61))
+    try {
+      bindStudyDatabase({ uid: null, dbName: 'last-local-deck-fixture-70' })
+      await api.createLocalDeck('Only local', 'French')
+      // Isolate the last-deck guard from the original-deck guard.
+      const req = indexedDB.open('last-local-deck-fixture-70')
+      await new Promise((resolve, reject) => {
+        req.onerror = () => reject(req.error)
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction('decks', 'readwrite')
+          tx.objectStore('decks').delete('local-german')
+          tx.oncomplete = () => { db.close(); resolve() }
+        }
+      })
+      const only = await api.getActiveDeck()
+      return { original, blank, tooLong, last: await api.deleteLocalDeck(only.id), count: (await api.getDecks()).length }
+    } finally { clearStudyBinding() }
+  })
+  assert.deepEqual(guards, { original: false, blank: false, tooLong: false, last: false, count: 1 })
   assert.deepEqual(errors, [], 'no browser errors')
   assert.deepEqual(externalRequests, [], 'no external service access')
   console.log('decks-ui: v2/v3 card and tombstone upgrades, deck-isolated reads/writes/counts/sync, original-only seed insertion, four tabs, distinct routes, deck count, Decks-only saved tier/direction/word-type controls, unsaved Cards filters, Review-only session size, Settings content, persisted review filters, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')

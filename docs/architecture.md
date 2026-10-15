@@ -123,6 +123,13 @@ formats. Local deck edits do not change that mirror, its settings clock, or its
 pending upload marker. Cloud settings merges update the original deck atomically;
 new deck preferences stay on this device.
 
+Deck names can be renamed locally, including the original deck. Deleting a local
+deck requires confirmation showing its name and card count, and atomically removes
+its metadata, preferences, cards and owned pending/deletion records. Deleting the
+active deck selects a remaining deck. The original deck has no delete control and
+storage also refuses deletion of the original or last remaining deck. Deck deletion
+retains account streak events and does not delete Firestore documents.
+
 Decks also stores local Articles, Word types, and Tiers switches on each deck.
 The original German deck enables all three; New deck disables all three.
 Disabled extras hide their controls, editor fields, and study badges. Disabled
