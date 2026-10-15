@@ -1,0 +1,26 @@
+node_modules
+dist
+dist-firebase
+dist-auth-spike
+dist-rehearsal
+dist-recovery-bridge
+*.local
+.DS_Store
+playwright-report
+test-results
+.lighthouseci
+lh-report*
+
+# secrets — never commit
+/token
+*.token
+*.pem
+*.key
+.env*
+
+# emulator logs — never commit
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-debug.log
+.firebase/

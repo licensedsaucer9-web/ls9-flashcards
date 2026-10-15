@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily LS9 Flashcards Firestore backup
+
+[Timer]
+OnCalendar=*-*-* 08:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

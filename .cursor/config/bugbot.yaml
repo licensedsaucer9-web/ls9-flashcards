@@ -1,0 +1,16 @@
+version: 1
+
+triggers:
+  drafts: false
+  frequency: oncePerPr
+
+review:
+  effort: low
+  incremental: true
+
+prSummary:
+  mode: comment
+  riskScore: true
+
+autofix:
+  mode: disabled

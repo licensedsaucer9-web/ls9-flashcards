@@ -1,0 +1,155 @@
+rules_version = '2';
+
+// Demo-project rules for issue #11. CI and pull requests run these in the
+// emulator only. Do not deploy them to flashcards-ls9-prod or the auth-test
+// project from this workflow.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isMember(deckId) {
+      // get() is checked against these rules. A non-member cannot read the
+      // deck, so this lookup fails closed instead of revealing membership.
+      return signedIn()
+        && exists(/databases/$(database)/documents/decks/$(deckId))
+        && request.auth.uid in get(/databases/$(database)/documents/decks/$(deckId)).data.memberUids;
+    }
+
+    function validId(id) {
+      return id.matches('^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$');
+    }
+
+    function text(value, max) {
+      return value is string && value.size() <= max;
+    }
+
+    // The web client may store a whole number as an int or as a float.
+    function whole(value) {
+      return value is int || (value is float && value == int(value));
+    }
+
+    function clock(value) {
+      return whole(value) && value >= 0;
+    }
+
+    function validAccountCreate(uid) {
+      return request.resource.data.keys().hasOnly(['deckId', 'schemaVersion', 'migrationStatus'])
+        && request.resource.data.deckId == uid
+        && whole(request.resource.data.schemaVersion)
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.migrationStatus == 'new';
+    }
+
+    function validWordTypes(types) {
+      return types is list
+        && types.size() <= 3
+        && types.size() == types.toSet().size()
+        && types.hasOnly(['noun', 'verb', 'adj']);
+    }
+
+    function validSettings() {
+      return request.resource.data.keys().hasOnly(['direction', 'sessionSize', 'tier', 'settingsUpdatedAt', 'wordTypes'])
+        && request.resource.data.direction in ['de-en', 'en-de']
+        && whole(request.resource.data.sessionSize)
+        && request.resource.data.sessionSize >= 0
+        && request.resource.data.sessionSize <= 500
+        && request.resource.data.tier in [1, 2, 3]
+        && clock(request.resource.data.settingsUpdatedAt)
+        && (!('wordTypes' in request.resource.data) || validWordTypes(request.resource.data.wordTypes));
+    }
+
+    function validProgress(cardId) {
+      return validId(cardId)
+        && request.resource.data.keys().hasOnly(['ease', 'interval', 'reps', 'due', 'updated_at'])
+        && request.resource.data.ease is number
+        && request.resource.data.ease > 0
+        && request.resource.data.ease <= 10
+        && whole(request.resource.data.interval)
+        && request.resource.data.interval >= 0
+        && request.resource.data.interval <= 36500
+        && whole(request.resource.data.reps)
+        && request.resource.data.reps >= 0
+        && request.resource.data.reps <= 100000
+        && clock(request.resource.data.due)
+        && clock(request.resource.data.updated_at);
+    }
+
+    function validTags(tags) {
+      return tags is list && tags.size() <= 12;
+    }
+
+    function validCard(cardId) {
+      let data = request.resource.data;
+      return validId(cardId)
+        && data.keys().hasAll(['de', 'en', 'article', 'example_de', 'example_en', 'tags', 'created_at', 'updated_at', 'deletedAt'])
+        && data.keys().hasOnly(['de', 'en', 'article', 'example_de', 'example_en', 'tags', 'created_at', 'updated_at', 'deletedAt', 'rank', 'tier'])
+        && text(data.de, 200)
+        && text(data.en, 200)
+        && data.article in ['der', 'die', 'das', 'none']
+        && text(data.example_de, 1000)
+        && text(data.example_en, 1000)
+        && validTags(data.tags)
+        && clock(data.created_at)
+        && clock(data.updated_at)
+        && clock(data.deletedAt)
+        && (!('rank' in data) || (whole(data.rank) && data.rank >= 0 && data.rank <= 1000000))
+        && (!('tier' in data) || data.tier in [1, 2, 3]);
+    }
+
+    match /users/{uid} {
+      allow get: if isOwner(uid);
+      allow list: if false;
+      allow create: if isOwner(uid) && validAccountCreate(uid);
+      allow update, delete: if false;
+
+      match /settings/{docId} {
+        allow get, list: if isOwner(uid) && docId == 'current';
+        allow create, update: if isOwner(uid) && docId == 'current' && validSettings();
+        allow delete: if false;
+      }
+
+      match /progress/{cardId} {
+        allow get, list: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validProgress(cardId);
+        allow delete: if false;
+      }
+
+      // One event per saved grade; payloads cannot change. Owners may delete for cleanup.
+      // Rules validate zone format, not the IANA registry; clients skip invalid zones.
+      match /activity/{eventId} {
+        allow get, list: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && eventId.matches('^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$')
+          && request.resource.data.keys().hasAll(['at', 'timeZone'])
+          && request.resource.data.keys().hasOnly(['at', 'timeZone'])
+          && clock(request.resource.data.at) && request.resource.data.at <= 253402214400000
+          && text(request.resource.data.timeZone, 100)
+          && request.resource.data.timeZone.matches('^(UTC|[A-Za-z_]+/[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)?)$');
+        allow update: if false;
+        allow delete: if isOwner(uid);
+      }
+    }
+
+    match /decks/{deckId} {
+      allow get: if isMember(deckId);
+      allow list: if false;
+      allow create: if signedIn()
+        && deckId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['memberUids'])
+        && request.resource.data.memberUids == [request.auth.uid];
+      allow update, delete: if false;
+
+      match /cards/{cardId} {
+        allow get, list: if isMember(deckId);
+        allow create, update: if isMember(deckId) && validCard(cardId);
+        allow delete: if false;
+      }
+    }
+  }
+}
