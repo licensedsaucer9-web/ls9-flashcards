@@ -17,7 +17,7 @@ import { inSelectedTier, tierOf } from './tiers.ts'
 import { inSelectedWordTypes, normalizeWordTypes, sameWordTypes } from './word-types.ts'
 import { accountDatabaseName, activeUserSlug, dbNameForUser, hasMigrated, LEGACY_DB_NAME, listUsers, markMigrated } from './user.ts'
 
-const DB_VERSION = 3
+const DB_VERSION = 4
 const LOCAL_DECK_ID = 'local-german'
 
 export class DatabaseBlockedError extends Error {
@@ -104,6 +104,7 @@ export function normalizeSettings(s?: Partial<Settings> | null): Settings {
     tier: tier(s?.tier),
     wordTypes: normalizeWordTypes(s?.wordTypes),
     deletedIds: s?.deletedIds && typeof s.deletedIds === 'object' ? { ...s.deletedIds } : {},
+    ...(s?.deletedDeckIds ? { deletedDeckIds: { ...s.deletedDeckIds } } : {}),
     localRevision,
     acknowledgedRevision: Math.min(localRevision, revision(s?.acknowledgedRevision)),
     settingsUpdatedAt: revision(s?.settingsUpdatedAt),
@@ -152,6 +153,27 @@ function openDb(name: string, upgrade = true, assignedDeckId?: string): Promise<
           if (stored.result) settings.put({ ...stored.result, activeDeckId: id })
         }
       }
+      const tx = req.transaction!
+      const decks = tx.objectStore('decks').getAll()
+      decks.onsuccess = () => {
+        const original = (decks.result as LocalDeck[]).find(deck => deck.origin === 'original')
+        const deckId = original?.id ?? assignedDeckId ?? LOCAL_DECK_ID
+        const cursor = tx.objectStore('cards').openCursor()
+        cursor.onsuccess = () => {
+          const row = cursor.result
+          if (!row) return
+          if (!row.value.deckId) row.update({ ...row.value, deckId })
+          row.continue()
+        }
+        const settings = tx.objectStore('settings').get('settings')
+        settings.onsuccess = () => {
+          if (!settings.result) return
+          const stored = settings.result as Settings
+          const owners = { ...stored.deletedDeckIds }
+          for (const id of Object.keys(stored.deletedIds ?? {})) owners[id] ??= deckId
+          if (Object.keys(owners).length) tx.objectStore('settings').put({ ...stored, deletedDeckIds: owners })
+        }
+      }
     }
     req.onblocked = () => {
       reportDatabaseEvent('blocked')
@@ -185,19 +207,24 @@ export async function recordAssignedDeck(deckId: string): Promise<void> {
   const db = await openDb(name, true, deckId)
   try {
     if (!studyLockCurrent(lock)) return
-    const tx = db.transaction(['decks', 'settings'], 'readwrite')
+    const tx = db.transaction(['decks', 'settings', 'cards'], 'readwrite')
     const done = txDone(tx)
     const [decks, stored] = await Promise.all([
       value(tx.objectStore('decks').getAll()) as Promise<LocalDeck[]>,
       value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
     ])
     if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return }
-    const deck = decks[0]
+    const deck = decks.find(deck => deck.origin === 'original')
     if (deck && deck.id !== deckId) {
       tx.objectStore('decks').delete(deck.id)
       tx.objectStore('decks').put({ ...deck, id: deckId })
+      const cards = await value(tx.objectStore('cards').getAll()) as Card[]
+      for (const card of cards) if (card.deckId === deck.id) tx.objectStore('cards').put({ ...card, deckId })
+      if (stored?.deletedDeckIds) {
+        for (const [id, owner] of Object.entries(stored.deletedDeckIds)) if (owner === deck.id) stored.deletedDeckIds[id] = deckId
+      }
     }
-    if (stored?.activeDeckId !== deckId) tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deckId })
+    tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: !stored?.activeDeckId || stored.activeDeckId === deck?.id ? deckId : stored.activeDeckId })
     await done
   } finally { db.close() }
 }
@@ -289,7 +316,8 @@ export async function saveReview(cardId: string, grade: Grade, eventId: string, 
       if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return null }
       const settings = normalizeSettings(rawSettings)
       const activity = repairStoredActivity(tx, rows, settings)
-      if (!card || activity[eventId]) { await done; return card ?? null }
+      if (!card || card.deckId !== settings.activeDeckId) { await done; return null }
+      if (activity[eventId]) { await done; return card }
       const event = { at, timeZone: streakTimeZone(activity, zone) }
       if (!validReviewEvent(eventId, event)) throw new Error('Invalid review activity')
       const rev = settings.localRevision + 1
@@ -418,7 +446,7 @@ export async function importLegacyData(destination?: string): Promise<number> {
     let added = 0
     for (const card of cards) {
       if (byId.has(card.id) || current.settings.deletedIds[card.id]) continue
-      store.put(card)
+      store.put({ ...card, deckId: current.settings.activeDeckId })
       added += 1
     }
     const next = normalizeSettings(settings)
@@ -426,6 +454,7 @@ export async function importLegacyData(destination?: string): Promise<number> {
     // A row that already exists on this device wins; only fill the gaps.
     if (next.localRevision > current.settings.localRevision || added) next.localRevision = current.settings.localRevision + 1
     next.deletedIds = { ...next.deletedIds, ...current.settings.deletedIds }
+    next.deletedDeckIds = { ...Object.fromEntries(Object.keys(next.deletedIds).map(id => [id, current.settings.activeDeckId])), ...current.settings.deletedDeckIds }
     for (const [id, event] of Object.entries(mergedActivity)) tx.objectStore('activity').put({ id, ...event })
     if (Object.keys(mergedActivity).length) {
       next.localRevision = Math.max(next.localRevision, current.settings.localRevision) + 1
@@ -444,10 +473,29 @@ export async function importLegacyData(destination?: string): Promise<number> {
 // --- local projections ----------------------------------------------------
 
 /** The shared vocabulary half. Deliberately excludes settings and progress clocks. */
+function activeCards(cards: Card[], settings: Settings): Card[] {
+  return cards.filter(card => !card.deckId || card.deckId === settings.activeDeckId)
+}
+
+function deckTombstones(settings: Settings, deckId = settings.activeDeckId): Record<string, number> {
+  return Object.fromEntries(Object.entries(settings.deletedIds).filter(([id]) =>
+    (settings.deletedDeckIds?.[id] ?? settings.activeDeckId) === deckId))
+}
+
+function mergeTombstones(settings: Settings, incoming: Record<string, number>): void {
+  for (const [id, time] of Object.entries(incoming)) {
+    if (settings.deletedDeckIds?.[id] && settings.deletedDeckIds[id] !== settings.activeDeckId) continue
+    settings.deletedIds[id] = time
+    ;(settings.deletedDeckIds ??= {})[id] = settings.activeDeckId
+  }
+}
+
 export function localDeckFile(cards: Card[], settings: Settings): DeckFile {
+  cards = activeCards(cards, settings)
+  const deleted = deckTombstones(settings)
   let updatedAt = 0
   for (const card of cards) updatedAt = Math.max(updatedAt, contentTime(card))
-  for (const time of Object.values(settings.deletedIds)) updatedAt = Math.max(updatedAt, Number(time) || 0)
+  for (const time of Object.values(deleted)) updatedAt = Math.max(updatedAt, Number(time) || 0)
   return {
     version: 2,
     kind: 'deck',
@@ -455,12 +503,13 @@ export function localDeckFile(cards: Card[], settings: Settings): DeckFile {
     // Sorted by id so a payload compare against the remote is not fooled by the
     // order IndexedDB happens to return rows in.
     cards: cards.map(stripSrs).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
-    deleted_ids: settings.deletedIds,
+    deleted_ids: deleted,
   }
 }
 
 /** This user's scheduling half. */
 export function localUserFile(cards: Card[], settings: Settings, user = activeUserSlug(), activity: ReviewActivity = {}): UserFile {
+  cards = activeCards(cards, settings)
   let updatedAt = settings.settingsUpdatedAt
   for (const event of Object.values(activity)) updatedAt = Math.max(updatedAt, event.at)
   const progress: Record<string, Srs> = {}
@@ -550,28 +599,22 @@ async function changeLocal(change: (tx: IDBTransaction, settings: Settings) => v
 
 export async function getAllCards(): Promise<Card[]> {
   const { lock, name } = namesFor()
-  const db = await openDb(name, false)
+  const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return []
-    const tx = db.transaction('cards', 'readonly')
-    const cards = (await value(tx.objectStore('cards').getAll())) as Card[]
-    return studyLockCurrent(lock) ? cards : []
+    const tx = db.transaction(['cards', 'settings'], 'readonly')
+    const [cards, stored] = await Promise.all([
+      value(tx.objectStore('cards').getAll()) as Promise<Card[]>,
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
+    ])
+    return studyLockCurrent(lock) ? activeCards(cards, normalizeSettings(stored)) : []
   } finally {
     db.close()
   }
 }
 
 export async function getCard(id: string): Promise<Card | undefined> {
-  const { lock, name } = namesFor()
-  const db = await openDb(name, false)
-  try {
-    if (!studyLockCurrent(lock)) return undefined
-    const tx = db.transaction('cards', 'readonly')
-    const card = (await value(tx.objectStore('cards').get(id))) as Card | undefined
-    return studyLockCurrent(lock) ? card : undefined
-  } finally {
-    db.close()
-  }
+  return (await getAllCards()).find(card => card.id === id)
 }
 
 function noteCardWrite(settings: Settings, previous: Card | undefined, next: Card, rev: number): void {
@@ -620,8 +663,11 @@ export async function putCard(card: Card): Promise<void> {
         tx.abort()
         return
       }
-      noteCardWrite(settings, request.result as Card | undefined, card, settings.localRevision + 1)
-      store.put(card)
+      const previous = request.result as Card | undefined
+      if (previous && previous.deckId !== settings.activeDeckId) return
+      const saved = { ...card, deckId: settings.activeDeckId }
+      noteCardWrite(settings, previous, saved, settings.localRevision + 1)
+      store.put(saved)
       settings.localRevision += 1
       tx.objectStore('settings').put(settings)
     }
@@ -641,8 +687,12 @@ export async function putCards(cards: Card[]): Promise<void> {
           tx.abort()
           return
         }
-        noteCardWrite(settings, item.request.result as Card | undefined, item.card, settings.localRevision + 1)
-        store.put(item.card)
+        const previous = item.request.result as Card | undefined
+        if (!previous || previous.deckId === settings.activeDeckId) {
+          const saved = { ...item.card, deckId: settings.activeDeckId }
+          noteCardWrite(settings, previous, saved, settings.localRevision + 1)
+          store.put(saved)
+        }
         left -= 1
         if (left > 0) return
         settings.localRevision += 1
@@ -658,24 +708,28 @@ export async function insertMissingSeeds(seeds: Card[]): Promise<number> {
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return 0
-    const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
+    const tx = db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite')
     const current = await load(tx)
     if (!studyLockCurrent(lock)) {
       tx.abort()
       await current.done.catch(() => {})
       return 0
     }
+    const decks = await value(tx.objectStore('decks').getAll()) as LocalDeck[]
+    const originalId = decks.find(deck => deck.origin === 'original')!.id
+    const originalCards = current.cards.filter(card => card.deckId === originalId)
     const byId = new Map(current.cards.map((card) => [card.id, card]))
     const key = (card: Card) => `${card.de.trim().toLowerCase()}|${card.en.trim().toLowerCase()}`
-    const byKey = new Set(current.cards.map(key))
+    const byKey = new Set(originalCards.map(key))
     const store = tx.objectStore('cards')
     let added = 0
     const addedIds: string[] = []
     const repairedIds: string[] = []
     for (const seed of seeds) {
-      if (current.settings.deletedIds[seed.id]) continue
+      if (deckTombstones(current.settings, originalId)[seed.id]) continue
       const mine = byId.get(seed.id)
       if (mine) {
+        if (mine.deckId !== originalId) continue
         // A built-in card that predates the tier data, e.g. one that arrived through
         // the v1 snapshot migration, would otherwise sit in tier 3 for good. Seeds are
         // app-owned, so fill in a missing rank and tier. Only fill in what is absent:
@@ -689,8 +743,9 @@ export async function insertMissingSeeds(seeds: Card[]): Promise<number> {
       }
       const pair = key(seed)
       if (byKey.has(pair)) continue
-      store.put(seed)
-      byId.set(seed.id, seed)
+      const saved = { ...seed, deckId: originalId }
+      store.put(saved)
+      byId.set(seed.id, saved)
       byKey.add(pair)
       added += 1
       addedIds.push(seed.id)
@@ -713,24 +768,25 @@ export async function insertMissingSeeds(seeds: Card[]): Promise<number> {
 }
 
 export async function deleteCard(id: string, deletedAt = Date.now()): Promise<void> {
-  await changeLocal((tx, settings) => {
-    tx.objectStore('cards').delete(id)
-    settings.deletedIds[id] = Math.max(settings.deletedIds[id] || 0, deletedAt)
-    settings.pending.tombstones[id] = bumpMark(settings.pending.tombstones[id], settings.localRevision + 1)
+  await editLocal((tx, settings) => {
+    const store = tx.objectStore('cards')
+    const request = store.get(id)
+    request.onsuccess = () => {
+      const card = request.result as Card | undefined
+      if (card && card.deckId !== settings.activeDeckId) return
+      if (!card && settings.deletedDeckIds?.[id] && settings.deletedDeckIds[id] !== settings.activeDeckId) return
+      store.delete(id)
+      settings.deletedIds[id] = Math.max(settings.deletedIds[id] || 0, deletedAt)
+      ;(settings.deletedDeckIds ??= {})[id] = settings.activeDeckId
+      settings.pending.tombstones[id] = bumpMark(settings.pending.tombstones[id], settings.localRevision + 1)
+      settings.localRevision += 1
+      tx.objectStore('settings').put(settings)
+    }
   })
 }
 
 export async function countCards(): Promise<number> {
-  const { lock, name } = namesFor()
-  const db = await openDb(name, false)
-  try {
-    if (!studyLockCurrent(lock)) return 0
-    const tx = db.transaction('cards', 'readonly')
-    const count = await value(tx.objectStore('cards').count())
-    return studyLockCurrent(lock) ? count : 0
-  } finally {
-    db.close()
-  }
+  return (await getAllCards()).length
 }
 
 export type DueByTier = Record<Tier, { due: number; total: number }>
@@ -831,7 +887,7 @@ export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug())
     const local = localDeckFile(current.cards, current.settings)
     const merged = mergeDeck(local, remote)
 
-    const byId = new Map(current.cards.map((card) => [card.id, card]))
+    const byId = new Map(activeCards(current.cards, current.settings).map((card) => [card.id, card]))
     // merged.cards is the union of both sides minus anything a tombstone removed,
     // so it is the whole truth. Seeding the result from the local cards instead
     // would keep every card a merge just deleted.
@@ -840,12 +896,13 @@ export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug())
       const mine = byId.get(content.id)
       // mergeDeck already settled which content wins. The only thing this device
       // owns here is the schedule, and a deck file never carries one.
-      next.set(content.id, mine ? ({ ...content, srs: mine.srs } as Card) : ({ ...content, srs: newSrs() } as Card))
+      if (current.cards.some(card => card.id === content.id && card.deckId !== current.settings.activeDeckId)) continue
+      next.set(content.id, { ...content, deckId: current.settings.activeDeckId, srs: mine?.srs ?? newSrs() })
     }
 
-    store.clear()
+    for (const card of activeCards(current.cards, current.settings)) store.delete(card.id)
     for (const card of next.values()) store.put(card)
-    current.settings.deletedIds = merged.deleted_ids
+    mergeTombstones(current.settings, merged.deleted_ids)
     tx.objectStore('settings').put(current.settings)
     await current.done
     const cards = [...next.values()]
@@ -875,8 +932,8 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
       return untouchedMerge(user)
     }
     const store = tx.objectStore('cards')
-    const next = new Map(current.cards.map((card) => [card.id, card]))
-    const merged = mergeProgress(Object.fromEntries(current.cards.map((c) => [c.id, c.srs])), remote.progress)
+    const next = new Map(activeCards(current.cards, current.settings).map((card) => [card.id, card]))
+    const merged = mergeProgress(Object.fromEntries(activeCards(current.cards, current.settings).map((c) => [c.id, c.srs])), remote.progress)
     for (const [id, srs] of Object.entries(merged)) {
       const mine = next.get(id)
       // A deleted card must not come back just because progress for it arrived.
@@ -894,7 +951,7 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
     const remoteSettingsAt = remote.settings_updated_at ?? 0
     const settings = newerSettings(publicSettings(current.settings), localSettingsAt, remote.settings, remoteSettingsAt)
 
-    store.clear()
+    for (const card of activeCards(current.cards, current.settings)) store.delete(card.id)
     for (const card of next.values()) store.put(card)
     current.settings.direction = settings.direction
     current.settings.sessionSize = settings.sessionSize
@@ -962,7 +1019,14 @@ export async function readCloudSnapshot(): Promise<CloudSnapshot | null> {
     const { cards, settings, activity, done } = await load(db.transaction(['cards', 'settings', 'activity'], 'readwrite'))
     await done
     if (!studyLockCurrent(lock)) return null
-    return { cards: new Map(cards.map((card) => [card.id, card])), settings, activity }
+    const scoped = activeCards(cards, settings)
+    const ids = new Set(scoped.map(card => card.id))
+    const tombstones = deckTombstones(settings)
+    settings.deletedIds = tombstones
+    settings.pending.cards = Object.fromEntries(Object.entries(settings.pending.cards).filter(([id]) => ids.has(id)))
+    settings.pending.progress = Object.fromEntries(Object.entries(settings.pending.progress).filter(([id]) => ids.has(id)))
+    settings.pending.tombstones = Object.fromEntries(Object.entries(settings.pending.tombstones).filter(([id]) => Object.hasOwn(tombstones, id)))
+    return { cards: new Map(scoped.map((card) => [card.id, card])), settings, activity }
   } finally {
     db.close()
   }
@@ -1042,7 +1106,7 @@ export async function applyStagedProgress(): Promise<void> {
       return
     }
     const store = tx.objectStore('cards')
-    const byId = new Map(current.cards.map((card) => [card.id, card]))
+    const byId = new Map(activeCards(current.cards, current.settings).map((card) => [card.id, card]))
     let changed = false
     const rev = current.settings.localRevision + 1
     for (const [id, srs] of Object.entries(staged)) {
@@ -1139,7 +1203,8 @@ export async function copyMappedLegacyProfile(
     let changed = false
     for (const content of merged.cards) {
       const previous = byId.get(content.id)
-      const next: Card = { ...content, srs: schedules[content.id] ?? previous?.srs ?? newSrs() }
+      if (previous && previous.deckId !== current.settings.activeDeckId) continue
+      const next: Card = { ...content, deckId: current.settings.activeDeckId, srs: schedules[content.id] ?? previous?.srs ?? newSrs() }
       if (contentChanged(previous, next) || progressChanged(previous, next)) { store.put(next); changed = true }
       // GitHub's acknowledgement is not a Firestore acknowledgement. Backfill
       // copied records even on a pre-marker account database; preserve real acks.
@@ -1158,14 +1223,14 @@ export async function copyMappedLegacyProfile(
       if (JSON.stringify(staged) !== JSON.stringify(current.settings.stagedProgress)) changed = true
       current.settings.stagedProgress = staged
     } else if (current.settings.stagedProgress) { delete current.settings.stagedProgress; changed = true }
-    for (const card of current.cards) if (!liveIds.has(card.id)) { store.delete(card.id); changed = true }
+    for (const card of activeCards(current.cards, current.settings)) if (!liveIds.has(card.id)) { store.delete(card.id); changed = true }
     for (const [id, time] of Object.entries(merged.deleted_ids)) {
       if (Object.hasOwn(sourceSettings.deletedIds, id)
         && (current.settings.deletedIds[id] !== time || !current.settings.pending.tombstones[id])) {
         current.settings.pending.tombstones[id] = bumpMark(current.settings.pending.tombstones[id], rev); changed = true
       }
     }
-    current.settings.deletedIds = merged.deleted_ids
+    mergeTombstones(current.settings, merged.deleted_ids)
     const localAt = current.settings.settingsUpdatedAt
     const sourceAt = sourceSettings.settingsUpdatedAt
     const preferences = newerSettings(publicSettings(current.settings), localAt, publicSettings(sourceSettings), sourceAt)
@@ -1228,29 +1293,33 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
       return false
     }
     const sourceSettings = stored ? normalizeSettings(stored) : null
+    cards = activeCards(cards, sourceSettings ?? normalizeSettings(null))
     const store = tx.objectStore('cards')
     const rev = current.settings.localRevision + 1
     if (mode === 'vocabulary') {
       const tombstoned = new Set<string>()
       if (sourceSettings) {
-        for (const [id, time] of Object.entries(sourceSettings.deletedIds)) {
+        for (const [id, time] of Object.entries(deckTombstones(sourceSettings))) {
           if ((Number(time) || 0) > 0) tombstoned.add(id)
         }
       }
       for (const card of cards) {
+        if (current.cards.some(mine => mine.id === card.id && mine.deckId !== current.settings.activeDeckId)) continue
         if (tombstoned.has(card.id)) continue
-        store.put(card)
+        store.put({ ...card, deckId: current.settings.activeDeckId })
         current.settings.pending.cards[card.id] = bumpMark(current.settings.pending.cards[card.id], rev)
         current.settings.pending.progress[card.id] = bumpMark(current.settings.pending.progress[card.id], rev)
       }
       for (const id of tombstoned) {
+        if (current.cards.some(mine => mine.id === id && mine.deckId !== current.settings.activeDeckId)) continue
         const stamp = Number(sourceSettings?.deletedIds[id]) || 0
+        ;(current.settings.deletedDeckIds ??= {})[id] = current.settings.activeDeckId
         current.settings.deletedIds[id] = Math.max(current.settings.deletedIds[id] || 0, stamp)
         store.delete(id)
         current.settings.pending.tombstones[id] = bumpMark(current.settings.pending.tombstones[id], rev)
       }
     } else {
-      const byId = new Map(current.cards.map((card) => [card.id, card]))
+      const byId = new Map(activeCards(current.cards, current.settings).map((card) => [card.id, card]))
       const staged = { ...(current.settings.stagedProgress ?? {}) }
       for (const card of cards) {
         if (!card.srs) continue
