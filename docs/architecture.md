@@ -100,7 +100,14 @@ and tombstones. Local reads, review queues, counts, edits and sync projections
 use the active deck; schedules remain on each card. Deletion clocks retain a
 local deck-ownership map alongside `deletedIds`. Seed insertion always targets
 the original deck, including when another deck is active. Decks can create empty
-local decks and switch the active deck.
+local decks and switch the active deck. The card editor and CSV import write to
+that active deck. CSV duplicate matching uses the trimmed, case-insensitive
+front/back pair within that deck, so another deck may contain the same pair.
+Imports accept `de,en` or `front,back`, with optional `article`, `type`,
+`example_de`/`example_front`, and `example_en`/`example_back` columns. Omitted
+optional columns stay empty (article defaults to `none`); imported cards are due
+immediately. Importing neither seeds cards nor changes another deck's schedule
+or streak activity.
 
 IndexedDB is the durable offline store. Every mutation commits data, its
 local revision, and the affected records' pending markers atomically.

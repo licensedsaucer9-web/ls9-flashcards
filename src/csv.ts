@@ -92,22 +92,25 @@ type Columns = {
   en: number
   article: number
   example_de: number
+  example_en: number
   type: number | null
   named: boolean
 }
 
 function columnsFor(header: string[] | null): Columns {
   const index = (name: string) => header?.indexOf(name) ?? -1
-  const pick = (name: string, fallback: number) => {
-    const found = index(name)
-    return found >= 0 ? found : fallback
+  const pick = (names: string[], fallback: number) => {
+    const found = names.map(index).find(i => i >= 0)
+    return found ?? fallback
   }
+  const optional = (names: string[], position: number) => pick(names, header ? -1 : position)
   const type = index('type')
   return {
-    de: pick('de', 0),
-    en: pick('en', 1),
-    article: pick('article', 2),
-    example_de: pick('example_de', 3),
+    de: pick(['de', 'front'], 0),
+    en: pick(['en', 'back'], 1),
+    article: optional(['article'], 2),
+    example_de: optional(['example_de', 'example_front'], 3),
+    example_en: optional(['example_en', 'example_back'], -1),
     type: type >= 0 ? type : null,
     named: header !== null,
   }
@@ -124,7 +127,8 @@ function tagsForImport(article: Article, typeCell: string | null): { tags: strin
   return { tags: [parsed, 'imported'] }
 }
 
-export function importCsv(text: string, existing: Card[], now = Date.now()): CsvResult {
+/** When provided, deckId scopes duplicates and stamps newly parsed cards. */
+export function importCsv(text: string, existing: Card[], now = Date.now(), deckId?: string): CsvResult {
   const rows = parseCsv(text)
   const errors: string[] = []
   const imported: Card[] = []
@@ -133,10 +137,10 @@ export function importCsv(text: string, existing: Card[], now = Date.now()): Csv
     return { imported, skipped, errors: ['CSV is empty'] }
   }
 
-  const seen = new Set(existing.map((c) => cardKey(c.de, c.en)))
+  const seen = new Set(existing.filter(c => deckId === undefined || c.deckId === deckId).map((c) => cardKey(c.de, c.en)))
   let start = 0
   const header = rows[0].map((h) => h.trim().toLowerCase())
-  const hasHeader = header[0] === 'de' || header.includes('article')
+  const hasHeader = header.includes('de') || (header.includes('front') && header.includes('back')) || header.includes('article')
   if (hasHeader) start = 1
   const map = columnsFor(hasHeader ? header : null)
 
@@ -179,12 +183,13 @@ export function importCsv(text: string, existing: Card[], now = Date.now()): Csv
     }
     seen.add(key)
     imported.push({
+      ...(deckId === undefined ? {} : { deckId }),
       id: crypto.randomUUID(),
       de,
       en,
       article,
       example_de,
-      example_en: '',
+      example_en: (cols[map.example_en] ?? '').trim(),
       tags: tagged.tags,
       created_at: now,
       updated_at: now,
