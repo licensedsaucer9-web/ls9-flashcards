@@ -1,0 +1,47 @@
+// Regression: a deck switch while a cloud sync pass is in flight must rerun the pass and must not leave
+// the Syncing badge stuck. Drives the real src/sync.ts loop; only the cloud backend module is swapped
+// for a controllable stub through a Node loader hook.
+import assert from 'node:assert/strict'
+import { register } from 'node:module'
+
+const stubSource = `
+export const cloudTransport = true
+export async function cloudSyncPass(control) { return globalThis.__syncPassStub(control) }
+`
+const stubUrl = 'data:text/javascript,' + encodeURIComponent(stubSource)
+const hooksSource = `
+const STUB = ${JSON.stringify(stubUrl)}
+export async function resolve(specifier, context, next) {
+  if (specifier === './sync-backend.ts' && context.parentURL?.endsWith('/src/sync.ts')) {
+    return { url: STUB, shortCircuit: true, format: 'module' }
+  }
+  return next(specifier, context)
+}
+`
+register('data:text/javascript,' + encodeURIComponent(hooksSource))
+
+globalThis.window = { setTimeout, clearTimeout }
+globalThis.document = { visibilityState: 'visible' }
+const { bindStudyDatabase, captureStudyLock } = await import('../src/study-lock.ts')
+const { syncNow, getSyncStatus } = await import('../src/sync.ts')
+
+const passes = []
+globalThis.__syncPassStub = async () => {
+  passes.push(captureStudyLock().dbName)
+  if (passes.length === 1) {
+    // The deck switch lands while the first pass is still awaiting the backend.
+    await new Promise(resolve => setImmediate(resolve))
+    bindStudyDatabase({ uid: 'user-1', dbName: 'deck-b' })
+  }
+  return 'synced'
+}
+
+bindStudyDatabase({ uid: 'user-1', dbName: 'deck-a' })
+await syncNow()
+
+assert.deepEqual(passes, ['deck-a', 'deck-b'], 'the pass is rerun against the newly bound deck database')
+const status = getSyncStatus()
+assert.notEqual(status.state, 'syncing', 'the Syncing badge must not stay stuck after a deck switch')
+assert.equal(status.state, 'ok')
+assert.equal(status.message, 'Synced')
+console.log('sync in-flight deck switch: ok')
