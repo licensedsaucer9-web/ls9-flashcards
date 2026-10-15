@@ -45,3 +45,13 @@ assert.notEqual(status.state, 'syncing', 'the Syncing badge must not stay stuck 
 assert.equal(status.state, 'ok')
 assert.equal(status.message, 'Synced')
 console.log('sync in-flight deck switch: ok')
+
+// A selection made after sync has completed must immediately clear the old badge.
+const { deckSelectionChanged, pauseSync } = await import('../src/sync.ts')
+deckSelectionChanged(false)
+assert.deepEqual(getSyncStatus(), { state: 'idle', message: 'On this device', at: null })
+assert.equal(passes.length, 2, 'selecting a local deck does not start cloud work')
+deckSelectionChanged(true)
+assert.equal(getSyncStatus().state, 'waiting', 'returning to German schedules pending sync')
+pauseSync()
+console.log('idle deck selection status: ok')

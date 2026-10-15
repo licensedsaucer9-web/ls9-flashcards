@@ -1,0 +1,128 @@
+// Real cloud orchestration + IndexedDB in two tabs; only cloud transport is stubbed.
+// Disposable browser storage, synthetic cards, and no external requests.
+import assert from 'node:assert/strict'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { createServer } from 'vite'
+import { chromium } from 'playwright-core'
+
+const cacheDir = mkdtempSync(join(tmpdir(), 'deck-switch-sync-'))
+let server, browser
+try {
+  process.env.BASE = '/'
+  process.env.VITE_SYNC_BACKEND = ''
+  server = await createServer({ cacheDir, plugins: [{
+    name: 'isolated-cloud-transport', enforce: 'pre',
+    load(id) {
+      if (id.endsWith('/src/sync-backend.ts')) return `export * from './cloud-sync.ts'`
+      if (id.endsWith('/src/cloud-handle.ts')) return 'export function cloudFirestore() { return {} }'
+      if (id.endsWith('/src/cloud-push.ts')) return `
+        export async function accountDeckId() { return 'fixture-original' }
+        export async function pullCloud() {
+          globalThis.pullStarted = true
+          if (globalThis.waitForPull) await new Promise(resolve => { globalThis.releasePull = resolve })
+          return globalThis.cloudDocs
+        }
+        const commit = async (...args) => { globalThis.pushes.push(args); return 'wrote' }
+        export const commitCard = commit, commitProgress = commit, commitSettings = commit, commitActivity = commit
+      `
+    },
+  }], server: { host: '127.0.0.1', port: 4183, strictPort: true } })
+  await server.listen()
+  browser = await chromium.launch({
+    executablePath: process.env.CHROME || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()),
+    headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'],
+  })
+  const context = await browser.newContext({ serviceWorkers: 'block' })
+  const external = []
+  await context.route('**/*', route => {
+    if (new URL(route.request().url()).hostname === '127.0.0.1') return route.continue()
+    external.push(route.request().url()); return route.abort()
+  })
+  const a = await context.newPage(), b = await context.newPage()
+  for (const page of [a, b]) {
+    await page.goto('http://127.0.0.1:4183/')
+    await page.waitForSelector('#start')
+  }
+  await a.evaluate(async () => {
+    const api = await import('/src/db.ts')
+    const locks = await import('/src/study-lock.ts')
+    const { filesToDocs } = await import('/src/firestore-docs.ts')
+    const sample = (await api.getAllCards())[0]
+    globalThis.sample = sample
+    locks.bindStudyDatabase({ uid: 'fixture-user', dbName: 'fixture-shared' })
+    await api.recordAssignedDeck('fixture-original')
+    globalThis.scope = { lock: locks.captureStudyLock(), deckId: 'fixture-original' }
+    globalThis.remote = { version: 2, kind: 'deck', updated_at: 1,
+      cards: [{ ...sample, id: 'fixture-remote', updated_at: 100 }], deleted_ids: {} }
+    globalThis.cloudDocs = filesToDocs(globalThis.remote, null)
+    globalThis.pushes = []; globalThis.waitForPull = true
+    const sync = await import('/src/sync.ts')
+    globalThis.pass = sync.syncNow()
+  })
+  await a.waitForFunction(() => globalThis.pullStarted)
+  const localId = await b.evaluate(async () => {
+    const api = await import('/src/db.ts')
+    const locks = await import('/src/study-lock.ts')
+    locks.bindStudyDatabase({ uid: 'fixture-user', dbName: 'fixture-shared' })
+    return (await api.createLocalDeck('French fixture', 'French')).id
+  })
+  const result = await a.evaluate(async () => {
+    const api = await import('/src/db.ts')
+    const locks = await import('/src/study-lock.ts')
+    const originalLockStillValid = locks.studyLockCurrent(globalThis.scope.lock)
+    globalThis.releasePull()
+    await globalThis.pass
+    const { getSyncStatus } = await import('/src/sync.ts')
+    return { originalLockStillValid, status: getSyncStatus(), cards: await api.getAllCards(), pushes: globalThis.pushes.length,
+      active: (await api.getSettings()).activeDeckId }
+  })
+  assert.equal(result.originalLockStillValid, true, 'reproduces a foreign-tab switch without local generation invalidation')
+  assert.equal(result.active, localId)
+  assert.deepEqual(result.cards, [], 'the new local deck must not receive cloud cards')
+  assert.equal(result.pushes, 0, 'a switched-away pass never pushes local data')
+  assert.deepEqual(result.status, { state: 'idle', message: 'On this device', at: null },
+    'the originating tab must settle on device-only status after the foreign-tab switch')
+
+  // The guards must also hold between stages, not just before/after the fetch.
+  const guards = await a.evaluate(async () => {
+    const api = await import('/src/db.ts')
+    await api.putCard({ ...globalThis.sample, id: 'fixture-local' })
+    await api.putSettings({ direction: 'en-de' })
+    const before = await api.getSettings()
+    const progress = { version: 2, kind: 'user', user: 'fixture-user', updated_at: 999,
+      settings: { direction: 'de-en', sessionSize: 1, tier: 1, wordTypes: [] }, settings_updated_at: 9999999999999,
+      progress: { 'fixture-local': { ease: 3, interval: 99, reps: 99, due: 99, updated_at: 9999999999999 } } }
+    const cardsBefore = await api.getAllCards()
+    await api.mergeDeckIntoDb(globalThis.remote, undefined, globalThis.scope)
+    await api.mergeProgressIntoDb(progress, undefined, globalThis.scope)
+    const snapshot = await api.readCloudSnapshot(globalThis.scope)
+    const ack = await api.acknowledgePending({ kind: 'settings', revision: before.pending.settings.revision },
+      { uid: 'fixture-user', generation: globalThis.scope.lock.generation, scope: globalThis.scope })
+    await api.acknowledgeRevision(before.localRevision, undefined, globalThis.scope)
+    return { before, after: await api.getSettings(), cardsBefore, cardsAfter: await api.getAllCards(), snapshot, ack }
+  })
+  assert.equal(guards.snapshot, null)
+  assert.equal(guards.ack, false)
+  assert.deepEqual(guards.cardsAfter, guards.cardsBefore, 'stale cloud stages cannot merge or grade local cards')
+  assert.deepEqual(guards.after, guards.before, 'stale cloud stages cannot overwrite preferences or acknowledge pending writes')
+
+  // Returning to German still allows a complete cloud pass and keeps local cards separate.
+  await b.evaluate(async () => { const api = await import('/src/db.ts'); await api.switchActiveDeck('fixture-original') })
+  const resumed = await a.evaluate(async () => {
+    globalThis.waitForPull = false
+    const cloud = await import('/src/cloud-sync.ts'), api = await import('/src/db.ts')
+    const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
+    return { outcome, ids: (await api.getAllCards()).map(c => c.id) }
+  })
+  assert.equal(resumed.outcome, 'synced')
+  assert(resumed.ids.includes('fixture-remote'))
+  assert(!resumed.ids.includes('fixture-local'))
+  assert.deepEqual(external, [])
+  console.log('deck-switch-sync: cross-tab fetch/merge/snapshot/ack isolation and original-deck resumption ok')
+} finally {
+  await browser?.close()
+  await server?.close()
+  rmSync(cacheDir, { recursive: true, force: true })
+}

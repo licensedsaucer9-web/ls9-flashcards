@@ -70,6 +70,16 @@ export function syncNow(): Promise<void> {
   return activeSync
 }
 
+/** Refresh selection status even when no cloud pass is currently running. */
+export function deckSelectionChanged(syncs: boolean): void {
+  if (syncs) {
+    schedulePush()
+  } else {
+    pauseSync()
+    setStatus({ state: 'idle', message: 'On this device', at: null })
+  }
+}
+
 /** The data write already recorded a pending revision before this is called. */
 export function schedulePush(): void {
   if (!cloudTransport) return

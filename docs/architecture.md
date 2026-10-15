@@ -220,3 +220,19 @@ target, and only where the target is empty or already identical. It does not
 restore Google Auth identities, IndexedDB, rules, or hosting. The frozen
 legacy repository cannot back up reviews made later in Firebase. The procedure
 and its limits are in [Firebase setup](firebase-setup.md#restore-a-firestore-dump).
+
+## Deck selection during cloud sync
+
+A cloud pass pins its study lock and assigned original deck ID. Cloud merges,
+progress application, snapshots and acknowledgements check that scope against
+`activeDeckId` inside their IndexedDB transaction. The in-memory generation
+counter alone cannot detect another tab changing the shared selection. If the
+selection no longer matches, the transaction aborts rather than applying cloud
+cards or settings to a local deck. Snapshots already captured for the original
+deck remain scoped to that deck; a later selection cannot change their contents.
+
+Selecting a local deck immediately resets the sync badge to “On this device,”
+including when no sync is in flight. Returning to the original deck schedules
+its pending sync. The two-tab browser regression uses synthetic data and a
+stubbed cloud transport to exercise the real cloud orchestration and IndexedDB;
+it does not require an account or contact Firebase.
