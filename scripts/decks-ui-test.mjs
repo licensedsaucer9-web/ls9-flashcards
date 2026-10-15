@@ -46,6 +46,8 @@ try {
     existing.srs = { ...existing.srs, due: 63 }
     const preferences = await api.getSettings()
     const { activeDeckId, ...oldSettings } = preferences
+    // This isolated database has its own activity fixture, not the source event.
+    oldSettings.pending = { ...oldSettings.pending, activity: {} }
     const read = name => new Promise((resolve, reject) => {
       const req = indexedDB.open(name)
       req.onerror = () => reject(req.error)
@@ -79,6 +81,7 @@ try {
         const before = await read(name)
         bindStudyDatabase({ uid: assigned ? 'fixture-account' : null, dbName: name })
         if (assigned) await api.recordAssignedDeck('fixture-cloud-deck')
+        else await api.insertMissingSeeds([]) // The normal seed write upgrades device-study storage.
         const decks = await api.getDecks()
         const after = await read(name)
         await api.getDecks()

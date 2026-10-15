@@ -192,9 +192,14 @@ function openDb(name: string, upgrade = true, assignedDeckId?: string): Promise<
 /** Read metadata without copying, filtering or reseeding the existing cards. */
 export async function getDecks(): Promise<LocalDeck[]> {
   const { lock, name } = namesFor()
-  const db = await openDb(name)
+  const db = await openDb(name, false)
   try {
     if (!studyLockCurrent(lock)) return []
+    // Legacy recovery reads must not upgrade or stamp the source database.
+    if (!db.objectStoreNames.contains('decks')) return [{
+      id: LOCAL_DECK_ID, name: 'German', targetLang: 'German', baseLang: 'English',
+      articles: true, wordTypes: true, tiers: true, origin: 'original',
+    }]
     const decks = await value(db.transaction('decks', 'readonly').objectStore('decks').getAll()) as LocalDeck[]
     return studyLockCurrent(lock) ? decks : []
   } finally { db.close() }
@@ -599,7 +604,7 @@ async function changeLocal(change: (tx: IDBTransaction, settings: Settings) => v
 
 export async function getAllCards(): Promise<Card[]> {
   const { lock, name } = namesFor()
-  const db = await openDb(name)
+  const db = await openDb(name, false)
   try {
     if (!studyLockCurrent(lock)) return []
     const tx = db.transaction(['cards', 'settings'], 'readonly')
