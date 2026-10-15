@@ -64,15 +64,15 @@ try {
     })
     const results = []
     try {
-      for (const version of [2, 3]) for (const assigned of [false, true]) {
+      for (const version of [2, 3, 4]) for (const assigned of [false, true]) {
         const name = `deck-upgrade-fixture-${version}-${assigned}`
         await new Promise((resolve, reject) => {
           const req = indexedDB.open(name, version)
           req.onupgradeneeded = () => {
             for (const store of ['cards', 'settings', 'activity']) req.result.createObjectStore(store, { keyPath: 'id' })
             req.transaction.objectStore('cards').put(existing)
-            req.transaction.objectStore('settings').put({ ...oldSettings, deletedIds: { 'deleted-fixture': 63 }, ...(version === 3 ? { activeDeckId: 'local-german' } : {}) })
-            if (version === 3) req.result.createObjectStore('decks', { keyPath: 'id' }).put({ id: 'local-german', name: 'German', targetLang: 'German', baseLang: 'English', articles: true, wordTypes: true, tiers: true, origin: 'original' })
+            req.transaction.objectStore('settings').put({ ...oldSettings, deletedIds: { 'deleted-fixture': 63 }, ...(version >= 3 ? { activeDeckId: 'local-german' } : {}) })
+            if (version >= 3) req.result.createObjectStore('decks', { keyPath: 'id' }).put({ id: 'local-german', name: 'German', targetLang: 'German', baseLang: 'English', articles: true, wordTypes: true, tiers: true, origin: 'original' })
             req.transaction.objectStore('activity').put({ id: '00000000-0000-4000-8000-000000000063', at: Date.now(), timeZone: 'UTC' })
           }
           req.onerror = () => reject(req.error)
@@ -103,12 +103,12 @@ try {
   })
   for (const result of upgrades) {
     const id = result.assigned ? 'fixture-cloud-deck' : 'local-german'
-    assert.equal(result.after.version, 4)
+    assert.equal(result.after.version, 5)
     assert.equal(result.due, result.expectedDue, 'one-deck upgrade preserves due count')
     assert.deepEqual(result.after.cards, result.before.cards.map(card => ({ ...card, deckId: id })), 'upgrade only stamps deck ownership; exact cards and due dates survive')
     assert.deepEqual(result.after.activity, result.before.activity, 'upgrade retains exact streak events')
     assert.deepEqual(result.after.settings, [{ ...result.before.settings[0], activeDeckId: id, deletedDeckIds: { 'deleted-fixture': id } }], 'upgrade changes only local selection')
-    assert.deepEqual(result.decks, [{ id, name: 'German', targetLang: 'German', baseLang: 'English', articles: true, wordTypes: true, tiers: true, origin: 'original' }])
+    assert.deepEqual(result.decks, [{ id, name: 'German', targetLang: 'German', baseLang: 'English', articles: true, supportsWordTypes: true, tiers: true, origin: 'original', direction: result.before.settings[0].direction, sessionSize: result.before.settings[0].sessionSize, tier: result.before.settings[0].tier, wordTypes: result.before.settings[0].wordTypes }])
     assert.deepEqual(result.reopened, result.after, 'reopening does not insert another deck')
     assert.equal(Object.hasOwn(result.publicSettings, 'activeDeckId'), false)
     assert.equal(Object.hasOwn(result.cloudSettings, 'activeDeckId'), false)
@@ -504,6 +504,35 @@ try {
   await tab('Decks', '#/decks', 'Decks')
   assert.equal(await page.locator('[data-word-type="all"]').getAttribute('aria-pressed'), 'true')
   assert.deepEqual(await snapshot(), untypedFixture, 'empty-match recovery preserves cards, schedules and streaks')
+  // Study preferences belong to the selected deck, including the Review size control.
+  await tab('Review', '#/', 'LS9 Flashcards')
+  await page.click('[data-session="20"]')
+  await page.waitForFunction(() => document.querySelector('[data-session="20"]')?.classList.contains('is-on'))
+  await tab('Decks', '#/decks', 'Decks')
+  await page.fill('#new-deck [name="name"]', 'French fixture')
+  await page.fill('#new-deck [name="targetLang"]', 'French')
+  await page.click('#new-deck [type="submit"]')
+  await page.waitForSelector('#session-custom')
+  assert.deepEqual(await settings(), { direction: 'de-en', sessionSize: 20, tier: 3, wordTypes: [] })
+  await page.fill('#session-custom', '5')
+  await page.locator('#session-custom').dispatchEvent('change')
+  await page.waitForFunction(async () => (await (await import('/src/db.ts')).getSettings()).sessionSize === 5)
+  await tab('Decks', '#/decks', 'Decks')
+  await page.click('[data-switch="local-german"]')
+  await page.waitForSelector('#start')
+  assert.equal((await settings()).sessionSize, 20)
+  assert.equal(await page.locator('[data-session="20"].is-on').count(), 1)
+  await tab('Decks', '#/decks', 'Decks')
+  await page.click('[data-switch]')
+  await page.waitForSelector('#session-custom')
+  await page.reload()
+  await page.waitForSelector('#session-custom')
+  assert.equal((await settings()).sessionSize, 5)
+  assert.equal(await page.locator('#session-custom').inputValue(), '5')
+  await tab('Decks', '#/decks', 'Decks')
+  await page.click('[data-switch="local-german"]')
+  await page.waitForSelector('#start')
+  assert.deepEqual(await snapshot(), untypedFixture, 'deck creation and settings switches preserve German cards, schedules and activity')
   assert.deepEqual(errors, [], 'no browser errors')
   assert.deepEqual(externalRequests, [], 'no external service access')
   console.log('decks-ui: v2/v3 card and tombstone upgrades, deck-isolated reads/writes/counts/sync, original-only seed insertion, four tabs, distinct routes, deck count, Decks-only saved tier/direction/word-type controls, unsaved Cards filters, Review-only session size, Settings content, persisted review filters, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')

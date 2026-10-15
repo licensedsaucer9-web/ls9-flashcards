@@ -43,14 +43,14 @@ export interface Card {
   srs: Srs
 }
 
-/** Metadata for the one existing local deck; cards remain in their current store. */
-export interface LocalDeck {
+/** Local deck metadata and study preferences; cards remain in their current store. */
+export interface LocalDeck extends PublicSettings {
   id: string
   name: string
   targetLang: string
   baseLang: string
   articles: boolean
-  wordTypes: boolean
+  supportsWordTypes: boolean
   tiers: boolean
   /** The German deck mirrors the account's cloud deck. Created decks stay on this device. */
   origin: 'original' | 'local'
@@ -60,6 +60,7 @@ export interface Settings {
   id: 'settings'
   /** Local selection only; never included in PublicSettings or Firestore. */
   activeDeckId: string
+  /** Original deck preferences, mirrored here for cloud compatibility. */
   direction: Direction
   /** 0 means all matching due cards, or all matching cards when none are due. */
   sessionSize: number

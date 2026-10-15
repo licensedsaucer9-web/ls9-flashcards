@@ -99,12 +99,23 @@ Learning a cloud assignment also renames ownership on the original deck's cards
 and tombstones. Local reads, review queues, counts, edits and sync projections
 use the active deck; schedules remain on each card. Deletion clocks retain a
 local deck-ownership map alongside `deletedIds`. Seed insertion always targets
-the original deck, including when another deck is active. Deck creation and a
-picker are not implemented.
+the original deck, including when another deck is active. Decks can create empty
+local decks and switch the active deck.
 
 IndexedDB is the durable offline store. Every mutation commits data, its
 local revision, and the affected records' pending markers atomically.
 Firestore uses an in-memory cache, leaving the durable queue in IndexedDB.
+IndexedDB version 5 copies the existing direction, session size, tier, and
+word-type selection onto the original deck row. Every deck stores its own study
+preferences; Review, Decks, and session selection read the active deck's values.
+New local decks start at 20 cards, target→English (`de-en`), tier 3, and all word
+types. The former boolean deck capability is named `supportsWordTypes` so
+`wordTypes` can hold the selected classes. The account settings row remains a
+mirror of the original deck's preferences for existing cloud sync and migration
+formats. Local deck edits do not change that mirror, its settings clock, or its
+pending upload marker. Cloud settings merges update the original deck atomically;
+new deck preferences stay on this device.
+
 Database connections close after operations and on `versionchange`;
 blocked upgrades surface an actionable notice.
 
