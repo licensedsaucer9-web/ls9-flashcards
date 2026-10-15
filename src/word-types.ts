@@ -251,23 +251,25 @@ function kicker(parts: string[]): string {
 export function reviewFaces(
   card: { de: string; en: string; article: Article; tags?: readonly string[] | null },
   direction: Direction,
+  languages: { targetLang: string; baseLang: string } = { targetLang: 'German', baseLang: 'English' },
 ): { front: ReviewFace; back: ReviewFace } {
   const gender = genderToken(card.article)
   const badge = wordTypeBadgeHtml(card)
   const article = articleHtml(card.article)
   const deText = germanHead(card.article, card.de)
   const frontIsDe = direction === 'de-en'
-  const english = '<span class="prompt">English</span>'
+  const target = `<span class="prompt">${esc(languages.targetLang)}</span>`
+  const base = `<span class="prompt">${esc(languages.baseLang)}</span>`
   return {
     front: {
       className: frontIsDe ? `face front gender-${gender}` : 'face front',
-      kickerHtml: kicker(frontIsDe ? [article, badge] : [english, badge]),
+      kickerHtml: kicker(frontIsDe ? [target, article, badge] : [base, badge]),
       wordClass: frontIsDe ? gender : '',
       wordText: frontIsDe ? deText : card.en,
     },
     back: {
       className: `face back gender-${gender}`,
-      kickerHtml: kicker(frontIsDe ? [english, badge] : [article, badge]),
+      kickerHtml: kicker(frontIsDe ? [base, badge] : [target, article, badge]),
       wordClass: frontIsDe ? '' : gender,
       wordText: frontIsDe ? card.en : deText,
     },

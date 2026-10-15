@@ -71,7 +71,11 @@ const verbFront = reviewFaces(verb, 'de-en').front
 assert(!verbFront.kickerHtml.includes('class="article'), 'verb front has no article')
 assert(verbFront.kickerHtml.includes('>verb<'), 'verb badge replaces the old fallback')
 assert(!verbFront.kickerHtml.includes('>word<'), 'no generic word fallback')
-assert(reviewFaces(untyped, 'de-en').front.kickerHtml === '', 'untyped DE front has no kicker')
+assert(reviewFaces(untyped, 'de-en').front.kickerHtml.includes('German'), 'untyped target front names its language')
+
+const customLanguages = reviewFaces(untyped, 'en-de', { targetLang: '<Spanish>', baseLang: 'French & English' })
+assert(customLanguages.front.kickerHtml.includes('French &amp; English'), 'base language uses escaped metadata')
+assert(customLanguages.back.kickerHtml.includes('&lt;Spanish&gt;'), 'target language uses escaped metadata')
 
 assert(editorWordType(['a1', 'noun'], 'der') === 'noun', 'editor reads noun')
 assert(editorWordType(['adj', 'noun'], 'die') === 'noun', 'editor select is the first fixed type')

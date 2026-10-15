@@ -365,6 +365,8 @@ async function renderReview() {
   setTabbar('none')
   const settings = await getSettings()
   if (!studyLockCurrent(lock)) return
+  const activeDeck = await getActiveDeck()
+  if (!studyLockCurrent(lock)) return
   const all = await getAllCards()
   if (!studyLockCurrent(lock)) return
   const candidates = selectReviewCandidates(all, settings.tier, settings.wordTypes)
@@ -417,7 +419,7 @@ async function renderReview() {
     const remaining = queue.length
     const done = sessionTotal - remaining
     const pct = Math.round((done / sessionTotal) * 100)
-    const faces = reviewFaces(card, settings.direction)
+    const faces = reviewFaces(card, settings.direction, activeDeck)
     const wordClass = (name: string) => (name ? ` ${name}` : '')
 
     main.innerHTML = `
@@ -543,7 +545,9 @@ async function renderDecks() {
   if (!studyLockCurrent(lock)) return
   const dueByTier = await getDueByTier()
   if (!studyLockCurrent(lock)) return
-  if (!decks.some(deck => deck.id === settings.activeDeckId)) return
+  const activeDeck = decks.find(deck => deck.id === settings.activeDeckId)
+  if (!activeDeck) return
+  const { targetLang, baseLang } = activeDeck
   const counts = tierCounts(cards)
   const typeCounts = wordTypeCountsFor(cards, settings.tier)
   main.innerHTML = `
@@ -577,10 +581,10 @@ async function renderDecks() {
       <div class="setting">
         <p class="kicker" style="margin:0">Review direction</p>
         <div class="seg" id="dir">
-          <button type="button" data-dir="de-en" class="${settings.direction === 'de-en' ? 'is-on' : ''}">DE → EN</button>
-          <button type="button" data-dir="en-de" class="${settings.direction === 'en-de' ? 'is-on' : ''}">EN → DE</button>
+          <button type="button" data-dir="de-en" class="${settings.direction === 'de-en' ? 'is-on' : ''}">${esc(targetLang)} → ${esc(baseLang)}</button>
+          <button type="button" data-dir="en-de" class="${settings.direction === 'en-de' ? 'is-on' : ''}">${esc(baseLang)} → ${esc(targetLang)}</button>
         </div>
-        <p class="note">DE → EN shows the German word first. EN → DE shows English first.</p>
+        <p class="note">${esc(targetLang)} → ${esc(baseLang)} shows the ${esc(targetLang)} word first. ${esc(baseLang)} → ${esc(targetLang)} shows ${esc(baseLang)} first.</p>
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">Word type</p>
@@ -623,7 +627,7 @@ async function renderDecks() {
     btn.addEventListener('click', async () => {
       const direction = btn.dataset.dir as Direction
       await patchSettings({ direction })
-      toast(direction === 'de-en' ? 'DE → EN' : 'EN → DE')
+      toast(direction === 'de-en' ? `${targetLang} → ${baseLang}` : `${baseLang} → ${targetLang}`)
       scheduleRender()
     })
   })
@@ -636,6 +640,7 @@ async function renderDecks() {
 
 async function renderDeck() {
   setTabbar('deck')
+  const { targetLang, baseLang } = (await getActiveDeck())!
   const all = await getAllCards()
   const settings = await getSettings()
   const dueByTier = await getDueByTier()
@@ -669,7 +674,7 @@ async function renderDeck() {
           <a class="secondary" href="#/card/new" style="display:flex;align-items:center;justify-content:center">Add card</a>
           <a class="secondary" href="#/import" style="display:flex;align-items:center;justify-content:center">CSV import</a>
         </div>
-        <input class="search" id="search" type="search" placeholder="Search German or English" value="${esc(filter)}" />
+        <input class="search" id="search" type="search" placeholder="Search ${esc(targetLang)} or ${esc(baseLang)}" value="${esc(filter)}" />
         ${
           shown.length === 0
             ? `<p class="empty">No cards match.</p>`
@@ -735,6 +740,7 @@ function wordTypeOptions(selected: string): string {
 
 async function renderEdit(id: string | null) {
   setTabbar('deck')
+  const { targetLang, baseLang } = (await getActiveDeck())!
   const existing = id ? await getCard(id) : undefined
   if (id && !existing) {
     toast('Card not found')
@@ -752,10 +758,10 @@ async function renderEdit(id: string | null) {
         <span></span>
       </header>
       <form class="form" id="form">
-        <label>German
+        <label>${esc(targetLang)}
           <input name="de" type="text" required value="${esc(c?.de ?? '')}" autocomplete="off" />
         </label>
-        <label>English
+        <label>${esc(baseLang)}
           <input name="en" type="text" required value="${esc(c?.en ?? '')}" autocomplete="off" />
         </label>
         <label>Article
@@ -769,10 +775,10 @@ async function renderEdit(id: string | null) {
             ? `<p class="note">Also ${esc(extraTypes.join(' and '))}. Choosing a different type replaces the extra labels.</p>`
             : ''
         }
-        <label>Example (DE)
+        <label>Example (${esc(targetLang)})
           <textarea name="example_de">${esc(c?.example_de ?? '')}</textarea>
         </label>
-        <label>Example (EN)
+        <label>Example (${esc(baseLang)})
           <textarea name="example_en">${esc(c?.example_en ?? '')}</textarea>
         </label>
         <label>Tags (comma separated)
@@ -803,7 +809,7 @@ async function renderEdit(id: string | null) {
     const tags = tagsWithWordType(String(fd.get('tags') ?? ''), String(fd.get('wordType') ?? 'other'), c?.tags ?? [])
     const tier = Math.min(3, Math.max(1, Number(fd.get('tier')) || 3)) as Tier
     if (!de || !en) {
-      toast('German and English are required')
+      toast(`${targetLang} and ${baseLang} are required`)
       return
     }
     const now = Date.now()
