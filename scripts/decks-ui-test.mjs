@@ -119,6 +119,73 @@ try {
       assert.deepEqual(result.attached.settings, [{ ...result.before.settings[0], activeDeckId: 'fixture-cloud-deck', deletedDeckIds: { 'deleted-fixture': 'fixture-cloud-deck' } }])
     }
   }
+  // Guest vocabulary copies must preserve another deck's tombstones and pending revisions.
+  const guestCopy = await page.evaluate(async () => {
+    const api = await import('/src/db.ts')
+    const { bindStudyDatabase, clearStudyBinding } = await import('/src/study-lock.ts')
+    const fixture = (await api.getAllCards())[0]
+    const sourceName = 'guest-tombstone-source-64'
+    const targetName = 'guest-tombstone-target-64'
+    const ids = ['foreign-older-64', 'foreign-newer-64', 'active-deletion-64']
+    const settingsRow = () => new Promise((resolve, reject) => {
+      const req = indexedDB.open(targetName)
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => {
+        const db = req.result
+        const tx = db.transaction('settings', 'readonly')
+        const row = tx.objectStore('settings').get('settings')
+        tx.oncomplete = () => { db.close(); resolve(row.result) }
+        tx.onabort = () => { db.close(); reject(tx.error) }
+      }
+    })
+    try {
+      bindStudyDatabase({ uid: null, dbName: sourceName })
+      for (const id of ids) {
+        await api.putCard({ ...fixture, id })
+        await api.deleteCard(id, 64001)
+      }
+      bindStudyDatabase({ uid: null, dbName: targetName })
+      await api.putSettings({ tier: 3 })
+      await new Promise((resolve, reject) => {
+        const req = indexedDB.open(targetName)
+        req.onerror = () => reject(req.error)
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction('settings', 'readwrite')
+          const store = tx.objectStore('settings')
+          const row = store.get('settings')
+          row.onsuccess = () => {
+            const settings = row.result
+            settings.deletedIds = { [ids[0]]: 64000, [ids[1]]: 64002 }
+            settings.deletedDeckIds = { [ids[0]]: 'other-deck', [ids[1]]: 'other-deck' }
+            settings.pending.tombstones = { [ids[0]]: { revision: 7, acked: 6 }, [ids[1]]: { revision: 8, acked: 8 } }
+            store.put(settings)
+          }
+          tx.oncomplete = () => { db.close(); resolve() }
+          tx.onabort = () => { db.close(); reject(tx.error) }
+        }
+      })
+      const before = await settingsRow()
+      const copies = []
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (!await api.copyGuestDatabase(sourceName, 'vocabulary')) throw new Error('Guest copy failed')
+        const after = await settingsRow()
+        const cloud = await api.readCloudSnapshot()
+        copies.push({ after, cloudDeleted: cloud.settings.deletedIds })
+      }
+      return { before, copies }
+    } finally { clearStudyBinding() }
+  })
+  for (const { after, cloudDeleted } of guestCopy.copies) {
+    for (const id of ['foreign-older-64', 'foreign-newer-64']) {
+      assert.equal(after.deletedIds[id], guestCopy.before.deletedIds[id], 'guest copy preserves foreign deletion clock')
+      assert.equal(after.deletedDeckIds[id], guestCopy.before.deletedDeckIds[id], 'guest copy preserves foreign tombstone owner')
+      assert.deepEqual(after.pending.tombstones[id], guestCopy.before.pending.tombstones[id], 'guest copy preserves foreign pending revision')
+      assert.equal(Object.hasOwn(cloudDeleted, id), false, 'guest copy cannot expose foreign tombstone to active-deck sync')
+    }
+    assert.equal(after.deletedDeckIds['active-deletion-64'], after.activeDeckId)
+    assert.equal(cloudDeleted['active-deletion-64'], 64001, 'guest deletion still copies into active deck')
+  }
   const snapshot = () => page.evaluate(async () => {
     const db = await import('/src/db.ts')
     return { cards: await db.getAllCards(), activity: await db.getReviewActivity() }

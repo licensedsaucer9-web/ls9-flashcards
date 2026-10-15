@@ -1317,6 +1317,7 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
       }
       for (const id of tombstoned) {
         if (current.cards.some(mine => mine.id === id && mine.deckId !== current.settings.activeDeckId)) continue
+        if (current.settings.deletedDeckIds?.[id] && current.settings.deletedDeckIds[id] !== current.settings.activeDeckId) continue
         const stamp = Number(sourceSettings?.deletedIds[id]) || 0
         ;(current.settings.deletedDeckIds ??= {})[id] = current.settings.activeDeckId
         current.settings.deletedIds[id] = Math.max(current.settings.deletedIds[id] || 0, stamp)
