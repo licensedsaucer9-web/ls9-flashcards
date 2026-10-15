@@ -55,6 +55,15 @@ function namesFor(explicitUser?: string): { lock: StudyLock; name: string } {
   return { lock: { ...lock, dbName: name }, name }
 }
 
+/** A cloud pass stays bound to its original deck, including across tabs. */
+export type CloudScope = { lock: StudyLock; deckId: string }
+
+function cloudScopeCurrent(scope: CloudScope | undefined, settings: Settings): boolean {
+  return !scope || (studyLockCurrent(scope.lock)
+    && captureStudyLock().dbName === scope.lock.dbName
+    && settings.activeDeckId === scope.deckId)
+}
+
 function upgradeAbort(db: IDBDatabase, error: unknown): boolean {
   if (!upgradeClosed.has(db)) return false
   if (!error || typeof error !== 'object') return true
@@ -949,14 +958,14 @@ function untouchedMerge(user: string): MergeResult {
 }
 
 /** Apply a shared deck file. Card content merges; this user's progress is never touched. */
-export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug()): Promise<MergeResult> {
+export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug(), scope?: CloudScope): Promise<MergeResult> {
   const { lock, name } = namesFor(user)
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return untouchedMerge(user)
     const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
     const current = await load(tx)
-    if (!studyLockCurrent(lock)) {
+    if (!studyLockCurrent(lock) || !cloudScopeCurrent(scope, current.settings)) {
       tx.abort()
       await current.done.catch(() => {})
       return untouchedMerge(user)
@@ -996,7 +1005,7 @@ export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug())
 }
 
 /** Apply one user's scheduling file. Ignores progress for cards this deck does not have. */
-export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlug()): Promise<MergeResult> {
+export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlug(), scope?: CloudScope): Promise<MergeResult> {
   const incomingActivity = parseStoredReviewActivity(remote.activity)
   const { lock, name } = namesFor(user)
   const db = await openDb(name)
@@ -1004,7 +1013,7 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
     if (!studyLockCurrent(lock)) return untouchedMerge(user)
     const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
     const current = await load(tx)
-    if (!studyLockCurrent(lock)) {
+    if (!studyLockCurrent(lock) || !cloudScopeCurrent(scope, current.settings)) {
       tx.abort()
       await current.done.catch(() => {})
       return untouchedMerge(user)
@@ -1051,7 +1060,7 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
   }
 }
 
-export async function acknowledgeRevision(includedRevision: number, user = activeUserSlug()): Promise<boolean> {
+export async function acknowledgeRevision(includedRevision: number, user = activeUserSlug(), scope?: CloudScope): Promise<boolean> {
   const { lock, name } = namesFor(user)
   const db = await openDb(name)
   try {
@@ -1068,6 +1077,11 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
         return
       }
       const settings = normalizeSettings(request.result as Settings | undefined)
+      if (!cloudScopeCurrent(scope, settings)) {
+        aborted = true
+        tx.abort()
+        return
+      }
       settings.acknowledgedRevision = Math.max(
         settings.acknowledgedRevision,
         Math.min(includedRevision, settings.localRevision),
@@ -1089,12 +1103,18 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
 export type CloudSnapshot = { cards: Map<string, Card>; settings: Settings; activity: ReviewActivity }
 
 /** Cards and pending markers for one cloud push. Null when the account changed mid-read. */
-export async function readCloudSnapshot(): Promise<CloudSnapshot | null> {
+export async function readCloudSnapshot(scope?: CloudScope): Promise<CloudSnapshot | null> {
   const { lock, name } = namesFor()
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return null
-    const { cards, settings, activity, done } = await load(db.transaction(['cards', 'settings', 'activity'], 'readwrite'))
+    const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
+    const { cards, settings, activity, done } = await load(tx)
+    if (!studyLockCurrent(lock) || !cloudScopeCurrent(scope, settings)) {
+      tx.abort()
+      await done.catch(() => {})
+      return null
+    }
     await done
     if (!studyLockCurrent(lock)) return null
     const scoped = activeCards(cards, settings)
@@ -1116,7 +1136,7 @@ export async function readCloudSnapshot(): Promise<CloudSnapshot | null> {
  */
 export async function acknowledgePending(
   item: PushItem,
-  expect: { uid: string; generation: number },
+  expect: { uid: string; generation: number; scope?: CloudScope },
 ): Promise<boolean> {
   const live = captureStudyLock()
   if (live.uid !== expect.uid || live.generation !== expect.generation) return false
@@ -1136,6 +1156,11 @@ export async function acknowledgePending(
         return
       }
       const settings = normalizeSettings(request.result as Settings | undefined)
+      if (!cloudScopeCurrent(expect.scope, settings)) {
+        aborted = true
+        tx.abort()
+        return
+      }
       if (item.kind === 'settings') {
         if (settings.pending.settings) settings.pending.settings = applyAck(settings.pending.settings, item.revision)
       } else if (item.kind === 'progress' || item.kind === 'activity') {
@@ -1170,7 +1195,7 @@ export async function acknowledgePending(
 }
 
 /** Attach schedules that were copied before the matching cards existed. */
-export async function applyStagedProgress(): Promise<void> {
+export async function applyStagedProgress(scope?: CloudScope): Promise<void> {
   const { lock, name } = namesFor()
   const db = await openDb(name)
   try {
@@ -1178,8 +1203,8 @@ export async function applyStagedProgress(): Promise<void> {
     const tx = db.transaction(['cards', 'settings', 'activity'], 'readwrite')
     const current = await load(tx)
     const staged = current.settings.stagedProgress
-    if (!staged || !studyLockCurrent(lock)) {
-      if (!studyLockCurrent(lock)) tx.abort()
+    if (!staged || !studyLockCurrent(lock) || !cloudScopeCurrent(scope, current.settings)) {
+      if (!studyLockCurrent(lock) || !cloudScopeCurrent(scope, current.settings)) tx.abort()
       await current.done.catch(() => {})
       return
     }

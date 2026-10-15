@@ -80,18 +80,19 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     if (!studyLockCurrent(lock)) return 'idle'
     await recordAssignedDeck(deckId)
     if (!studyLockCurrent(lock)) return 'idle'
+    const scope = { lock, deckId }
     const docs = await pullCloud(db, uid, deckId)
     if (!studyLockCurrent(lock)) return 'idle'
     const files = docsToFiles(docs, uid, 0)
-    await mergeDeckIntoDb(files.deck)
+    await mergeDeckIntoDb(files.deck, undefined, scope)
     if (!studyLockCurrent(lock)) return 'idle'
-    await mergeProgressIntoDb(files.user)
+    await mergeProgressIntoDb(files.user, undefined, scope)
     if (!studyLockCurrent(lock)) return 'idle'
     await insertMissingSeeds(seedCards())
     if (!studyLockCurrent(lock)) return 'idle'
-    await applyStagedProgress()
+    await applyStagedProgress(scope)
     if (!studyLockCurrent(lock)) return 'idle'
-    const snapshot = await readCloudSnapshot()
+    const snapshot = await readCloudSnapshot(scope)
     if (!snapshot || !studyLockCurrent(lock)) return 'idle'
     const result = await runDirtyQueue(listPushItems(snapshot.settings.pending), {
       locked: () => {
@@ -100,12 +101,12 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
       },
       push: (item) => pushLoaded(db, uid, deckId, snapshot, item),
       ack: async (item) => {
-        const applied = await acknowledgePending(item, { uid, generation: lock.generation })
+        const applied = await acknowledgePending(item, { uid, generation: lock.generation, scope })
         if (!applied) throw new Error('acknowledgement refused')
       },
     })
     if (!studyLockCurrent(lock)) return 'idle'
-    const after = await readCloudSnapshot()
+    const after = await readCloudSnapshot(scope)
     if (!after) return 'idle'
     const dirty = hasDirty(after.settings.pending)
     if (result.rejected.length) {
@@ -117,7 +118,7 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
       if (result.clean && dirty && studyLockCurrent(lock)) control.requestAgain()
       return 'pending'
     }
-    const newerChanges = await acknowledgeRevision(after.settings.localRevision)
+    const newerChanges = await acknowledgeRevision(after.settings.localRevision, undefined, scope)
     if (!studyLockCurrent(lock)) return 'idle'
     if (newerChanges) {
       control.requestAgain()

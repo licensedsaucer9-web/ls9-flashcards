@@ -66,6 +66,7 @@ import { recoveryBridge, rehearsalPreview } from './rehearsal.ts'
 import { buildInfo } from './build-info.ts'
 import {
   bootSync,
+  deckSelectionChanged,
   onSyncStatus,
   pauseSync,
   schedulePush,
@@ -599,6 +600,7 @@ async function renderDecks() {
       toast('Could not create the deck')
       return
     }
+    deckSelectionChanged(false)
     toast(`Switched to ${created.name}`)
     go('/')
   })
@@ -609,7 +611,7 @@ async function renderDecks() {
         return
       }
       // Returning to the original deck resumes its pending cloud sync right away.
-      if (deckSyncs(await getActiveDeck())) schedulePush()
+      deckSelectionChanged(deckSyncs(await getActiveDeck()))
       go('/')
     })
   })
