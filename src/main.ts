@@ -834,7 +834,8 @@ async function renderEdit(id: string | null) {
     }
     const now = Date.now()
     if (c) {
-      // Re-read so a foreground merge cannot lose remote SRS or resurrect a deletion.
+      // Re-read so a foreground merge cannot lose remote SRS or hidden extras,
+      // or resurrect a deletion.
       const fresh = await getCard(c.id)
       if (!fresh) {
         toast('Card was deleted')
@@ -845,11 +846,11 @@ async function renderEdit(id: string | null) {
         ...fresh,
         de,
         en,
-        article,
+        article: activeDeck.articles ? article : fresh.article,
         example_de,
         example_en,
-        tags,
-        tier,
+        tags: activeDeck.supportsWordTypes ? tags : tagsWithoutTypeEdit(tagsField, fresh.tags),
+        tier: activeDeck.tiers ? tier : fresh.tier,
       })
       await putCard(card)
       pushSoon()

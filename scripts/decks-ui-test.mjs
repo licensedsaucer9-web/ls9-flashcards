@@ -633,6 +633,34 @@ try {
     assert.deepEqual(saved.srs, card.srs)
   }
   assert.deepEqual(hiddenEdit.activity, untypedFixture.activity)
+  // Simulate a foreground merge after the editor captures its initial card.
+  await page.locator('.card-list .card-row').first().click()
+  await page.waitForSelector('#form')
+  const mergedCard = await page.evaluate(async () => {
+    const db = await import('/src/db.ts')
+    const id = decodeURIComponent(location.hash.split('/').at(-1))
+    const card = await db.getCard(id)
+    const fresh = {
+      ...card,
+      article: card.article === 'das' ? 'die' : 'das',
+      tags: ['verb', 'adj', 'merged-tag'],
+      tier: card.tier === 2 ? 1 : 2,
+      srs: { ...card.srs, due: Date.now() + 86400000 },
+      updated_at: Date.now(),
+    }
+    await db.putCard(fresh)
+    return fresh
+  })
+  await page.locator('[name="en"]').fill('Edited while extras are hidden')
+  await page.locator('[name="tags"]').fill('edited-tag')
+  await page.click('#form [type="submit"]')
+  await page.waitForSelector('#search')
+  const savedAfterMerge = await page.evaluate(async id => (await import('/src/db.ts')).getCard(id), mergedCard.id)
+  assert.equal(savedAfterMerge.en, 'Edited while extras are hidden')
+  assert.equal(savedAfterMerge.article, mergedCard.article, 'hidden article preserves foreground metadata')
+  assert.deepEqual(savedAfterMerge.tags, ['verb', 'adj', 'edited-tag'], 'hidden types preserve foreground metadata while visible tags remain editable')
+  assert.equal(savedAfterMerge.tier, mergedCard.tier, 'hidden tier preserves foreground metadata')
+  assert.deepEqual(savedAfterMerge.srs, mergedCard.srs, 'editing preserves foreground progress')
   await tab('Decks', '#/decks', 'Decks')
   for (const key of ['articles', 'supportsWordTypes', 'tiers']) await feature(key, true)
   assert.equal(await page.locator('[data-word-type]').count(), 4, 'enabling Word types restores chips')
