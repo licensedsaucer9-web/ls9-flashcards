@@ -52,7 +52,8 @@ export interface LocalDeck {
   articles: boolean
   wordTypes: boolean
   tiers: boolean
-  origin: 'original'
+  /** The German deck mirrors the account's cloud deck. Created decks stay on this device. */
+  origin: 'original' | 'local'
 }
 
 export interface Settings {

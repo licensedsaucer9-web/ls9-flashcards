@@ -12,7 +12,7 @@ import {
 import { newSrs, review } from './srs.ts'
 import { deviceTimeZone, mergeReviewActivity, parseStoredReviewActivity, streakTimeZone, validReviewEvent, type ReviewActivity, type ReviewEvent } from './streak.ts'
 import { validateCard, validateMapping, validateSettings, validateSrs, validateTombstones } from './migration-data.ts'
-import { captureStudyLock, hasStudyBinding, studyLockCurrent, type StudyLock } from './study-lock.ts'
+import { bumpStudyGeneration, captureStudyLock, hasStudyBinding, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { inSelectedTier, tierOf } from './tiers.ts'
 import { inSelectedWordTypes, normalizeWordTypes, sameWordTypes } from './word-types.ts'
 import { accountDatabaseName, activeUserSlug, dbNameForUser, hasMigrated, LEGACY_DB_NAME, listUsers, markMigrated } from './user.ts'
@@ -202,6 +202,79 @@ export async function getDecks(): Promise<LocalDeck[]> {
     }]
     const decks = await value(db.transaction('decks', 'readonly').objectStore('decks').getAll()) as LocalDeck[]
     return studyLockCurrent(lock) ? decks : []
+  } finally { db.close() }
+}
+
+/** The deck this device is studying. Its id lives only in local settings. */
+export async function getActiveDeck(): Promise<LocalDeck | undefined> {
+  const [decks, settings] = await Promise.all([getDecks(), getSettings()])
+  return decks.find(deck => deck.id === settings.activeDeckId)
+}
+
+/** Card counts per deck, grouped by the same deck id that scopes reviews. */
+export async function getDeckCardCounts(): Promise<Map<string, number>> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name, false)
+  try {
+    if (!studyLockCurrent(lock)) return new Map()
+    const tx = db.transaction(['cards', 'settings'], 'readonly')
+    const [cards, stored] = await Promise.all([
+      value(tx.objectStore('cards').getAll()) as Promise<Card[]>,
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
+    ])
+    if (!studyLockCurrent(lock)) return new Map()
+    const activeId = normalizeSettings(stored).activeDeckId
+    const counts = new Map<string, number>()
+    for (const card of cards) {
+      const id = card.deckId || activeId
+      counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+    return counts
+  } finally { db.close() }
+}
+
+/** Create an empty local deck and make it the active deck in one transaction. */
+export async function createLocalDeck(name: string, targetLang: string): Promise<LocalDeck | null> {
+  const { lock, name: dbName } = namesFor()
+  const db = await openDb(dbName)
+  try {
+    if (!studyLockCurrent(lock)) return null
+    const tx = db.transaction(['decks', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const stored = await value(tx.objectStore('settings').get('settings')) as Settings | undefined
+    if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return null }
+    const deck: LocalDeck = {
+      id: crypto.randomUUID(), name, targetLang, baseLang: 'English',
+      articles: false, wordTypes: false, tiers: false, origin: 'local',
+    }
+    tx.objectStore('decks').add(deck)
+    tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deck.id })
+    await done
+    if (!studyLockCurrent(lock)) return null
+    // Any sync pass started against the previous deck must not merge or push now.
+    bumpStudyGeneration()
+    return deck
+  } finally { db.close() }
+}
+
+/** Local selection only: no revision, no pending mark, no cloud write. */
+export async function switchActiveDeck(deckId: string): Promise<boolean> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return false
+    const tx = db.transaction(['decks', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const [deck, stored] = await Promise.all([
+      value(tx.objectStore('decks').get(deckId)) as Promise<LocalDeck | undefined>,
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
+    ])
+    if (!deck || !studyLockCurrent(lock)) { await done.catch(() => {}); return false }
+    tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deck.id })
+    await done
+    if (!studyLockCurrent(lock)) return false
+    bumpStudyGeneration()
+    return true
   } finally { db.close() }
 }
 

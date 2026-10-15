@@ -1,10 +1,15 @@
 import { cardToDoc, progressToDoc, settingsToDoc, type CardDoc, type ProgressDoc, type SettingsDoc } from './firestore-docs.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
-import type { Card, CardContent, DeckFile, PendingRecords, PublicSettings, RecordMark, Srs } from './types.ts'
+import type { Card, CardContent, DeckFile, LocalDeck, PendingRecords, PublicSettings, RecordMark, Srs } from './types.ts'
 import { normalizeWordTypes, sameWordTypes } from './word-types.ts'
 
 /** Strictly under Firestore's 500-write transaction cap. */
 export const WRITE_CHUNK = 499
+
+/** Only the original deck is mirrored to the account's cloud deck. Other decks stay on this device. */
+export function deckSyncs(deck: Pick<LocalDeck, 'origin'> | undefined): boolean {
+  return deck?.origin === 'original'
+}
 
 export function emptyPending(): PendingRecords {
   return { cards: {}, tombstones: {}, progress: {}, settings: null }
