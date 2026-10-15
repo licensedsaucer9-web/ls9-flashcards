@@ -540,7 +540,7 @@ try {
   assert.equal(secondDeck.cards.length, 3, 'editor plus two CSV rows; repeated import skips duplicates')
   assert(secondDeck.cards.every(card => card.deckId === secondDeck.id && card.srs.reps === 0 && card.srs.due <= Date.now()), 'second-deck cards have ownership and are immediately due')
   assert(secondDeck.cards.some(card => card.de === sharedPair.de && card.en === sharedPair.en), 'same pair exists in both decks')
-  await tab('Review', '#/', 'French')
+  await tab('Review', '#/', 'French fixture')
   await page.fill('#session-custom', '5')
   await page.locator('#session-custom').dispatchEvent('change')
   await page.waitForFunction(async () => (await (await import('/src/db.ts')).getSettings()).sessionSize === 5)
