@@ -201,6 +201,16 @@ cannot undo a review and assembling a snapshot does not refresh settings.
 These are wall-clock decisions. Clock skew and simultaneous reviews of the
 same card remain limitations; there is no review-event merge.
 
+## Tab navigation
+
+The primary tabs are Review, Decks, Cards, and Settings, in that order. Their
+hash routes remain `#/`, `#/decks`, `#/deck`, and `#/settings`. A single-finger
+horizontal swipe in the main content moves to the adjacent tab through normal
+hash navigation, with no wrapping at either end. Swipes require at least 60 CSS
+pixels and horizontal movement at least 1.5 times the vertical movement. Vertical
+scrolling, form controls, cancelled gestures, and screens with hidden tabs do not
+switch tabs. Mouse navigation remains click-only.
+
 ## Scheduling and recovery limits
 
 The scheduler is SM-2-style: first Hard/Good = 1 day, second Good = 6 days,

@@ -243,6 +243,7 @@ function syncLineText(): string {
 }
 
 function setTabbar(active: 'home' | 'deck' | 'decks' | 'settings' | 'none') {
+  tabSwipe = null
   const show = active !== 'none'
   app.classList.toggle('has-tabbar', show)
   tabbar.hidden = !show
@@ -268,12 +269,60 @@ function iconSettings() {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg>`
 }
 
-tabbar.innerHTML = `
-  <a class="tab" data-tab="home" href="#/">${iconReview()}Review</a>
-  <a class="tab" data-tab="deck" href="#/deck">${iconCards()}Cards</a>
-  <a class="tab" data-tab="decks" href="#/decks">${iconDeck()}Decks</a>
-  <a class="tab" data-tab="settings" href="#/settings">${iconSettings()}Settings</a>
-`
+// One order drives both the visible tabs and touch navigation. Route hashes stay stable.
+const PRIMARY_TABS = [
+  { name: 'home', path: '/', label: 'Review', icon: iconReview },
+  { name: 'decks', path: '/decks', label: 'Decks', icon: iconDeck },
+  { name: 'deck', path: '/deck', label: 'Cards', icon: iconCards },
+  { name: 'settings', path: '/settings', label: 'Settings', icon: iconSettings },
+] as const
+
+tabbar.innerHTML = PRIMARY_TABS.map((tab) =>
+  `<a class="tab" data-tab="${tab.name}" href="#${tab.path}">${tab.icon()}${tab.label}</a>`,
+).join('')
+
+let tabSwipe: { id: number; x: number; y: number; hash: string } | null = null
+
+main.addEventListener('touchstart', (event) => {
+  tabSwipe = null
+  if (!app.classList.contains('has-tabbar') || event.touches.length !== 1) return
+  // Preserve text selection, sliders and other native form interactions.
+  if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable]')) return
+  const finger = event.touches[0]!
+  tabSwipe = { id: finger.identifier, x: finger.clientX, y: finger.clientY, hash: location.hash }
+}, { passive: true })
+
+main.addEventListener('touchmove', (event) => {
+  if (!tabSwipe) return
+  const finger = event.touches[0]
+  if (event.touches.length !== 1 || !finger || finger.identifier !== tabSwipe.id) {
+    tabSwipe = null
+    return
+  }
+  // Once scrolling vertically, do not turn that gesture into navigation later.
+  const dx = Math.abs(finger.clientX - tabSwipe.x)
+  const dy = Math.abs(finger.clientY - tabSwipe.y)
+  if (dy > 12 && dy >= dx) tabSwipe = null
+}, { passive: true })
+
+main.addEventListener('touchcancel', () => { tabSwipe = null }, { passive: true })
+main.addEventListener('touchend', (event) => {
+  const start = tabSwipe
+  tabSwipe = null
+  if (!start || event.touches.length || !app.classList.contains('has-tabbar') || location.hash !== start.hash) return
+  const finger = Array.from(event.changedTouches).find((touch) => touch.identifier === start.id)
+  if (!finger) return
+  const dx = finger.clientX - start.x
+  const dy = finger.clientY - start.y
+  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+  const index = PRIMARY_TABS.findIndex((tab) => tab.name === parseRoute().name)
+  if (index < 0) return
+  const next = PRIMARY_TABS[index + (dx < 0 ? 1 : -1)]
+  if (!next) return
+  // Suppress a compatibility click on the content under the completed swipe.
+  event.preventDefault()
+  go(next.path)
+}, { passive: false })
 
 async function renderHome() {
   const lock = captureStudyLock()

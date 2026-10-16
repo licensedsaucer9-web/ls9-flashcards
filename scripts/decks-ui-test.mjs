@@ -18,7 +18,7 @@ try {
     executablePath: process.env.CHROME || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()),
     headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'],
   })
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' })
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: 'block' })
   const externalRequests = []
   await context.route('**/*', route => {
     if (new URL(route.request().url()).hostname === '127.0.0.1') return route.continue()
@@ -314,13 +314,95 @@ try {
   const before = await snapshot()
   assert.equal(before.cards.length, 514)
   assert.equal(Object.keys(before.activity).length, 1)
-  assert.deepEqual(await page.locator('#tabbar .tab').allTextContents(), ['Review', 'Cards', 'Decks', 'Settings'])
+  assert.deepEqual(await page.locator('#tabbar .tab').allTextContents(), ['Review', 'Decks', 'Cards', 'Settings'])
   async function tab(name, hash, heading) {
     await page.locator('#tabbar .tab').filter({ hasText: new RegExp(`^${name}$`) }).click()
     await page.waitForFunction(({ hash, heading }) => location.hash === hash && document.querySelector('h1')?.textContent === heading, { hash, heading })
     assert.equal(await page.locator('#tabbar .is-active').textContent(), name)
     assert.equal(await page.getByText('FOREIGN_FIXTURE_64', { exact: true }).count(), 0, 'foreign card never appears in UI')
   }
+  // Real Chromium touch input exercises routing, native scrolling and click suppression.
+  const touch = await context.newCDPSession(page)
+  async function swipe(dx, dy = 0, { selector = 'h1', cancel = false } = {}) {
+    const bounds = await page.waitForFunction(selector => {
+      const el = document.querySelector(selector)
+      if (!el) return null
+      const { x, y, width, height } = el.getBoundingClientRect()
+      return width && height ? { x, y, width, height } : null
+    }, selector)
+    const box = await bounds.jsonValue()
+    const x = dx < 0 ? 280 : 100
+    const y = box.y + box.height / 2
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+    for (let step = 1; step <= 5; step++) {
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + dx * step / 5, y: y + dy * step / 5 }] })
+    }
+    await touch.send('Input.dispatchTouchEvent', { type: cancel ? 'touchCancel' : 'touchEnd', touchPoints: [] })
+  }
+  async function activeTab(name, hash) {
+    await page.waitForFunction(({ name, hash }) => location.hash === hash
+      && document.querySelector('#tabbar .is-active')?.textContent === name, { name, hash }, { timeout: 5000 }).catch(async error => {
+      throw new Error(`${name} ${hash}: actual ${page.url()}, active ${await page.locator('#tabbar .is-active').textContent()}`, { cause: error })
+    })
+  }
+  await page.goto('http://127.0.0.1:4182/#/')
+  await page.waitForSelector('#start')
+  await swipe(140)
+  await activeTab('Review', '#/') // No wrapping at the first tab.
+  await swipe(-140)
+  await activeTab('Decks', '#/decks')
+  await page.waitForSelector('#new-deck')
+  await swipe(-140)
+  await activeTab('Cards', '#/deck')
+  await page.waitForSelector('#search')
+  // A horizontal drag in a text field must retain the current route.
+  await swipe(-100, 0, { selector: '#search' })
+  await activeTab('Cards', '#/deck')
+  await swipe(-25)
+  await activeTab('Cards', '#/deck')
+  await swipe(-140, 0, { cancel: true })
+  await activeTab('Cards', '#/deck')
+  await swipe(-140)
+  await activeTab('Settings', '#/settings')
+  await swipe(-140)
+  await activeTab('Settings', '#/settings') // No wrapping at the last tab.
+  await page.goBack()
+  await activeTab('Cards', '#/deck')
+  await page.waitForSelector('#search')
+  await swipe(140)
+  await activeTab('Decks', '#/decks')
+  await page.waitForSelector('#new-deck')
+  await swipe(140)
+  await activeTab('Review', '#/')
+  // Mouse drags retain desktop behavior, even in this touch-capable browser.
+  await page.mouse.move(280, 100)
+  await page.mouse.down()
+  await page.mouse.move(100, 100, { steps: 5 })
+  await page.mouse.up()
+  await activeTab('Review', '#/')
+  await page.click('#start')
+  await page.waitForSelector('#card')
+  assert.equal(await page.locator('#tabbar').isVisible(), false)
+  await swipe(-140, 0, { selector: '.topbar' })
+  assert.equal(new URL(page.url()).hash, '#/review', 'study session ignores tab swipes')
+  await page.click('#back')
+  await page.waitForSelector('#start')
+  await tab('Cards', '#/deck', 'Cards')
+  for (const [link, ready, hash] of [
+    ['#/card/new', '#form', '#/card/new'], ['#/import', '#paste', '#/import'],
+  ]) {
+    await page.click(`a[href="${link}"]`)
+    await page.waitForSelector(ready)
+    await swipe(-140)
+    assert.equal(new URL(page.url()).hash, hash, 'hidden-tab screen ignores swipes')
+    await page.click('#back')
+    await page.waitForSelector('#search')
+  }
+  const scrollBefore = await page.evaluate(() => document.scrollingElement.scrollTop)
+  await swipe(-65, -230, { selector: '.card-list li:nth-child(5) .card-row' })
+  await activeTab('Cards', '#/deck')
+  assert(await page.evaluate(before => document.scrollingElement.scrollTop > before, scrollBefore), 'vertical list gesture scrolls without changing tabs')
+  await touch.detach()
   async function assertDeckCount(count) {
     assert.equal(await page.locator('#main .card-row').count(), 1)
     assert.equal(await page.locator('#main .de').textContent(), 'German')
@@ -881,7 +963,7 @@ try {
   assert.deepEqual(guards, { original: false, blank: false, tooLong: false, last: false, count: 1 })
   assert.deepEqual(errors, [], 'no browser errors')
   assert.deepEqual(externalRequests, [], 'no external service access')
-  console.log('decks-ui: v2/v3 card and tombstone upgrades, deck-isolated reads/writes/counts/sync, original-only seed insertion, four tabs, distinct routes, deck count, Decks-only saved tier/direction/word-type controls, unsaved Cards filters, Review-only session size, Settings content, persisted review filters, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')
+  console.log('decks-ui: v2/v3 card and tombstone upgrades, deck-isolated reads/writes/counts/sync, original-only seed insertion, four ordered tabs, native touch swipes, boundaries, history, vertical scrolling, hidden-screen and mouse guards, distinct routes, deck count, Decks-only saved tier/direction/word-type controls, unsaved Cards filters, Review-only session size, Settings content, persisted review filters, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()
