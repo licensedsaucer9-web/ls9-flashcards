@@ -2,6 +2,7 @@ import { collection, doc, getDoc, getDocs, runTransaction, setDoc, type Firestor
 import type { CardContent, PublicSettings, Srs } from './types.ts'
 import type { CardDoc, CloudDocs, ProgressDoc, SettingsDoc } from './firestore-docs.ts'
 import { planCardWrite, planProgressWrite, planSettingsWrite } from './record-sync.ts'
+import { newSrs } from './srs.ts'
 import { filterReviewEvents, validReviewEvent, type ReviewEvent } from './streak.ts'
 
 function asCard(data: unknown): CardDoc | null {
@@ -123,7 +124,10 @@ export async function commitProgress(
   extraDeckId?: string,
 ): Promise<'wrote' | 'noop'> {
   const ref = extraDeckId ? doc(db, 'users', uid, 'decks', extraDeckId, 'progress', id) : doc(db, 'users', uid, 'progress', id)
-  if (extraDeckId && local && !local.updated_at && local.reps === 0 && local.interval === 0) return 'noop'
+  // Editor/CSV creation stamps updated_at too. The initial schedule, rather
+  // than that clock, identifies an unstudied card. Again/Gender lower ease
+  // even though they also leave reps and interval at zero.
+  if (extraDeckId && local && local.ease === newSrs(0).ease && local.reps === 0 && local.interval === 0) return 'noop'
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(ref)
     const remote = snap.exists() ? asProgress(snap.data()) : null
