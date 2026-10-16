@@ -19,12 +19,17 @@ try {
       if (id.endsWith('/src/cloud-handle.ts')) return 'export function cloudFirestore() { return {} }'
       if (id.endsWith('/src/cloud-push.ts')) return `
         export async function accountDeckId() { return 'fixture-original' }
+        export async function ensureExtraDeck() {}
+        export async function pullDeckCards() { return [] }
         export async function pullCloud() {
           globalThis.pullStarted = true
           if (globalThis.waitForPull) await new Promise(resolve => { globalThis.releasePull = resolve })
           return globalThis.cloudDocs
         }
-        const commit = async (...args) => { globalThis.pushes.push(args); return 'wrote' }
+        const commit = async (...args) => {
+          if (globalThis.rejectDeck === args[1]) throw { code: 'permission-denied' }
+          globalThis.pushes.push(args); return 'wrote'
+        }
         export const commitCard = commit, commitProgress = commit, commitSettings = commit, commitActivity = commit
       `
     },
@@ -59,8 +64,8 @@ try {
       cards: [{ ...sample, id: 'fixture-remote', updated_at: 100 }], deleted_ids: {} }
     globalThis.cloudDocs = filesToDocs(globalThis.remote, null)
     globalThis.pushes = []; globalThis.waitForPull = true
-    const sync = await import('/src/sync.ts')
-    globalThis.pass = sync.syncNow()
+    const sync = await import('/src/cloud-sync.ts')
+    globalThis.pass = sync.cloudSyncPass({ requestAgain() {} })
   })
   await a.waitForFunction(() => globalThis.pullStarted)
   const localId = await b.evaluate(async () => {
@@ -74,17 +79,16 @@ try {
     const locks = await import('/src/study-lock.ts')
     const originalLockStillValid = locks.studyLockCurrent(globalThis.scope.lock)
     globalThis.releasePull()
-    await globalThis.pass
+    const outcome = await globalThis.pass
     const { getSyncStatus } = await import('/src/sync.ts')
-    return { originalLockStillValid, status: getSyncStatus(), cards: await api.getAllCards(), pushes: globalThis.pushes.length,
+    return { outcome, originalLockStillValid, status: getSyncStatus(), cards: await api.getAllCards(), pushes: globalThis.pushes.length,
       active: (await api.getSettings()).activeDeckId }
   })
   assert.equal(result.originalLockStillValid, true, 'reproduces a foreign-tab switch without local generation invalidation')
   assert.equal(result.active, localId)
   assert.deepEqual(result.cards, [], 'the new local deck must not receive cloud cards')
   assert.equal(result.pushes, 0, 'a switched-away pass never pushes local data')
-  assert.deepEqual(result.status, { state: 'idle', message: 'On this device', at: null },
-    'the originating tab must settle on device-only status after the foreign-tab switch')
+  assert.equal(result.outcome, 'idle', 'the switched-away pass must stop')
 
   // The guards must also hold between stages, not just before/after the fetch.
   const guards = await a.evaluate(async () => {
@@ -133,6 +137,37 @@ try {
   assert.equal(returned.direction, 'de-en')
   assert.equal(returned.tier, 3)
   assert.deepEqual(returned.wordTypes, ['verb'])
+  const extra = await a.evaluate(async () => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    const { listPushItems, hasDirty } = await import('/src/record-sync.ts')
+    const { captureStudyLock } = await import('/src/study-lock.ts')
+    const deckId = (await api.getSettings()).activeDeckId
+    const snapshot = await api.readCloudSnapshot({ lock: captureStudyLock(), deckId })
+    const item = listPushItems(snapshot.settings.pending, deckId).find(item => item.kind === 'card')
+    const wrongAck = await api.acknowledgePending({ ...item, deckId: 'fixture-original' },
+      { uid: 'fixture-user', generation: captureStudyLock().generation, scope: { lock: captureStudyLock(), deckId } })
+    globalThis.pushes = []
+    const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
+    return { outcome, wrongAck, pushes: globalThis.pushes, dirty: hasDirty((await api.readCloudSnapshot()).settings.pending) }
+  })
+  assert.equal(extra.outcome, 'synced')
+  assert.equal(extra.wrongAck, false, 'an acknowledgement naming the other deck is refused')
+  assert.equal(extra.dirty, false, 'extra-deck schedules are local and do not keep cloud sync pending')
+  assert.equal(extra.pushes.length, 1, 'extra-deck sync sends card content only')
+  assert.equal(extra.pushes[0][1], localId)
+  assert.equal(extra.pushes[0][2], 'fixture-local')
+  const deniedExtra = await a.evaluate(async () => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    const local = (await api.getAllCards())[0]
+    await api.putCard({ ...local, en: 'edited locally', updated_at: Date.now() })
+    globalThis.rejectDeck = (await api.getSettings()).activeDeckId
+    const denied = await cloud.cloudSyncPass({ requestAgain() {} })
+    await api.switchActiveDeck('fixture-original')
+    const original = await cloud.cloudSyncPass({ requestAgain() {} })
+    return { denied, original }
+  })
+  assert.equal(deniedExtra.denied.state, 'rejected')
+  assert.equal(deniedExtra.original, 'synced', 'a rejected extra deck does not block German orchestration')
   assert(resumed.ids.includes('fixture-remote'))
   assert(!resumed.ids.includes('fixture-local'))
   assert.deepEqual(external, [])

@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, runTransaction, type Firestore } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, runTransaction, setDoc, type Firestore } from 'firebase/firestore'
 import type { CardContent, PublicSettings, Srs } from './types.ts'
 import type { CardDoc, CloudDocs, ProgressDoc, SettingsDoc } from './firestore-docs.ts'
 import { planCardWrite, planProgressWrite, planSettingsWrite } from './record-sync.ts'
@@ -31,6 +31,26 @@ export async function accountDeckId(db: Firestore, uid: string): Promise<string>
   const deckId = snap.exists() ? (snap.data() as { deckId?: unknown }).deckId : null
   if (typeof deckId !== 'string' || deckId === '') throw new Error('Account is missing a deck')
   return deckId
+}
+
+/** Creation is allowed without a read; rules deny reads of a missing deck. */
+export async function ensureExtraDeck(db: Firestore, uid: string, deckId: string): Promise<void> {
+  const ref = doc(db, 'decks', deckId)
+  try {
+    await setDoc(ref, { ownerUid: uid, memberUids: [uid] })
+  } catch (error) {
+    // Existing decks are immutable. Verify access without replacing their metadata.
+    const existing = await getDoc(ref)
+    if (!existing.exists() || existing.data().ownerUid !== uid) throw error
+  }
+}
+
+export async function pullDeckCards(db: Firestore, deckId: string): Promise<CloudDocs['cards']> {
+  const snap = await getDocs(collection(db, 'decks', deckId, 'cards'))
+  return snap.docs.flatMap(item => {
+    const data = asCard(item.data())
+    return data ? [{ id: item.id, data }] : []
+  })
 }
 
 export async function pullCloud(db: Firestore, uid: string, deckId: string): Promise<CloudDocs> {

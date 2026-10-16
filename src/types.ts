@@ -52,7 +52,7 @@ export interface LocalDeck extends PublicSettings {
   articles: boolean
   supportsWordTypes: boolean
   tiers: boolean
-  /** The German deck mirrors the account's cloud deck. Created decks stay on this device. */
+  /** The German deck mirrors the account's cloud deck. Created decks sync cards only. */
   origin: 'original' | 'local'
 }
 
@@ -94,6 +94,8 @@ export interface Settings {
 export interface RecordMark {
   revision: number
   acked: number
+  /** Owning deck; older original-deck markers may omit it. */
+  deckId?: string
 }
 
 export interface PendingRecords {

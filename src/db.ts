@@ -408,6 +408,11 @@ export async function recordAssignedDeck(deckId: string): Promise<void> {
       tx.objectStore('decks').put({ ...deck, id: deckId })
       const cards = await value(tx.objectStore('cards').getAll()) as Card[]
       for (const card of cards) if (card.deckId === deck.id) tx.objectStore('cards').put({ ...card, deckId })
+      if (stored?.pending) {
+        for (const marks of [stored.pending.cards, stored.pending.tombstones, stored.pending.progress]) {
+          for (const mark of Object.values(marks)) if (mark.deckId === deck.id) mark.deckId = deckId
+        }
+      }
       if (stored?.deletedDeckIds) {
         for (const [id, owner] of Object.entries(stored.deletedDeckIds)) if (owner === deck.id) stored.deletedDeckIds[id] = deckId
       }
@@ -778,8 +783,8 @@ export async function getCard(id: string): Promise<Card | undefined> {
 }
 
 function noteCardWrite(settings: Settings, previous: Card | undefined, next: Card, rev: number): void {
-  if (contentChanged(previous, next)) settings.pending.cards[next.id] = bumpMark(settings.pending.cards[next.id], rev)
-  if (progressChanged(previous, next)) settings.pending.progress[next.id] = bumpMark(settings.pending.progress[next.id], rev)
+  if (contentChanged(previous, next)) settings.pending.cards[next.id] = { ...bumpMark(settings.pending.cards[next.id], rev), deckId: next.deckId ?? settings.activeDeckId }
+  if (progressChanged(previous, next)) settings.pending.progress[next.id] = { ...bumpMark(settings.pending.progress[next.id], rev), deckId: next.deckId ?? settings.activeDeckId }
 }
 
 /**
@@ -938,7 +943,7 @@ export async function deleteCard(id: string, deletedAt = Date.now()): Promise<vo
       store.delete(id)
       settings.deletedIds[id] = Math.max(settings.deletedIds[id] || 0, deletedAt)
       ;(settings.deletedDeckIds ??= {})[id] = settings.activeDeckId
-      settings.pending.tombstones[id] = bumpMark(settings.pending.tombstones[id], settings.localRevision + 1)
+      settings.pending.tombstones[id] = { ...bumpMark(settings.pending.tombstones[id], settings.localRevision + 1), deckId: settings.activeDeckId }
       settings.localRevision += 1
       tx.objectStore('settings').put(settings)
     }
@@ -1203,6 +1208,7 @@ export async function readCloudSnapshot(scope?: CloudScope): Promise<CloudSnapsh
       await done.catch(() => {})
       return null
     }
+    const deck = await value(tx.objectStore('decks').get(settings.activeDeckId)) as LocalDeck | undefined
     await done
     if (!studyLockCurrent(lock)) return null
     const scoped = activeCards(cards, settings)
@@ -1212,6 +1218,11 @@ export async function readCloudSnapshot(scope?: CloudScope): Promise<CloudSnapsh
     settings.pending.cards = Object.fromEntries(Object.entries(settings.pending.cards).filter(([id]) => ids.has(id)))
     settings.pending.progress = Object.fromEntries(Object.entries(settings.pending.progress).filter(([id]) => ids.has(id)))
     settings.pending.tombstones = Object.fromEntries(Object.entries(settings.pending.tombstones).filter(([id]) => Object.hasOwn(tombstones, id)))
+    if (deck?.origin !== 'original') {
+      settings.pending.progress = {}
+      settings.pending.settings = null
+      settings.pending.activity = {}
+    }
     return { cards: new Map(scoped.map((card) => [card.id, card])), settings, activity }
   } finally {
     db.close()
@@ -1244,7 +1255,10 @@ export async function acknowledgePending(
         return
       }
       const settings = normalizeSettings(request.result as Settings | undefined)
-      if (!cloudScopeCurrent(expect.scope, settings)) {
+      if (!cloudScopeCurrent(expect.scope, settings)
+        || (item.deckId !== undefined && item.deckId !== settings.activeDeckId)
+        || (item.kind === 'card' && [settings.pending.cards[item.id], settings.pending.tombstones[item.id]]
+          .some(mark => mark?.deckId !== undefined && mark.deckId !== (item.deckId ?? expect.scope?.deckId ?? settings.activeDeckId)))) {
         aborted = true
         tx.abort()
         return
