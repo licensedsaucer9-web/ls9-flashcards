@@ -71,8 +71,46 @@ try {
   const dumpPath = join(directory, 'backup.json')
   const exported = await exportFirestore(source, dumpPath)
   const plan = readFirestoreBackup(dumpPath)
+  const legacy = JSON.parse(readFileSync(dumpPath, 'utf8'))
+  legacy.version = 1
+  for (const user of Object.values(legacy.users)) { delete user.decks; delete user.activity }
+  const legacyPlan = prepareRestore(resign(legacy))
+  const legacyTarget = memoryStore()
+  assert.equal((await runRestore(legacyPlan, legacyTarget, { dryRun: false, projectId })).state, 'restored and verified')
+  assert.equal(legacyPlan.counts.decks, 1)
+  assert.equal(legacyPlan.counts.activity, 0)
+  for (const item of legacyPlan.items) assert.deepEqual(legacyTarget.records.get(item.path), source.records.get(item.path))
+
   assert.equal(plan.counts.activity, 1)
   assert.equal(plan.items.find(item => item.path === `users/uid-alice/activity/${activityId}`).data.timeZone, 'Europe/Oslo')
+  const multiDump = JSON.parse(readFileSync(dumpPath, 'utf8'))
+  const extraId = '00000000-0000-4000-8000-000000000074'
+  multiDump.decks[extraId] = {
+    deck: { ownerUid: 'uid-alice', memberUids: ['uid-alice'] },
+    cards: structuredClone(multiDump.decks['legacy-deck'].cards),
+  }
+  multiDump.users['uid-alice'].decks[extraId] = {
+    settings: { ...multiDump.users['uid-alice'].settings, wordTypes: ['verb'] },
+    progress: structuredClone(multiDump.users['uid-alice'].progress),
+  }
+  const multiPlan = prepareRestore(resign(multiDump))
+  const multiTarget = memoryStore()
+  assert.equal((await runRestore(multiPlan, multiTarget, { dryRun: false, projectId })).state, 'restored and verified')
+  assert.equal(multiPlan.counts.decks, 2)
+  for (const item of multiPlan.items) assert.deepEqual(multiTarget.records.get(item.path), item.data)
+  assert.equal((await runRestore(multiPlan, multiTarget, { dryRun: false, projectId })).state, 'already restored')
+  const invalidOwner = structuredClone(multiDump)
+  invalidOwner.decks[extraId].deck.ownerUid = 'uid-bob'
+  assert.throws(() => prepareRestore(resign(invalidOwner)), /invalid user deck/)
+  const missingDeck = structuredClone(multiDump)
+  delete missingDeck.decks[extraId]
+  assert.throws(() => prepareRestore(resign(missingDeck)), /invalid user deck/)
+  const invalidSettings = structuredClone(multiDump)
+  invalidSettings.users['uid-alice'].decks[extraId].settings.wordTypes = ['nope']
+  assert.throws(() => prepareRestore(resign(invalidSettings)), /invalid settings/)
+  const invalidProgress = structuredClone(multiDump)
+  delete invalidProgress.users['uid-alice'].decks[extraId].progress['custom-1'].due
+  assert.throws(() => prepareRestore(resign(invalidProgress)), /invalid progress/)
   const corrupt = JSON.parse(readFileSync(dumpPath, 'utf8'))
   for (const [index, timeZone] of ['Not/AZone', 'UTC+1'].entries()) {
     corrupt.users['uid-alice'].activity[`00000000-0000-4000-8000-00000000006${index}`] = { at: 1790856000000, timeZone }

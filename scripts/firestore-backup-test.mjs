@@ -24,19 +24,30 @@ assert.deepEqual(expiredBackups([...dumps, 'notes.txt'], 14), ['firestore-202610
 const directory = mkdtempSync(join(tmpdir(), 'firestore-backup-'))
 try {
   const store = {
-    get: async (path) => path === 'users/accountA/settings/current' ? { tier: 1 } : null,
+    get: async (path) => path.endsWith('/settings/current') ? { tier: 1 } : null,
     list: async (path) => {
       if (path === 'users') return [{ id: 'accountA', data: { deckId: 'accountA', schemaVersion: 1, migrationStatus: 'new' } }]
       if (path === 'users/accountA/activity') return [{ id: '00000000-0000-4000-8000-000000000058', data: { at: 1790856000000, timeZone: 'Europe/Oslo' } }]
       if (path === 'users/accountA/progress') return [{ id: 'one', data: { updated_at: 1 } }]
-      if (path === 'decks') return [{ id: 'deckA', data: { memberUids: ['accountA'] } }]
+      if (path === 'decks') return [{ id: 'deckA', data: { memberUids: ['accountA'] } },
+        { id: 'extra-deck', data: { ownerUid: 'accountA', memberUids: ['accountA'] } }]
+      if (path === 'users/accountA/decks/extra-deck/progress') return [{ id: 'one', data: { updated_at: 2 } }]
+      if (path === 'decks/extra-deck/cards') return [{ id: 'one', data: { deletedAt: 0 } }]
       if (path === 'decks/deckA/cards') return [{ id: 'one', data: { deletedAt: 0 } }, { id: 'gone', data: { deletedAt: 3 } }]
       return []
     },
   }
   const status = await runBackup({ store, directory })
   assert.equal(status.ok, true)
-  assert.equal(status.cards, 2)
+  assert.equal(status.cards, 3)
+  assert.equal(status.decks, 2)
+  assert.equal(status.progress, 2)
+  assert.equal(status.settings, 2)
+  const dump = JSON.parse(readFileSync(join(directory, 'exports', status.file), 'utf8'))
+  assert.equal(dump.version, 2)
+  assert.deepEqual(dump.users.accountA.decks['extra-deck'].progress, { one: { updated_at: 2 } })
+  assert.deepEqual(dump.users.accountA.decks['extra-deck'].settings, { tier: 1 })
+  assert.deepEqual(dump.decks['extra-deck'].deck, { ownerUid: 'accountA', memberUids: ['accountA'] })
   assert.equal(status.activity, 1)
   assert.equal(status.tombstones, 1)
   assert.equal(JSON.stringify(status).includes('accountA'), false)

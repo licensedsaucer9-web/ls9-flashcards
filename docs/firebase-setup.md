@@ -203,6 +203,16 @@ For the `1.3.0` streak release, the runner must use code that exports the new
 activity remain readable. Complete the [#58 release steps](firebase-rollout-plan.md#forgiving-streaks--58)
 before publishing the client.
 
+The #74 source writes version-2 dumps, including extra deck ownership/cards,
+per-deck settings/progress, and tombstones alongside the unchanged German paths
+and account-wide activity. Version-1 dumps still restore the original deck.
+Extra-deck nested parent documents need not exist. Aggregate settings/progress
+counts include every deck. Until this code is released and the daily runner is
+updated to it, extra decks remain on devices and in Firestore only; the old
+runner does not back them up. Keep runner activation and a successful private
+dump/isolated restore as separate operational evidence. No off-machine backup
+is established by this change.
+
 This `kind: firestore` dump differs from the GitHub snapshot accepted by
 `migrate import`. Restoring it does not recreate Google Auth identities,
 browser IndexedDB or pending device work, deployed security rules, or hosting.

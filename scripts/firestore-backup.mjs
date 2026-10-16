@@ -38,6 +38,10 @@ export function backupCounts(snapshot) {
     progress += Object.keys(user.progress ?? {}).length
     activity += Object.keys(user.activity ?? {}).length
     if (user.settings) settings += 1
+    for (const deck of Object.values(user.decks ?? {})) {
+      progress += Object.keys(deck.progress).length
+      if (deck.settings) settings += 1
+    }
   }
   for (const deck of Object.values(snapshot.decks)) {
     for (const card of Object.values(deck.cards ?? {})) {
