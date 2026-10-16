@@ -2,6 +2,7 @@ import { collection, doc, getDoc, getDocs, runTransaction, setDoc, type Firestor
 import type { CardContent, PublicSettings, Srs } from './types.ts'
 import type { CardDoc, CloudDocs, ProgressDoc, SettingsDoc } from './firestore-docs.ts'
 import { planCardWrite, planProgressWrite, planSettingsWrite } from './record-sync.ts'
+import { newSrs } from './srs.ts'
 import { filterReviewEvents, validReviewEvent, type ReviewEvent } from './streak.ts'
 
 function asCard(data: unknown): CardDoc | null {
@@ -53,11 +54,12 @@ export async function pullDeckCards(db: Firestore, deckId: string): Promise<Clou
   })
 }
 
-export async function pullCloud(db: Firestore, uid: string, deckId: string): Promise<CloudDocs> {
+export async function pullCloud(db: Firestore, uid: string, deckId: string, extra = false): Promise<CloudDocs> {
+  const userPath = extra ? ['users', uid, 'decks', deckId] : ['users', uid]
   const [cardsSnap, progressSnap, settingsSnap, activitySnap] = await Promise.all([
     getDocs(collection(db, 'decks', deckId, 'cards')),
-    getDocs(collection(db, 'users', uid, 'progress')),
-    getDoc(doc(db, 'users', uid, 'settings', 'current')),
+    getDocs(collection(db, userPath[0], ...userPath.slice(1), 'progress')),
+    getDoc(doc(db, userPath[0], ...userPath.slice(1), 'settings', 'current')),
     getDocs(collection(db, 'users', uid, 'activity')),
   ])
   const cards = cardsSnap.docs.flatMap((item) => {
@@ -71,7 +73,7 @@ export async function pullCloud(db: Firestore, uid: string, deckId: string): Pro
   const settings = asSettings(settingsSnap.exists() ? settingsSnap.data() : null) ?? {
     direction: 'de-en' as const,
     sessionSize: 20,
-    tier: 1 as const,
+    tier: extra ? 3 as const : 1 as const,
     settingsUpdatedAt: 0,
   }
   const { activity, skipped } = filterReviewEvents(activitySnap.docs.map((item) => ({ id: item.id, data: item.data() })))
@@ -119,8 +121,13 @@ export async function commitProgress(
   uid: string,
   id: string,
   local: Srs | null,
+  extraDeckId?: string,
 ): Promise<'wrote' | 'noop'> {
-  const ref = doc(db, 'users', uid, 'progress', id)
+  const ref = extraDeckId ? doc(db, 'users', uid, 'decks', extraDeckId, 'progress', id) : doc(db, 'users', uid, 'progress', id)
+  // Editor/CSV creation stamps updated_at too. The initial schedule, rather
+  // than that clock, identifies an unstudied card. Again/Gender lower ease
+  // even though they also leave reps and interval at zero.
+  if (extraDeckId && local && local.ease === newSrs(0).ease && local.reps === 0 && local.interval === 0) return 'noop'
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(ref)
     const remote = snap.exists() ? asProgress(snap.data()) : null
@@ -136,8 +143,9 @@ export async function commitSettings(
   uid: string,
   local: PublicSettings,
   localAt: number,
+  extraDeckId?: string,
 ): Promise<'wrote' | 'noop'> {
-  const ref = doc(db, 'users', uid, 'settings', 'current')
+  const ref = extraDeckId ? doc(db, 'users', uid, 'decks', extraDeckId, 'settings', 'current') : doc(db, 'users', uid, 'settings', 'current')
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(ref)
     const remote = snap.exists() ? asSettings(snap.data()) : null

@@ -6,7 +6,7 @@ import { normalizeWordTypes, sameWordTypes } from './word-types.ts'
 /** Strictly under Firestore's 500-write transaction cap. */
 export const WRITE_CHUNK = 499
 
-/** Both original and created decks sync cards; schedules/settings remain original-only. */
+/** Both original and created decks sync cards, schedules and settings. */
 export function deckSyncs(deck: Pick<LocalDeck, 'origin'> | undefined): boolean {
   return !!deck
 }
@@ -45,6 +45,7 @@ export function normalizePending(value: unknown): PendingRecords {
     tombstones: asMarkMap(raw.tombstones),
     progress: asMarkMap(raw.progress),
     settings: asMark(raw.settings),
+    ...(raw.extraSettings ? { extraSettings: asMarkMap(raw.extraSettings) } : {}),
     ...(raw.activity ? { activity: Object.fromEntries(Object.entries(asMarkMap(raw.activity)).filter(([, mark]) => isDirty(mark))) } : {}),
   }
 }
@@ -55,6 +56,7 @@ export function isDirty(mark: RecordMark | null | undefined): boolean {
 
 export function hasDirty(pending: PendingRecords): boolean {
   if (isDirty(pending.settings)) return true
+  for (const mark of Object.values(pending.extraSettings ?? {})) if (isDirty(mark)) return true
   for (const mark of Object.values(pending.cards)) if (isDirty(mark)) return true
   for (const mark of Object.values(pending.tombstones)) if (isDirty(mark)) return true
   for (const mark of Object.values(pending.progress)) if (isDirty(mark)) return true

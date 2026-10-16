@@ -73,6 +73,25 @@ function db(uid) {
 try {
   await env.clearFirestore()
 
+  const progressDeckId = randomUUID()
+  for (const [kind, id, valid, invalid] of [
+    ['progress', SEED, progress(), progress({ reps: -1 })],
+    ['settings', 'current', settings({ direction: 'en-de' }), settings({ direction: 'fr-en' })],
+  ]) {
+    const ref = uid => doc(db(uid), 'users', ALICE, 'decks', progressDeckId, kind, id)
+    await denied(getDoc(ref(null)), 'signed-out extra-deck read')
+    await denied(setDoc(ref(null), valid), 'signed-out extra-deck write')
+    await denied(setDoc(ref(BOB), valid), 'cross-account extra-deck write')
+    await assertSucceeds(setDoc(ref(ALICE), valid))
+    await assertSucceeds(getDoc(ref(ALICE)))
+    if (kind === 'progress') await assertSucceeds(getDocs(collection(db(ALICE), 'users', ALICE, 'decks', progressDeckId, kind)))
+    await denied(getDoc(ref(BOB)), 'cross-account extra-deck read')
+    await denied(getDocs(collection(db(BOB), 'users', ALICE, 'decks', progressDeckId, kind)), 'cross-account extra-deck list')
+    await denied(setDoc(ref(ALICE), invalid), 'invalid extra-deck shape')
+    await denied(deleteDoc(ref(ALICE)), 'extra-deck delete')
+    await assertSucceeds(setDoc(ref(ALICE), valid))
+  }
+  await denied(setDoc(doc(db(ALICE), 'users', ALICE, 'decks', progressDeckId, 'settings', 'other'), settings()), 'extra settings singleton')
   const eventId = randomUUID()
   const event = { at: 1790856000000, timeZone: 'Europe/Oslo' }
   const eventRef = (uid, id = eventId) => doc(db(uid), 'users', ALICE, 'activity', id)

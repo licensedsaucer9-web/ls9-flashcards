@@ -77,6 +77,8 @@ GitHub data transport; the previous published build still has its old writer.
 | `users/{uid}` | Owner-readable account metadata, deck assignment, schema version, migration status. |
 | `users/{uid}/settings/current` | Owner-only direction, session size, tier, and settings clock. |
 | `users/{uid}/progress/{cardId}` | Owner-only SRS state and its clock. |
+| `users/{uid}/decks/{deckId}/progress/{cardId}` | Owner-only extra-deck SRS state; missing means unstudied. |
+| `users/{uid}/decks/{deckId}/settings/current` | Owner-only extra-deck preferences and settings clock, using the original settings shape. |
 | `users/{uid}/activity/{eventId}` | Owner-only saved-review timestamp and time zone, keyed by UUID; payload immutable, owner deletion allowed. |
 | `decks/{deckId}` | Explicit deck membership. Clients cannot alter membership or assign themselves to a legacy deck. |
 | `decks/{deckId}/cards/{cardId}` | Vocabulary, content clock, optional rank/tier, and deletion tombstone; deck members can edit. |
@@ -94,7 +96,8 @@ existing 1–81 character validation. Ownership and membership cannot be changed
 These decks reuse the existing card validation. When an extra deck is selected,
 the client creates its private deck document if absent and syncs its cards and
 tombstones. The original German deck keeps the account's assigned path. Extra
-deck schedules, preferences, names and selection stay local; another client
+deck schedules and preferences use the owner-only nested paths above. Names and
+selection stay local; another client
 needs that deck's ID in its local deck list to select it. Production card sync
 requires a separate manual deployment of the additive rules; this change does
 not deploy them.
@@ -137,9 +140,14 @@ New local decks start at 20 cards, target→English (`de-en`), tier 3, and all w
 types. The former boolean deck capability is named `supportsWordTypes` so
 `wordTypes` can hold the selected classes. The account settings row remains a
 mirror of the original deck's preferences for existing cloud sync and migration
-formats. Local deck edits do not change that mirror, its settings clock, or its
-pending upload marker. Cloud settings merges update the original deck atomically;
-new deck preferences stay on this device.
+formats. Extra-deck preference edits have their own settings clock and pending
+marker; they do not change that mirror. Cloud merges update only the selected
+deck's preferences and schedules. Each pass pulls only the active deck plus
+account activity, and uploads that deck's pending records. Unstudied extra cards
+do not create empty progress documents. Account activity remains shared across
+decks; pending work in an inactive deck prevents account-wide acknowledgement.
+The additive progress/settings rules require separate operator deployment; this
+implementation does not deploy rules or publish.
 
 Deck names can be renamed locally, including the original deck. Deleting a local
 deck requires confirmation showing its name and card count, and atomically removes

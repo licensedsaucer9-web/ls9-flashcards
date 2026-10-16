@@ -360,6 +360,7 @@ export async function deleteLocalDeck(deckId: string): Promise<boolean> {
       settings.activeDeckId = (remaining.find(other => other.origin === 'original') ?? remaining[0])!.id
     }
     tx.objectStore('decks').delete(deckId)
+    delete settings.pending.extraSettings?.[deckId]
     tx.objectStore('settings').put(settings)
     await done
     if (!studyLockCurrent(lock)) return false
@@ -1035,6 +1036,13 @@ export async function putSettings(next: Partial<PublicSettings>): Promise<void> 
       settings.localRevision += 1
       tx.objectStore('settings').put(settings)
     }
+    if (deck.origin !== 'original' && (deck.direction !== preferences.direction || deck.sessionSize !== preferences.sessionSize
+      || deck.tier !== preferences.tier || !sameWordTypes(deck.wordTypes, preferences.wordTypes))) {
+      tx.objectStore('decks').put({ ...deck, ...preferences, settingsUpdatedAt: Math.max(Date.now(), (deck.settingsUpdatedAt ?? 0) + 1) })
+      settings.localRevision += 1
+      ;(settings.pending.extraSettings ??= {})[deck.id] = bumpMark(settings.pending.extraSettings?.[deck.id], settings.localRevision)
+      tx.objectStore('settings').put(settings)
+    }
     await done
   } finally { db.close() }
 }
@@ -1127,21 +1135,24 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
       if (!sameSrs(srs, mine.srs)) next.set(id, { ...mine, srs })
     }
 
-    const localSettingsAt = current.settings.settingsUpdatedAt
+    const deck = await value(tx.objectStore('decks').get(current.settings.activeDeckId)) as LocalDeck
+    const extra = deck.origin !== 'original'
+    const localPreferences = extra ? deck : current.settings
+    const localSettingsAt = extra ? deck.settingsUpdatedAt ?? 0 : current.settings.settingsUpdatedAt
     // A user file's updated_at is the newest of its settings *and* its progress, so it
     // must not stand in for the settings clock — otherwise any remote review would
     // look like a settings change and rewrite every profile file.
     const remoteSettingsAt = remote.settings_updated_at ?? 0
-    const settings = newerSettings(publicSettings(current.settings), localSettingsAt, remote.settings, remoteSettingsAt)
+    const settings = newerSettings(publicSettings(localPreferences), localSettingsAt, remote.settings, remoteSettingsAt)
 
     for (const card of activeCards(current.cards, current.settings)) store.delete(card.id)
     for (const card of next.values()) store.put(card)
-    current.settings.direction = settings.direction
-    current.settings.sessionSize = settings.sessionSize
-    current.settings.tier = settings.tier
-    current.settings.wordTypes = settings.wordTypes
-    current.settings.settingsUpdatedAt = Math.max(localSettingsAt, remoteSettingsAt || 0)
-    storeOriginalPreferences(tx, current.settings)
+    const settingsUpdatedAt = Math.max(localSettingsAt, remoteSettingsAt || 0)
+    if (extra) tx.objectStore('decks').put({ ...deck, ...settings, settingsUpdatedAt })
+    else {
+      Object.assign(current.settings, settings, { settingsUpdatedAt })
+      storeOriginalPreferences(tx, current.settings)
+    }
     current.activity = mergeActivityInTransaction(tx, current, incomingActivity, false)
     tx.objectStore('settings').put(current.settings)
     await current.done
@@ -1165,7 +1176,6 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
     const tx = db.transaction(scope ? ['settings', 'decks', 'cards'] : ['settings'], 'readwrite')
     const done = txDone(tx)
     const settings = normalizeSettings(await value(tx.objectStore('settings').get('settings')) as Settings | undefined)
-    const decks = scope ? await value(tx.objectStore('decks').getAll()) as LocalDeck[] : []
     const liveIds = new Set(scope ? await value(tx.objectStore('cards').getAllKeys()) : [])
     if (!studyLockCurrent(lock) || !cloudScopeCurrent(scope, settings)) {
       tx.abort()
@@ -1174,8 +1184,6 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
     }
     // The revision belongs to the account, while cloud snapshots contain only
     // the selected deck. Check the full queue in this same write transaction.
-    // Extra-deck schedules are local; all card/deletion and activity writes sync.
-    const originalId = decks.find(deck => deck.origin === 'original')?.id
     const accountPending = scope && hasDirty({
       ...settings.pending,
       // Older clients left dirty content/schedule marks after deletion. Check
@@ -1184,7 +1192,7 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
       cards: Object.fromEntries(Object.entries(settings.pending.cards)
         .filter(([id]) => liveIds.has(id))),
       progress: Object.fromEntries(Object.entries(settings.pending.progress)
-        .filter(([id, mark]) => liveIds.has(id) && (mark.deckId === undefined || mark.deckId === originalId))),
+        .filter(([id]) => liveIds.has(id))),
     })
     if (!accountPending) {
       settings.acknowledgedRevision = Math.max(
@@ -1228,10 +1236,10 @@ export async function readCloudSnapshot(scope?: CloudScope): Promise<CloudSnapsh
     settings.pending.progress = Object.fromEntries(Object.entries(settings.pending.progress).filter(([id]) => ids.has(id)))
     settings.pending.tombstones = Object.fromEntries(Object.entries(settings.pending.tombstones).filter(([id]) => Object.hasOwn(tombstones, id)))
     if (deck?.origin !== 'original') {
-      settings.pending.progress = {}
-      settings.pending.settings = null
-      settings.pending.activity = {}
+      Object.assign(settings, publicSettings(deck!), { settingsUpdatedAt: deck?.settingsUpdatedAt ?? 0 })
+      settings.pending.settings = settings.pending.extraSettings?.[deck!.id] ?? null
     }
+    delete settings.pending.extraSettings
     return { cards: new Map(scoped.map((card) => [card.id, card])), settings, activity }
   } finally {
     db.close()
@@ -1252,8 +1260,9 @@ export async function acknowledgePending(
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock) || lock.uid !== expect.uid) return false
-    const tx = db.transaction('settings', 'readwrite')
+    const tx = db.transaction(['settings', 'decks'], 'readwrite')
     const done = txDone(tx)
+    const decksRequest = tx.objectStore('decks').get(item.deckId ?? expect.scope?.deckId ?? LOCAL_DECK_ID)
     const request = tx.objectStore('settings').get('settings')
     let applied = false
     let aborted = false
@@ -1273,7 +1282,11 @@ export async function acknowledgePending(
         return
       }
       if (item.kind === 'settings') {
-        if (settings.pending.settings) settings.pending.settings = applyAck(settings.pending.settings, item.revision)
+        const deck = decksRequest.result as LocalDeck | undefined
+        if (deck && deck.origin !== 'original') {
+          const mark = settings.pending.extraSettings?.[deck.id]
+          if (mark) settings.pending.extraSettings![deck.id] = applyAck(mark, item.revision)
+        } else if (settings.pending.settings) settings.pending.settings = applyAck(settings.pending.settings, item.revision)
       } else if (item.kind === 'progress' || item.kind === 'activity') {
         const marks = item.kind === 'progress' ? settings.pending.progress : settings.pending.activity
         const mark = marks?.[item.id]

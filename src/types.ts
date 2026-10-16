@@ -52,8 +52,9 @@ export interface LocalDeck extends PublicSettings {
   articles: boolean
   supportsWordTypes: boolean
   tiers: boolean
-  /** The German deck mirrors the account's cloud deck. Created decks sync cards only. */
+  /** The German deck mirrors the account's cloud deck. Created decks use deck-scoped progress and settings. */
   origin: 'original' | 'local'
+  settingsUpdatedAt?: number
 }
 
 export interface Settings {
@@ -99,6 +100,7 @@ export interface RecordMark {
 }
 
 export interface PendingRecords {
+  extraSettings?: Record<string, RecordMark>
   cards: Record<string, RecordMark>
   tombstones: Record<string, RecordMark>
   progress: Record<string, RecordMark>

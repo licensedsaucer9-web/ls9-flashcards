@@ -129,6 +129,19 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      match /decks/{deckId} {
+        match /progress/{cardId} {
+          allow get, list: if isOwner(uid);
+          allow create, update: if isOwner(uid) && validProgress(cardId);
+          allow delete: if false;
+        }
+        match /settings/{docId} {
+          allow get, list: if isOwner(uid) && docId == 'current';
+          allow create, update: if isOwner(uid) && docId == 'current' && validSettings();
+          allow delete: if false;
+        }
+      }
+
       // One event per saved grade; payloads cannot change. Owners may delete for cleanup.
       // Rules validate zone format, not the IANA registry; clients skip invalid zones.
       match /activity/{eventId} {

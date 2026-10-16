@@ -30,10 +30,10 @@ try {
         export async function accountDeckId() { return 'fixture-original' }
         export async function ensureExtraDeck() {}
         export async function pullDeckCards() { return [] }
-        export async function pullCloud() {
+        export async function pullCloud(_db, _uid, _deckId, extra) {
           globalThis.pullStarted = true
           if (globalThis.waitForPull) await new Promise(resolve => { globalThis.releasePull = resolve })
-          return globalThis.cloudDocs
+          return extra ? (globalThis.extraDocs ?? { cards: [], progress: [], activity: [], settings: { direction: 'de-en', sessionSize: 20, tier: 3, settingsUpdatedAt: 0 } }) : globalThis.cloudDocs
         }
         const commit = async (...args) => {
           if (globalThis.rejectDeck === args[1]) throw { code: 'permission-denied' }
@@ -162,10 +162,47 @@ try {
   assert.equal(extra.item.deckId, localId)
   assert.equal(extra.outcome, 'synced')
   assert.equal(extra.wrongAck, false, 'an acknowledgement naming the other deck is refused')
-  assert.equal(extra.dirty, false, 'extra-deck schedules are local and do not keep cloud sync pending')
-  assert.equal(extra.pushes.length, 1, 'extra-deck sync sends card content only')
+  assert.equal(extra.dirty, false, 'extra-deck records are acknowledged')
+  assert.equal(extra.pushes.length, 3, 'extra-deck sync sends content, progress and settings')
+  assert(extra.pushes.some(args => args[2]?.sessionSize === 5 && args[4] === localId), 'extra settings use their own cloud path')
   assert.equal(extra.pushes[0][1], localId)
   assert.equal(extra.pushes[0][2], 'fixture-local')
+  const mergedExtra = await a.evaluate(async () => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    const before = (await api.getAllCards())[0]
+    const activity = await api.getReviewActivity()
+    globalThis.extraDocs = { cards: [], progress: [{ id: before.id,
+      data: { ease: 2.7, interval: 4, reps: 2, due: 9999999999999, updated_at: 9999999999998 } }],
+      activity: [], settings: { direction: 'en-de', sessionSize: 9, tier: 3, wordTypes: [], settingsUpdatedAt: 9999999999998 } }
+    await cloud.cloudSyncPass({ requestAgain() {} })
+    const extraCard = (await api.getAllCards())[0], extraSettings = await api.getSettings()
+    await api.switchActiveDeck('fixture-original')
+    const german = await api.getSettings()
+    await api.switchActiveDeck(extraSettings.activeDeckId)
+    globalThis.extraDocs = undefined
+    return { extraCard, extraSettings, german, activityBefore: activity, activityAfter: await api.getReviewActivity() }
+  })
+  assert.equal(mergedExtra.extraCard.srs.due, 9999999999999, 'incoming extra review changes the local due time')
+  assert.equal(mergedExtra.extraSettings.sessionSize, 9)
+  assert.equal(mergedExtra.extraSettings.direction, 'en-de')
+  assert.equal(mergedExtra.german.sessionSize, 20, 'incoming extra settings preserve German preferences')
+  assert.deepEqual(mergedExtra.activityAfter, mergedExtra.activityBefore, 'extra merge preserves streak events')
+  const reviewedExtra = await a.evaluate(async () => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    const id = (await api.getSettings()).activeDeckId
+    const card = (await api.getAllCards())[0]
+    const graded = await api.saveReview(card.id, 'good', crypto.randomUUID(), Date.now(), 'UTC')
+    await api.switchActiveDeck('fixture-original')
+    const germanOutcome = await cloud.cloudSyncPass({ requestAgain() {} })
+    await api.switchActiveDeck(id)
+    globalThis.pushes = []
+    const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
+    return { germanOutcome, outcome, graded, pushes: globalThis.pushes, id }
+  })
+  assert.equal(reviewedExtra.germanOutcome, 'pending', 'inactive extra progress prevents account-wide acknowledgement')
+  assert.equal(reviewedExtra.outcome, 'synced')
+  assert(reviewedExtra.pushes.some(args => args[2] === reviewedExtra.graded.id
+    && args[3]?.due === reviewedExtra.graded.srs.due && args[4] === reviewedExtra.id), 'review uploads the due time to the extra-deck path')
   const deniedExtra = await a.evaluate(async () => {
     const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
     const local = (await api.getAllCards())[0]
@@ -207,7 +244,8 @@ try {
   assert.equal(pendingGerman.after.acknowledgedRevision, pendingGerman.before.acknowledgedRevision)
   assert(pendingGerman.after.localRevision > pendingGerman.after.acknowledgedRevision, 'sign-out still sees unacknowledged German work')
   assert.equal(pendingGerman.status.message, 'Saved on this device')
-  for (const kind of ['cards', 'progress', 'activity']) {
+  assert.deepEqual(pendingGerman.pending.activity, {}, 'account activity can sync from either deck')
+  for (const kind of ['cards', 'progress']) {
     assert(Object.values(pendingGerman.pending[kind]).some(mark => mark.revision > mark.acked), `${kind} remains pending`)
   }
   assert(pendingGerman.pending.settings.revision > pendingGerman.pending.settings.acked)
