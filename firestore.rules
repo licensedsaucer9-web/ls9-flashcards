@@ -140,8 +140,11 @@ service cloud.firestore {
       allow get: if isMember(deckId);
       allow list: if false;
       allow create: if signedIn()
-        && deckId == request.auth.uid
-        && request.resource.data.keys().hasOnly(['memberUids'])
+        && ((deckId == request.auth.uid
+          && request.resource.data.keys().hasOnly(['memberUids']))
+          || (validId(deckId) && deckId != request.auth.uid
+            && request.resource.data.keys().hasOnly(['ownerUid', 'memberUids'])
+            && request.resource.data.ownerUid == request.auth.uid))
         && request.resource.data.memberUids == [request.auth.uid];
       allow update, delete: if false;
 

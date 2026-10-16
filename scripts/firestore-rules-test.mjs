@@ -195,6 +195,54 @@ try {
   assert(ownDeck.data().memberUids.join() === ALICE, 'the personal deck still has one member')
   await denied(getDocs(collection(db(ALICE), 'decks')), 'list decks')
 
+  const extraDeckId = 'alice-extra'
+  const extraDeck = { ownerUid: ALICE, memberUids: [ALICE] }
+  for (const [id, data] of [
+    ['bad.id', extraDeck],
+    ['x'.repeat(82), extraDeck],
+    ['missing-owner', { memberUids: [ALICE] }],
+    ['forged-owner', { ...extraDeck, ownerUid: BOB }],
+    ['extra-member', { ...extraDeck, memberUids: [ALICE, BOB] }],
+    ['other-member', { ...extraDeck, memberUids: [BOB] }],
+    ['empty-members', { ...extraDeck, memberUids: [] }],
+    ['duplicate-member', { ...extraDeck, memberUids: [ALICE, ALICE] }],
+    ['unknown-field', { ...extraDeck, public: true }],
+    [ALICE, extraDeck],
+  ]) {
+    await denied(setDoc(doc(db(ALICE), 'decks', id), data), `invalid extra deck: ${id}`)
+  }
+  await denied(setDoc(doc(db(null), 'decks', extraDeckId), extraDeck), 'signed-out extra-deck create')
+  await assertSucceeds(setDoc(doc(db(ALICE), 'decks', extraDeckId), extraDeck))
+  const extra = await assertSucceeds(getDoc(doc(db(ALICE), 'decks', extraDeckId)))
+  assert(extra.data().ownerUid === ALICE && extra.data().memberUids.join() === ALICE,
+    'extra deck has its creator as owner and sole member')
+  await denied(getDocs(collection(db(ALICE), 'decks')), 'extra-deck owner cannot list decks')
+  await denied(updateDoc(doc(db(ALICE), 'decks', extraDeckId), { ownerUid: BOB }), 'immutable extra-deck owner')
+  for (const memberUids of [[ALICE, BOB], [BOB], []]) {
+    await denied(updateDoc(doc(db(ALICE), 'decks', extraDeckId), { memberUids }), 'immutable extra-deck membership')
+  }
+  await denied(setDoc(doc(db(ALICE), 'decks', extraDeckId), extraDeck), 'second extra-deck write')
+  await denied(deleteDoc(doc(db(ALICE), 'decks', extraDeckId)), 'extra-deck delete')
+  await assertSucceeds(setDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', SEED), card()))
+  await assertSucceeds(updateDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', SEED), { en: 'hound', updated_at: 3 }))
+  await assertSucceeds(getDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', SEED)))
+  const extraCards = await assertSucceeds(getDocs(collection(db(ALICE), 'decks', extraDeckId, 'cards')))
+  assert(extraCards.size === 1, 'extra-deck owner can list cards')
+  await denied(setDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', 'bad.id'), card()), 'invalid extra-deck card id')
+  await denied(updateDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', SEED), { de: 'x'.repeat(201) }), 'invalid extra-deck card content')
+  await denied(deleteDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', SEED)), 'extra-deck card delete')
+  for (const uid of [BOB, null]) {
+    const label = uid ? 'outsider' : 'signed-out'
+    await denied(getDoc(doc(db(uid), 'decks', extraDeckId)), `${label} extra-deck read`)
+    await denied(updateDoc(doc(db(uid), 'decks', extraDeckId), { memberUids: [ALICE, BOB] }), `${label} extra-deck membership write`)
+    await denied(deleteDoc(doc(db(uid), 'decks', extraDeckId)), `${label} extra-deck delete`)
+    await denied(getDoc(doc(db(uid), 'decks', extraDeckId, 'cards', SEED)), `${label} extra-deck card read`)
+    await denied(getDocs(collection(db(uid), 'decks', extraDeckId, 'cards')), `${label} extra-deck card list`)
+    await denied(setDoc(doc(db(uid), 'decks', extraDeckId, 'cards', CUSTOM), card()), `${label} extra-deck card create`)
+    await denied(updateDoc(doc(db(uid), 'decks', extraDeckId, 'cards', SEED), { en: 'stolen' }), `${label} extra-deck card update`)
+    await denied(deleteDoc(doc(db(uid), 'decks', extraDeckId, 'cards', SEED)), `${label} extra-deck card delete`)
+  }
+
   await env.clearFirestore()
   const left = env.authenticatedContext(ALICE).firestore()
   const right = env.authenticatedContext(ALICE).firestore()
