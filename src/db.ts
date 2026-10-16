@@ -942,6 +942,9 @@ export async function deleteCard(id: string, deletedAt = Date.now()): Promise<vo
       if (card && card.deckId !== settings.activeDeckId) return
       if (!card && settings.deletedDeckIds?.[id] && settings.deletedDeckIds[id] !== settings.activeDeckId) return
       store.delete(id)
+      // The tombstone supersedes unsent content and its local schedule.
+      delete settings.pending.cards[id]
+      delete settings.pending.progress[id]
       settings.deletedIds[id] = Math.max(settings.deletedIds[id] || 0, deletedAt)
       ;(settings.deletedDeckIds ??= {})[id] = settings.activeDeckId
       settings.pending.tombstones[id] = { ...bumpMark(settings.pending.tombstones[id], settings.localRevision + 1), deckId: settings.activeDeckId }
@@ -1159,10 +1162,11 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return false
-    const tx = db.transaction(scope ? ['settings', 'decks'] : ['settings'], 'readwrite')
+    const tx = db.transaction(scope ? ['settings', 'decks', 'cards'] : ['settings'], 'readwrite')
     const done = txDone(tx)
     const settings = normalizeSettings(await value(tx.objectStore('settings').get('settings')) as Settings | undefined)
     const decks = scope ? await value(tx.objectStore('decks').getAll()) as LocalDeck[] : []
+    const liveIds = new Set(scope ? await value(tx.objectStore('cards').getAllKeys()) : [])
     if (!studyLockCurrent(lock) || !cloudScopeCurrent(scope, settings)) {
       tx.abort()
       await done.catch(() => {})
@@ -1174,8 +1178,13 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
     const originalId = decks.find(deck => deck.origin === 'original')?.id
     const accountPending = scope && hasDirty({
       ...settings.pending,
+      // Older clients left dirty content/schedule marks after deletion. Check
+      // every deck's live rows atomically so those orphan marks cannot block
+      // the account clock, while inactive decks' live content still does.
+      cards: Object.fromEntries(Object.entries(settings.pending.cards)
+        .filter(([id]) => liveIds.has(id))),
       progress: Object.fromEntries(Object.entries(settings.pending.progress)
-        .filter(([, mark]) => mark.deckId === undefined || mark.deckId === originalId)),
+        .filter(([id, mark]) => liveIds.has(id) && (mark.deckId === undefined || mark.deckId === originalId))),
     })
     if (!accountPending) {
       settings.acknowledgedRevision = Math.max(

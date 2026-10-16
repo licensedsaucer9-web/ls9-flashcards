@@ -214,6 +214,67 @@ try {
   assert.equal(pendingGerman.original, 'synced')
   assert.equal(pendingGerman.final.localRevision, pendingGerman.final.acknowledgedRevision)
   assert.equal(pendingGerman.finalStatus.message, 'Synced')
+  // A deletion supersedes unsent content/progress. It must not strand the
+  // account clock, either for new deletions or stale marks from older clients.
+  await a.evaluate(id => { globalThis.extraId = id }, localId)
+  for (const deckId of ['fixture-original', localId]) {
+    const deleted = await a.evaluate(async (deckId) => {
+      const api = await import('/src/db.ts'), sync = await import('/src/sync.ts')
+      await api.switchActiveDeck(deckId)
+      await api.putCard({ ...globalThis.sample, id: `fixture-delete-before-upload-${deckId}` })
+      await api.deleteCard(`fixture-delete-before-upload-${deckId}`, 5000)
+      const before = await api.getSettings()
+      globalThis.pushes = []
+      await sync.syncNow()
+      return { before, after: await api.getSettings(), status: sync.getSyncStatus(), pushes: globalThis.pushes }
+    }, deckId)
+    assert.equal(deleted.before.pending.cards[`fixture-delete-before-upload-${deckId}`], undefined)
+    assert.equal(deleted.before.pending.progress[`fixture-delete-before-upload-${deckId}`], undefined)
+    assert.equal(deleted.status.message, 'Synced')
+    assert.equal(deleted.after.localRevision, deleted.after.acknowledgedRevision)
+    assert(deleted.pushes.some(args => args[1] === deckId && args[2] === `fixture-delete-before-upload-${deckId}`
+      && args[3] === null && args[4] === 5000), 'the deletion still uploads its tombstone')
+
+    const recovered = await a.evaluate(async (deckId) => {
+      const api = await import('/src/db.ts'), sync = await import('/src/sync.ts')
+      // Recreate marks persisted by the old delete path, including while this
+      // deck is inactive. No card row exists for these marks.
+      await new Promise((resolve, reject) => {
+        const request = indexedDB.open('fixture-shared')
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const db = request.result, tx = db.transaction('settings', 'readwrite')
+          const store = tx.objectStore('settings'), read = store.get('settings')
+          read.onsuccess = () => {
+            const settings = read.result
+            settings.localRevision++
+            for (const kind of ['cards', 'progress']) {
+              settings.pending[kind][`fixture-delete-before-upload-${deckId}`] = {
+                revision: settings.localRevision, acked: 0, deckId,
+              }
+            }
+            store.put(settings)
+          }
+          tx.oncomplete = () => { db.close(); resolve() }
+          tx.onabort = () => { db.close(); reject(tx.error) }
+        }
+      })
+      await sync.syncNow()
+      const recoveredStatus = sync.getSyncStatus()
+      const recoveredSettings = await api.getSettings()
+      if (recoveredStatus.message !== 'Synced' || recoveredSettings.localRevision !== recoveredSettings.acknowledgedRevision) {
+        throw new Error('stored orphan marks block the deleted card’s own deck')
+      }
+      await api.switchActiveDeck(deckId === 'fixture-original' ? globalThis.extraId : 'fixture-original')
+      await api.putCard({ ...globalThis.sample, id: `fixture-after-delete-${deckId}` })
+      globalThis.pushes = []
+      await sync.syncNow()
+      return { after: await api.getSettings(), status: sync.getSyncStatus(), pushes: globalThis.pushes }
+    }, deckId)
+    assert.equal(recovered.status.message, 'Synced', 'stored orphan marks cannot block a later upload on the other deck')
+    assert.equal(recovered.after.localRevision, recovered.after.acknowledgedRevision)
+    assert(recovered.pushes.some(args => args[2] === `fixture-after-delete-${deckId}`), 'later content still uploads')
+  }
   assert(resumed.ids.includes('fixture-remote'))
   assert(!resumed.ids.includes('fixture-local'))
   assert.deepEqual(external, [])
