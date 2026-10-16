@@ -81,11 +81,14 @@ GitHub data transport; the previous published build still has its old writer.
 | `decks/{deckId}` | Explicit deck membership. Clients cannot alter membership or assign themselves to a legacy deck. |
 | `decks/{deckId}/cards/{cardId}` | Vocabulary, content clock, optional rank/tier, and deletion tombstone; deck members can edit. |
 
-Rules also permit a signed-in user to create a private extra deck at a valid
-non-uid id with `ownerUid` set to their uid and `memberUids` containing only
-that uid. Ownership and membership cannot be changed by clients. These decks
-reuse the existing card validation; client provisioning and sync still use the
-account's assigned deck.
+Rules also permit a signed-in user to create a private extra deck at an id of
+129–160 ASCII letters, digits, underscores or hyphens, starting with a letter or
+digit, with `ownerUid` set to their uid and `memberUids` containing only that uid.
+Firebase Auth UIDs have at most 128 characters, so an extra deck cannot occupy
+any current or future account's personal-deck path. Card ids keep their existing
+1–81 character validation. Ownership and membership cannot be changed by clients.
+These decks reuse the existing card validation; client provisioning and sync
+still use the account's assigned deck.
 
 `firestore.rules` denies unauthenticated access and validates client shapes,
 ownership, membership, and immutable account assignment. Rules do not govern
