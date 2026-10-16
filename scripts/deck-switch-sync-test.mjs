@@ -14,6 +14,15 @@ try {
   process.env.VITE_SYNC_BACKEND = ''
   server = await createServer({ cacheDir, plugins: [{
     name: 'isolated-cloud-transport', enforce: 'pre',
+    configureServer(server) {
+      // Exercise explicit passes without main.ts foreground handlers racing
+      // them when Playwright changes the visible tab. UI coverage lives in
+      // decks-ui-test.mjs; these pages only host the real DB/sync modules.
+      server.middlewares.use('/__deck-switch-sync-fixture', (_req, res) => {
+        res.setHeader('Content-Type', 'text/html')
+        res.end('<!doctype html><title>Deck sync fixture</title>')
+      })
+    },
     load(id) {
       if (id.endsWith('/src/sync-backend.ts')) return `export * from './cloud-sync.ts'`
       if (id.endsWith('/src/cloud-handle.ts')) return 'export function cloudFirestore() { return {} }'
@@ -47,14 +56,13 @@ try {
   })
   const a = await context.newPage(), b = await context.newPage()
   for (const page of [a, b]) {
-    await page.goto('http://127.0.0.1:4183/')
-    await page.waitForSelector('#start')
+    await page.goto('http://127.0.0.1:4183/__deck-switch-sync-fixture')
   }
   await a.evaluate(async () => {
     const api = await import('/src/db.ts')
     const locks = await import('/src/study-lock.ts')
     const { filesToDocs } = await import('/src/firestore-docs.ts')
-    const sample = (await api.getAllCards())[0]
+    const sample = (await import('/src/seed.ts')).seedCards()[0]
     globalThis.sample = sample
     locks.bindStudyDatabase({ uid: 'fixture-user', dbName: 'fixture-shared' })
     await api.recordAssignedDeck('fixture-original')
@@ -148,8 +156,10 @@ try {
       { uid: 'fixture-user', generation: captureStudyLock().generation, scope: { lock: captureStudyLock(), deckId } })
     globalThis.pushes = []
     const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
-    return { outcome, wrongAck, pushes: globalThis.pushes, dirty: hasDirty((await api.readCloudSnapshot()).settings.pending) }
+    return { outcome, wrongAck, item, pushes: globalThis.pushes, dirty: hasDirty((await api.readCloudSnapshot()).settings.pending) }
   })
+  assert.equal(extra.item?.id, 'fixture-local', 'the explicit extra-deck pass starts with pending card content')
+  assert.equal(extra.item.deckId, localId)
   assert.equal(extra.outcome, 'synced')
   assert.equal(extra.wrongAck, false, 'an acknowledgement naming the other deck is refused')
   assert.equal(extra.dirty, false, 'extra-deck schedules are local and do not keep cloud sync pending')
