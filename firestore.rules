@@ -26,9 +26,12 @@ service cloud.firestore {
     }
 
     function validExtraDeckId(id) {
-      // Auth UIDs are at most 128 characters. A disjoint ID length prevents
-      // extra decks from squatting any current or future personal deck.
-      return id.matches('^[A-Za-z0-9][A-Za-z0-9_-]{128,159}$');
+      // Match createLocalDeck's crypto.randomUUID(), outside the generated
+      // alphanumeric Auth UID namespace. Admin-created UIDs must reserve this
+      // namespace too; rules cannot look up future Auth accounts.
+      return validId(id)
+        && id.matches('^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$')
+        && !exists(/databases/$(database)/documents/users/$(id));
     }
 
     function text(value, max) {
