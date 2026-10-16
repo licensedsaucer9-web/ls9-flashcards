@@ -1,5 +1,5 @@
 import { cloudFirestore } from './cloud-handle.ts'
-import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettings, ensureExtraDeck, pullDeckCards, pullCloud } from './cloud-push.ts'
+import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettings, ensureExtraDeck, pullCloud } from './cloud-push.ts'
 import {
   getActiveDeck,
   recordAssignedDeck,
@@ -49,14 +49,15 @@ async function pushLoaded(
   deckId: string,
   snapshot: CloudSnapshot,
   item: PushItem,
+  extraDeckId?: string,
 ): Promise<'wrote' | 'noop'> {
   if (item.kind === 'activity') return commitActivity(db, uid, item.id, snapshot.activity[item.id])
   if (item.kind === 'settings') {
-    return commitSettings(db, uid, publicSettings(snapshot.settings), snapshot.settings.settingsUpdatedAt)
+    return commitSettings(db, uid, publicSettings(snapshot.settings), snapshot.settings.settingsUpdatedAt, extraDeckId)
   }
   if (item.kind === 'progress') {
     const card = snapshot.cards.get(item.id)
-    return commitProgress(db, uid, item.id, card ? card.srs : null)
+    return commitProgress(db, uid, item.id, card ? card.srs : null, extraDeckId)
   }
   const card = snapshot.cards.get(item.id)
   const deletedAt = Number(snapshot.settings.deletedIds[item.id]) || 0
@@ -83,15 +84,12 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     else await ensureExtraDeck(db, uid, deckId)
     if (!studyLockCurrent(lock)) return 'idle'
     const scope = { lock, deckId }
-    const docs = original ? await pullCloud(db, uid, deckId) : {
-      cards: await pullDeckCards(db, deckId), progress: [], activity: [],
-      settings: { direction: 'de-en' as const, sessionSize: 20, tier: 3 as const, settingsUpdatedAt: 0 },
-    }
+    const docs = await pullCloud(db, uid, deckId, !original)
     if (!studyLockCurrent(lock)) return 'idle'
     const files = docsToFiles(docs, uid, 0)
     await mergeDeckIntoDb(files.deck, undefined, scope)
     if (!studyLockCurrent(lock)) return 'idle'
-    if (original) await mergeProgressIntoDb(files.user, undefined, scope)
+    await mergeProgressIntoDb(files.user, undefined, scope)
     if (!studyLockCurrent(lock)) return 'idle'
     if (original) await insertMissingSeeds(seedCards())
     if (!studyLockCurrent(lock)) return 'idle'
@@ -110,7 +108,7 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
         const live = captureStudyLock()
         return live.uid === uid && live.generation === lock.generation
       },
-      push: (item) => pushLoaded(db, uid, deckId, snapshot, item),
+      push: (item) => pushLoaded(db, uid, deckId, snapshot, item, original ? undefined : deckId),
       ack: async (item) => {
         const applied = await acknowledgePending(item, { uid, generation: lock.generation, scope })
         if (!applied) throw new Error('acknowledgement refused')

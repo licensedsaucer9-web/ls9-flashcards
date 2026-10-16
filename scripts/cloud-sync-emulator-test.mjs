@@ -13,6 +13,7 @@ import {
   terminate,
 } from 'firebase/firestore'
 import { commitActivity, ensureExtraDeck, pullDeckCards, pullCloud, commitCard, commitProgress, commitSettings } from '../src/cloud-push.ts'
+import { review, newSrs } from '../src/srs.ts'
 import { parseStoredReviewActivity } from '../src/streak.ts'
 import { applyAck, chunkItems, isDirty, runDirtyQueue } from '../src/record-sync.ts'
 
@@ -356,6 +357,21 @@ try {
   const extraPulled = await pullDeckCards(aliceSecond, extraId)
   assert(extraPulled.length === 1 && extraPulled[0].data.de === 'bonjour', 'second client pulls the extra-deck card')
   assert((await pullDeckCards(aliceSecond, ALICE)).length === germanBefore.length, 'German card count is unchanged')
+  const originalBefore = await pullCloud(aliceSecond, ALICE, ALICE)
+  assert(await commitProgress(alice, ALICE, 'extra-card', newSrs(), extraId) === 'noop', 'unstudied cards do not create progress docs')
+  let extraState = await pullCloud(aliceSecond, ALICE, extraId, true)
+  assert(extraState.progress.length === 0, 'missing extra progress is unstudied')
+  assert(extraState.settings.tier === 3, 'missing extra settings use extra-deck defaults')
+  const extraGrade = { ...review(newSrs(1000), 'good', 2000), updated_at: 2000 }
+  await commitProgress(alice, ALICE, 'extra-card', extraGrade, extraId)
+  await commitSettings(alice, ALICE, { direction: 'en-de', sessionSize: 7, tier: 3, wordTypes: [] }, 3000, extraId)
+  extraState = await pullCloud(aliceSecond, ALICE, extraId, true)
+  assert(extraState.progress.length === 1 && extraState.progress[0].data.due === extraGrade.due, 'review on client one changes due time on client two')
+  assert(extraState.settings.direction === 'en-de' && extraState.settings.sessionSize === 7, 'extra preferences sync to client two')
+  assert(await commitProgress(aliceSecond, ALICE, 'extra-card', extraGrade, extraId) === 'noop', 'extra grade retry is idempotent')
+  await commitSettings(aliceSecond, ALICE, { direction: 'de-en', sessionSize: 9, tier: 3, wordTypes: [] }, 4000, extraId)
+  assert((await pullCloud(alice, ALICE, extraId, true)).settings.direction === 'de-en', 'both existing direction values work')
+  assert(JSON.stringify(await pullCloud(aliceSecond, ALICE, ALICE)) === JSON.stringify(originalBefore), 'German cards, progress, settings and activity are unchanged')
   const deckAcks = []
   const isolated = await runDirtyQueue([
     { kind: 'card', deckId: extraId, id: 'invalid-extra', contentRevision: 1, tombstoneRevision: 0 },

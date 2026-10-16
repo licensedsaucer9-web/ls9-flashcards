@@ -826,6 +826,7 @@ try {
   const removedIds = beforeDelete.cards.filter(c => c.deckId === spanishId).map(c => c.id)
   const expectedSettings = structuredClone(beforeDelete.settings[0])
   expectedSettings.activeDeckId = 'local-german'
+  delete expectedSettings.pending.extraSettings?.[spanishId]
   for (const id of removedIds) {
     delete expectedSettings.pending.cards[id]
     delete expectedSettings.pending.progress[id]
