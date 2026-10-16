@@ -317,7 +317,11 @@ try {
   assert.deepEqual(await page.locator('#tabbar .tab').allTextContents(), ['Review', 'Decks', 'Cards', 'Settings'])
   async function tab(name, hash, heading) {
     await page.locator('#tabbar .tab').filter({ hasText: new RegExp(`^${name}$`) }).click()
-    await page.waitForFunction(({ hash, heading }) => location.hash === hash && document.querySelector('h1')?.textContent === heading, { hash, heading })
+    // A queued preferences render can briefly pair the destination hash with
+    // the previous screen's heading. Wait for navigation's tab state too.
+    await page.waitForFunction(({ hash, heading, name }) => location.hash === hash
+      && document.querySelector('h1')?.textContent === heading
+      && document.querySelector('#tabbar .is-active')?.textContent === name, { hash, heading, name })
     assert.equal(await page.locator('#tabbar .is-active').textContent(), name)
     assert.equal(await page.getByText('FOREIGN_FIXTURE_64', { exact: true }).count(), 0, 'foreign card never appears in UI')
   }
