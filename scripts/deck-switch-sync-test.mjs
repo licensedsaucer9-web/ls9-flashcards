@@ -129,7 +129,7 @@ try {
     const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
     return { outcome, ids: (await api.getAllCards()).map(c => c.id), settings: await api.getSettings(), pushes: globalThis.pushes }
   })
-  assert.equal(resumed.outcome, 'synced')
+  assert.equal(resumed.outcome, 'pending', 'unsent extra-deck content keeps the account pending')
   assert.equal(resumed.settings.sessionSize, 20)
   assert.equal(resumed.settings.direction, 'en-de')
   assert.equal(resumed.settings.tier, 2)
@@ -177,7 +177,43 @@ try {
     return { denied, original }
   })
   assert.equal(deniedExtra.denied.state, 'rejected')
-  assert.equal(deniedExtra.original, 'synced', 'a rejected extra deck does not block German orchestration')
+  assert.equal(deniedExtra.original, 'pending', 'German cannot report account sync while an extra-deck card is rejected')
+  // Offline German work must survive a successful extra-deck pass in both
+  // the account revision used by sign-out and the foreground sync badge.
+  const pendingGerman = await a.evaluate(async (extraId) => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    const sync = await import('/src/sync.ts')
+    globalThis.rejectDeck = undefined
+    await api.putCard({ ...globalThis.sample, id: 'fixture-pending-german' })
+    await api.saveReview('fixture-pending-german', 'good', crypto.randomUUID(), Date.now(), 'UTC')
+    await api.putSettings({ sessionSize: 7 })
+    const before = await api.getSettings()
+    await api.switchActiveDeck(extraId)
+    let retries = 0
+    const outcome = await cloud.cloudSyncPass({ requestAgain() { retries++ } })
+    await sync.syncNow()
+    const after = await api.getSettings()
+    const status = sync.getSyncStatus()
+    await api.switchActiveDeck('fixture-original')
+    const pending = (await api.readCloudSnapshot()).settings.pending
+    const original = await cloud.cloudSyncPass({ requestAgain() {} })
+    await api.switchActiveDeck(extraId)
+    await sync.syncNow()
+    return { before, after, outcome, retries, status, pending, original,
+      final: await api.getSettings(), finalStatus: sync.getSyncStatus() }
+  }, localId)
+  assert.equal(pendingGerman.outcome, 'pending')
+  assert.equal(pendingGerman.retries, 0, 'another deck pending must not spin the foreground loop')
+  assert.equal(pendingGerman.after.acknowledgedRevision, pendingGerman.before.acknowledgedRevision)
+  assert(pendingGerman.after.localRevision > pendingGerman.after.acknowledgedRevision, 'sign-out still sees unacknowledged German work')
+  assert.equal(pendingGerman.status.message, 'Saved on this device')
+  for (const kind of ['cards', 'progress', 'activity']) {
+    assert(Object.values(pendingGerman.pending[kind]).some(mark => mark.revision > mark.acked), `${kind} remains pending`)
+  }
+  assert(pendingGerman.pending.settings.revision > pendingGerman.pending.settings.acked)
+  assert.equal(pendingGerman.original, 'synced')
+  assert.equal(pendingGerman.final.localRevision, pendingGerman.final.acknowledgedRevision)
+  assert.equal(pendingGerman.finalStatus.message, 'Synced')
   assert(resumed.ids.includes('fixture-remote'))
   assert(!resumed.ids.includes('fixture-local'))
   assert.deepEqual(external, [])

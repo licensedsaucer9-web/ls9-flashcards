@@ -288,6 +288,9 @@ and deletion records only; their local schedules and preferences do not keep
 the cloud queue pending. Card marks and queued acknowledgements carry the deck
 ID, and an acknowledgement naming a different deck is refused. A rejected
 extra-deck write remains pending there; returning to German still syncs its
-independent queue. The two-tab browser regression uses synthetic data and a
+independent queue. Account-wide revision acknowledgement checks every deck’s
+cloud-eligible pending records atomically, so a clean selected deck cannot hide
+unsynced work elsewhere from the status badge or sign-out warning. Extra-deck
+schedules remain local and do not block that acknowledgement. The two-tab browser regression uses synthetic data and a
 stubbed cloud transport to exercise the real cloud orchestration and IndexedDB;
 it does not require an account or contact Firebase.

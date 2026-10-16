@@ -135,7 +135,10 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     const newerChanges = await acknowledgeRevision(after.settings.localRevision, undefined, scope)
     if (!studyLockCurrent(lock)) return 'idle'
     if (newerChanges) {
-      control.requestAgain()
+      // Another deck can remain pending without being uploadable in this pass.
+      // Retry only work in our scope, otherwise the foreground loop would spin.
+      const latest = await readCloudSnapshot(scope)
+      if (!latest || hasDirty(latest.settings.pending)) control.requestAgain()
       return 'pending'
     }
     return 'synced'

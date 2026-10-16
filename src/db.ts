@@ -4,6 +4,7 @@ import {
   applyAck,
   bumpMark,
   contentChanged,
+  hasDirty,
   normalizePending,
   progressChanged,
   reconcileStagedProgress,
@@ -1158,35 +1159,34 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
   const db = await openDb(name)
   try {
     if (!studyLockCurrent(lock)) return false
-    const tx = db.transaction('settings', 'readwrite')
+    const tx = db.transaction(scope ? ['settings', 'decks'] : ['settings'], 'readwrite')
     const done = txDone(tx)
-    const request = tx.objectStore('settings').get('settings')
-    let pending = false
-    let aborted = false
-    request.onsuccess = () => {
-      if (!studyLockCurrent(lock)) {
-        aborted = true
-        tx.abort()
-        return
-      }
-      const settings = normalizeSettings(request.result as Settings | undefined)
-      if (!cloudScopeCurrent(scope, settings)) {
-        aborted = true
-        tx.abort()
-        return
-      }
+    const settings = normalizeSettings(await value(tx.objectStore('settings').get('settings')) as Settings | undefined)
+    const decks = scope ? await value(tx.objectStore('decks').getAll()) as LocalDeck[] : []
+    if (!studyLockCurrent(lock) || !cloudScopeCurrent(scope, settings)) {
+      tx.abort()
+      await done.catch(() => {})
+      return false
+    }
+    // The revision belongs to the account, while cloud snapshots contain only
+    // the selected deck. Check the full queue in this same write transaction.
+    // Extra-deck schedules are local; all card/deletion and activity writes sync.
+    const originalId = decks.find(deck => deck.origin === 'original')?.id
+    const accountPending = scope && hasDirty({
+      ...settings.pending,
+      progress: Object.fromEntries(Object.entries(settings.pending.progress)
+        .filter(([, mark]) => mark.deckId === undefined || mark.deckId === originalId)),
+    })
+    if (!accountPending) {
       settings.acknowledgedRevision = Math.max(
         settings.acknowledgedRevision,
         Math.min(includedRevision, settings.localRevision),
       )
-      pending = settings.localRevision > settings.acknowledgedRevision
       tx.objectStore('settings').put(settings)
     }
-    await done.catch((error) => {
-      if (aborted || !studyLockCurrent(lock)) return
-      throw error
-    })
-    if (aborted || !studyLockCurrent(lock)) return false
+    const pending = !!accountPending || settings.localRevision > settings.acknowledgedRevision
+    await done
+    if (!studyLockCurrent(lock)) return false
     return pending
   } finally {
     db.close()
