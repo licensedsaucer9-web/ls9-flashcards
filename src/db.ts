@@ -304,6 +304,69 @@ export async function createLocalDeck(name: string, targetLang: string): Promise
   } finally { db.close() }
 }
 
+/** Rename metadata on this device without changing cards or cloud settings. */
+export async function renameDeck(deckId: string, name: string): Promise<boolean> {
+  name = name.trim()
+  if (!name || name.length > 60) return false
+  const { lock, name: dbName } = namesFor()
+  const db = await openDb(dbName)
+  try {
+    if (!studyLockCurrent(lock)) return false
+    const tx = db.transaction('decks', 'readwrite')
+    const done = txDone(tx)
+    const deck = await value(tx.objectStore('decks').get(deckId)) as LocalDeck | undefined
+    if (!deck || !studyLockCurrent(lock)) { await done; return false }
+    tx.objectStore('decks').put({ ...deck, name })
+    await done
+    return studyLockCurrent(lock)
+  } finally { db.close() }
+}
+
+/** Remove only a local deck and its owned records; keep account activity and cloud data. */
+export async function deleteLocalDeck(deckId: string): Promise<boolean> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return false
+    const tx = db.transaction(['decks', 'cards', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const [decks, cards, stored] = await Promise.all([
+      value(tx.objectStore('decks').getAll()) as Promise<LocalDeck[]>,
+      value(tx.objectStore('cards').getAll()) as Promise<Card[]>,
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
+    ])
+    const deck = decks.find(deck => deck.id === deckId)
+    if (!studyLockCurrent(lock) || deck?.origin !== 'local' || decks.length <= 1) {
+      await done
+      return false
+    }
+    const settings = normalizeSettings(stored)
+    const ownedIds = new Set(cards.filter(card => card.deckId === deckId).map(card => card.id))
+    for (const [id, owner] of Object.entries(settings.deletedDeckIds ?? {})) {
+      if (owner === deckId) ownedIds.add(id)
+    }
+    for (const id of ownedIds) {
+      tx.objectStore('cards').delete(id)
+      delete settings.deletedIds[id]
+      delete settings.deletedDeckIds?.[id]
+      delete settings.pending.cards[id]
+      delete settings.pending.progress[id]
+      delete settings.pending.tombstones[id]
+      delete settings.stagedProgress?.[id]
+    }
+    if (settings.activeDeckId === deckId) {
+      const remaining = decks.filter(other => other.id !== deckId)
+      settings.activeDeckId = (remaining.find(other => other.origin === 'original') ?? remaining[0])!.id
+    }
+    tx.objectStore('decks').delete(deckId)
+    tx.objectStore('settings').put(settings)
+    await done
+    if (!studyLockCurrent(lock)) return false
+    bumpStudyGeneration()
+    return true
+  } finally { db.close() }
+}
+
 /** Local selection only: no revision, no pending mark, no cloud write. */
 export async function switchActiveDeck(deckId: string): Promise<boolean> {
   const { lock, name } = namesFor()

@@ -25,6 +25,8 @@ import {
   getDeckCardCounts,
   getDecks,
   createLocalDeck,
+  renameDeck,
+  deleteLocalDeck,
   putDeckFeatures,
   switchActiveDeck,
   getCard,
@@ -566,6 +568,10 @@ async function renderDecks() {
           return `<li class="card-row">
             <div class="left">
               <div class="de">${esc(deck.name)}</div>
+              <div class="chips">
+                <button type="button" class="chip" data-rename="${esc(deck.id)}" aria-label="Rename ${esc(deck.name)}">Rename</button>
+                ${deck.origin === 'local' && decks.length > 1 ? `<button type="button" class="chip" data-delete-deck="${esc(deck.id)}" aria-label="Delete ${esc(deck.name)}">Delete</button>` : ''}
+              </div>
               <div class="en">${deck.origin === 'original' ? '' : `${esc(deck.targetLang)} · `}${n} ${n === 1 ? 'card' : 'cards'}</div>
             </div>
             ${active ? '<span class="badge">Active</span>' : `<button type="button" class="chip" data-switch="${esc(deck.id)}">Switch</button>`}
@@ -602,6 +608,35 @@ async function renderDecks() {
       </div>` : ''}
     </section>
   `
+  main.querySelectorAll<HTMLButtonElement>('[data-rename]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!studyLockCurrent(lock)) return
+      const deck = decks.find(deck => deck.id === btn.dataset.rename)!
+      const name = prompt('Deck name (up to 60 characters)', deck.name)
+      if (name === null || !studyLockCurrent(lock)) return
+      if (!(await renameDeck(deck.id, name))) {
+        toast('Enter a deck name between 1 and 60 characters')
+        return
+      }
+      scheduleRender()
+    })
+  })
+  main.querySelectorAll<HTMLButtonElement>('[data-delete-deck]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const deck = (await getDecks()).find(deck => deck.id === btn.dataset.deleteDeck)
+      const count = (await getDeckCardCounts()).get(btn.dataset.deleteDeck!) ?? 0
+      if (!deck || !studyLockCurrent(lock)) return
+      if (!confirm(`Delete “${deck.name}” and its ${count} ${count === 1 ? 'card' : 'cards'} from this device? This also removes its local settings.`)) return
+      if (!studyLockCurrent(lock)) return
+      if (!(await deleteLocalDeck(deck.id))) {
+        toast('Could not delete the deck')
+        return
+      }
+      deckSelectionChanged(deckSyncs(await getActiveDeck()))
+      toast(`Deleted ${deck.name}`)
+      scheduleRender()
+    })
+  })
   main.querySelectorAll<HTMLInputElement>('[data-feature]').forEach(input => {
     input.addEventListener('change', async () => {
       await putDeckFeatures({ [input.dataset.feature!]: input.checked })
