@@ -123,6 +123,11 @@ function assignments(users, decks) {
       if (!validMigrationId(uid) || seen.has(uid)) fail(`invalid deck ${deckId}`)
       seen.add(uid)
       if (!Object.hasOwn(users, uid)) fail(`deck ${deckId} lists an account that is not in the backup`)
+      if (Object.hasOwn(entry.deck, 'ownerUid')) {
+        if (entry.deck.ownerUid !== uid || memberUids.length !== 1 || users[uid].account.deckId === deckId
+          || !Object.hasOwn(users[uid].decks ?? {}, deckId)) fail(`invalid extra deck ${deckId}`)
+        continue
+      }
       if (members.has(uid)) fail(`account ${uid} is a member of more than one deck`)
       if (users[uid].account.deckId !== deckId) fail(`account ${uid} names a different deck than its membership`)
       members.set(uid, deckId)
@@ -144,7 +149,7 @@ export function prepareRestore(snapshot) {
   if (typeof snapshot.sha256 !== 'string' || snapshot.sha256 !== snapshotDigest(snapshot)) {
     throw new Error('Backup checksum does not match')
   }
-  if (snapshot.version !== 1 || !keysExactly(snapshot, TOP_KEYS)) fail('unsupported version or fields')
+  if (![1, 2].includes(snapshot.version) || !keysExactly(snapshot, TOP_KEYS)) fail('unsupported version or fields')
   if (typeof snapshot.exportedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(snapshot.exportedAt)) {
     fail('invalid exportedAt')
   }
@@ -159,7 +164,7 @@ export function prepareRestore(snapshot) {
   for (const uid of Object.keys(snapshot.users).sort()) {
     if (!validMigrationId(uid)) fail('invalid account id')
     const user = snapshot.users[uid]
-    if (!object(user) || !keysExactly(user, ['account', 'settings', 'progress', ...(Object.hasOwn(user, 'activity') ? ['activity'] : [])])) fail(`invalid user ${uid}`)
+    if (!object(user) || !keysExactly(user, ['account', 'settings', 'progress', ...(snapshot.version === 2 ? ['decks'] : []), ...(Object.hasOwn(user, 'activity') ? ['activity'] : [])])) fail(`invalid user ${uid}`)
     if (user.activity !== undefined) {
       if (!object(user.activity)) fail(`invalid activity ${uid}`)
       for (const [id, data] of Object.entries(user.activity)) {
@@ -175,6 +180,24 @@ export function prepareRestore(snapshot) {
       items.push({ path: `users/${uid}/settings/current`, kind: 'settings', data: user.settings })
       settings++
     }
+    if (snapshot.version === 2) {
+      if (!object(user.decks)) fail(`invalid user decks ${uid}`)
+      for (const [deckId, entry] of Object.entries(user.decks)) {
+        if (!validMigrationId(deckId) || !object(entry) || !keysExactly(entry, ['settings', 'progress'])
+          || snapshot.decks[deckId]?.deck?.ownerUid !== uid || user.account.deckId === deckId) fail(`invalid user deck ${uid}/${deckId}`)
+        if (entry.settings !== null) {
+          settingsDoc(uid, entry.settings)
+          items.push({ path: `users/${uid}/decks/${deckId}/settings/current`, kind: 'settings', data: entry.settings })
+          settings++
+        }
+        if (!object(entry.progress)) fail(`invalid progress ${uid}/${deckId}`)
+        for (const [id, data] of Object.entries(entry.progress)) {
+          progressDoc(uid, id, data)
+          items.push({ path: `users/${uid}/decks/${deckId}/progress/${id}`, kind: 'progress', data })
+          progress++
+        }
+      }
+    }
     if (!object(user.progress)) fail(`invalid progress ${uid}`)
     for (const id of Object.keys(user.progress).sort()) {
       progressDoc(uid, id, user.progress[id])
@@ -185,7 +208,7 @@ export function prepareRestore(snapshot) {
   for (const deckId of Object.keys(snapshot.decks).sort()) {
     if (!validMigrationId(deckId)) fail('invalid deck id')
     const deck = snapshot.decks[deckId]
-    if (!object(deck) || !keysExactly(deck, ['deck', 'cards']) || !object(deck.deck) || !keysExactly(deck.deck, ['memberUids'])) {
+    if (!object(deck) || !keysExactly(deck, ['deck', 'cards']) || !object(deck.deck) || !keysExactly(deck.deck, snapshot.version === 2 && Object.hasOwn(deck.deck, 'ownerUid') ? ['memberUids', 'ownerUid'] : ['memberUids'])) {
       fail(`invalid deck ${deckId}`)
     }
     if (!object(deck.cards)) fail(`invalid deck ${deckId}`)
@@ -229,23 +252,22 @@ export function preflightRestore({ dumpPath, projectId, credentialName, reportPa
 
 // Ordinary parent queries omit a deleted account or deck even when progress,
 // settings, or cards remain. Those surviving documents are still part of the target.
-const ROOTS = { users: ['settings', 'progress', 'activity'], decks: ['cards'] }
+const ROOTS = { users: ['settings', 'progress', 'activity', 'decks'], decks: ['cards'] }
 
 async function collectTarget(store) {
   const present = new Map()
-  for (const [collection, knownChildren] of Object.entries(ROOTS)) {
+  async function collect(collection, knownChildren = []) {
     const rows = await store.list(collection)
     const data = new Map(rows.map((row) => [row.id, row.data]))
     const ids = new Set([...data.keys(), ...await store.listDocumentIds(collection)])
     for (const id of ids) {
-      if (data.has(id)) present.set(`${collection}/${id}`, data.get(id))
       const docPath = `${collection}/${id}`
+      if (data.has(id)) present.set(docPath, data.get(id))
       const children = new Set([...knownChildren, ...await store.listSubcollections(docPath)])
-      for (const child of children) {
-        for (const row of await store.list(`${docPath}/${child}`)) present.set(`${docPath}/${child}/${row.id}`, row.data)
-      }
+      for (const child of children) await collect(`${docPath}/${child}`)
     }
   }
+  for (const [collection, knownChildren] of Object.entries(ROOTS)) await collect(collection, knownChildren)
   return present
 }
 

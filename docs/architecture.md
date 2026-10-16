@@ -275,6 +275,11 @@ The [migration runbook](firebase-migration.md) explains the confirmed copy
 and repeat-import behavior.
 
 `npm run migrate -- backup` writes a private Firestore dump with a checksum.
+Version 2 includes extra deck ownership/cards and nested per-deck settings and
+progress, alongside the original German paths, activity and tombstones. The
+restore accepts version-1 dumps too. Daily extra-deck coverage requires releasing
+this backup code and updating the operator runner; source changes alone do not
+establish that it has run.
 `npm run migrate -- restore` puts that dump back only onto an isolated
 target, and only where the target is empty or already identical. It does not
 restore Google Auth identities, IndexedDB, rules, or hosting. The frozen

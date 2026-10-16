@@ -50,27 +50,40 @@ function byId(left, right) {
 export async function exportFirestore(store, output) {
   const destination = privatePath(output)
   if (existsSync(destination)) throw new Error('Export already exists; use a new timestamped filename')
-  const users = {}
-  for (const user of (await store.list('users')).sort(byId)) {
-    const progress = {}
-    for (const row of (await store.list(`users/${user.id}/progress`)).sort(byId)) progress[row.id] = row.data
-    const activity = {}
-    for (const row of (await store.list(`users/${user.id}/activity`)).sort(byId)) activity[row.id] = row.data
-    users[user.id] = {
-      account: user.data,
-      settings: await store.get(`users/${user.id}/settings/current`),
-      progress,
-      ...(Object.keys(activity).length ? { activity } : {}),
-    }
-  }
   const decks = {}
   for (const deck of (await store.list('decks')).sort(byId)) {
     const cards = {}
     for (const row of (await store.list(`decks/${deck.id}/cards`)).sort(byId)) cards[row.id] = row.data
     decks[deck.id] = { deck: deck.data, cards }
   }
+  const users = {}
+  for (const user of (await store.list('users')).sort(byId)) {
+    const progress = {}
+    for (const row of (await store.list(`users/${user.id}/progress`)).sort(byId)) progress[row.id] = row.data
+    const activity = {}
+    for (const row of (await store.list(`users/${user.id}/activity`)).sort(byId)) activity[row.id] = row.data
+    // Nested settings/progress do not require a users/{uid}/decks/{id}
+    // parent document. Discover extra decks from their ownership documents.
+    const userDecks = {}
+    for (const [deckId, entry] of Object.entries(decks)) {
+      if (entry.deck.ownerUid !== user.id) continue
+      const deckProgress = {}
+      for (const row of (await store.list(`users/${user.id}/decks/${deckId}/progress`)).sort(byId)) deckProgress[row.id] = row.data
+      userDecks[deckId] = {
+        settings: await store.get(`users/${user.id}/decks/${deckId}/settings/current`),
+        progress: deckProgress,
+      }
+    }
+    users[user.id] = {
+      account: user.data,
+      settings: await store.get(`users/${user.id}/settings/current`),
+      progress,
+      decks: userDecks,
+      ...(Object.keys(activity).length ? { activity } : {}),
+    }
+  }
   const snapshot = {
-    version: 1,
+    version: 2,
     kind: 'firestore',
     exportedAt: new Date().toISOString(),
     users,

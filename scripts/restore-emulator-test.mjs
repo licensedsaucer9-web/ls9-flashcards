@@ -9,6 +9,7 @@ import { adminStore } from './migration-admin.mjs'
 import { prepareMigration, runMigration, same } from './migration-core.mjs'
 import { exportFirestore } from './migration-files.mjs'
 import { mapping, snapshot } from './migration-fixtures.mjs'
+import { backupCounts, runBackup } from './firestore-backup.mjs'
 import { readFirestoreBackup, runRestore } from './restore-core.mjs'
 
 const projectId = 'demo-restore-rehearsal'
@@ -94,6 +95,49 @@ try {
     '--dump', dumpPath, '--project', projectId, '--credential', 'service-account.json',
     '--report', join(directory, 'cli-repeat.json'), '--emulator', '--apply'], { encoding: 'utf8', env: operator })
   assert.equal(JSON.parse(again).state, 'already restored')
+
+  // Two decks, same card ID, independent schedules/settings, and no nested
+  // parent document (the normal client layout).
+  await envRules.clearFirestore()
+  const extraDeckId = '00000000-0000-4000-8000-000000000074'
+  const nested = `users/uid-alice/decks/${extraDeckId}`
+  source.records.set(`decks/${extraDeckId}`, { ownerUid: 'uid-alice', memberUids: ['uid-alice'] })
+  source.records.set(`decks/${extraDeckId}/cards/custom-1`, { ...source.records.get('decks/legacy-deck/cards/custom-1'), de: 'Extra' })
+  source.records.set(`decks/${extraDeckId}/cards/gone`, { ...source.records.get('decks/legacy-deck/cards/seed-02') })
+  source.records.set(`${nested}/settings/current`, { ...source.records.get('users/uid-alice/settings/current'), wordTypes: ['noun'], tier: 3 })
+  source.records.set(`${nested}/progress/custom-1`, { ...source.records.get(progressPath), due: 987654, reps: 12 })
+  const backup = await runBackup({ store: source, directory })
+  const multiPath = join(directory, 'exports', backup.file)
+  const multiPlan = readFirestoreBackup(multiPath)
+  const expectedCounts = backupCounts(JSON.parse(readFileSync(multiPath, 'utf8')))
+  const multi = await runRestore(multiPlan, store, { dryRun: false, projectId })
+  assert.equal(multi.state, 'restored and verified')
+  assert.deepEqual(multi.counts, { ...expectedCounts, skippedActivity: 0 })
+  assert.equal(multi.counts.decks, 2)
+  assert.equal(multi.counts.tombstones, 2)
+  for (const [path, data] of source.records) assert.deepEqual(await store.get(path), data)
+  assert.equal((await runRestore(multiPlan, store, { dryRun: false, projectId })).state, 'already restored')
+  await store.atomic([`${nested}/progress/custom-1`], ([before]) => [{ ...before, updated_at: before.updated_at + 1 }])
+  assert.equal((await runRestore(multiPlan, store, { dryRun: false, projectId })).newer, 1)
+  await envRules.clearFirestore()
+  await store.atomic([`${nested}/progress/orphan`], () => [source.records.get(`${nested}/progress/custom-1`)])
+  const nestedOrphan = await runRestore(plan, store, { dryRun: false, projectId })
+  assert.equal(nestedOrphan.state, 'refused')
+  assert.equal(nestedOrphan.extras, 1)
+  assert.equal(await store.get('users/uid-alice'), null)
+
+  // A pre-multi-deck dump also restores on the emulator.
+  const legacy = JSON.parse(readFileSync(dumpPath, 'utf8'))
+  legacy.version = 1
+  for (const user of Object.values(legacy.users)) delete user.decks
+  const { snapshotDigest } = await import('./migration-files.mjs')
+  legacy.sha256 = snapshotDigest(legacy)
+  const legacyPath = join(directory, 'legacy.json')
+  writeFileSync(legacyPath, JSON.stringify(legacy), { mode: 0o600 })
+  await envRules.clearFirestore()
+  const old = await runRestore(readFirestoreBackup(legacyPath), store, { dryRun: false, projectId })
+  assert.equal(old.state, 'restored and verified')
+  assert.deepEqual(old.counts, plan.counts)
 
   await envRules.clearFirestore()
   const orphanUid = 'uid-orphan'
