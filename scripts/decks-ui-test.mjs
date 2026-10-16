@@ -26,6 +26,18 @@ try {
     return route.abort()
   })
   const page = await context.newPage()
+  // A click can finish before an async handler opens its dialog. Await both the
+  // response and click so the next interaction cannot handle the same dialog.
+  const respondToDialog = async (selector, respond) => {
+    const dialogOpened = page.waitForEvent('dialog')
+    const clicked = page.click(selector)
+    const dialog = await dialogOpened
+    try {
+      await respond(dialog)
+    } finally {
+      await clicked
+    }
+  }
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('http://127.0.0.1:4182/')
@@ -755,27 +767,25 @@ try {
   })
   assert.equal(await page.locator('[data-delete-deck="local-german"]').count(), 0, 'original has no delete control')
   const originalName = await page.evaluate(async () => (await (await import('/src/db.ts')).getActiveDeck()).name)
-  page.once('dialog', dialog => dialog.accept('Renamed Spanish'))
-  await page.click(`[data-rename="${spanishId}"]`)
+  await respondToDialog(`[data-rename="${spanishId}"]`, dialog => dialog.accept('Renamed Spanish'))
   await page.getByText('Renamed Spanish', { exact: true }).waitFor()
   await page.reload()
   await page.getByText('Renamed Spanish', { exact: true }).waitFor()
   assert.equal(originalName, 'Spanish')
   // Original decks can also be renamed, without changing their protected origin.
-  page.once('dialog', dialog => dialog.accept('German study'))
-  await page.click('[data-rename="local-german"]')
+  await respondToDialog('[data-rename="local-german"]', dialog => dialog.accept('German study'))
   await page.getByText('German study', { exact: true }).waitFor()
   assert.equal(await page.locator('[data-delete-deck="local-german"]').count(), 0)
   const beforeDelete = await retained()
-  page.once('dialog', async dialog => {
-    assert.match(dialog.message(), /Renamed Spanish/)
-    assert.match(dialog.message(), /1 card/)
+  let deleteMessage
+  await respondToDialog(`[data-delete-deck="${spanishId}"]`, async dialog => {
+    deleteMessage = dialog.message()
     await dialog.dismiss()
   })
-  await page.click(`[data-delete-deck="${spanishId}"]`)
+  assert.match(deleteMessage, /Renamed Spanish/)
+  assert.match(deleteMessage, /1 card/)
   assert.deepEqual(await retained(), beforeDelete, 'cancelling deletion writes nothing')
-  page.once('dialog', dialog => dialog.accept())
-  await page.click(`[data-delete-deck="${spanishId}"]`)
+  await respondToDialog(`[data-delete-deck="${spanishId}"]`, dialog => dialog.accept())
   await page.locator(`[data-delete-deck="${spanishId}"]`).waitFor({ state: 'detached' })
   const deleted = await retained()
   assert.deepEqual(deleted.decks, beforeDelete.decks.filter(d => d.id !== spanishId), 'only deleted deck preferences and metadata disappear')
@@ -803,8 +813,7 @@ try {
   }, frenchId)
   await page.reload()
   await page.locator(`[data-delete-deck="${frenchId}"]`).waitFor()
-  page.once('dialog', dialog => dialog.accept())
-  await page.click(`[data-delete-deck="${frenchId}"]`)
+  await respondToDialog(`[data-delete-deck="${frenchId}"]`, dialog => dialog.accept())
   await page.locator(`[data-delete-deck="${frenchId}"]`).waitFor({ state: 'detached' })
   const finalState = await retained()
   assert.equal(finalState.decks.length, 1)
