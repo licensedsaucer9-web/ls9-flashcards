@@ -12,7 +12,7 @@ import {
   setDoc,
   terminate,
 } from 'firebase/firestore'
-import { commitActivity, pullCloud, commitCard, commitProgress, commitSettings } from '../src/cloud-push.ts'
+import { commitActivity, ensureExtraDeck, pullDeckCards, pullCloud, commitCard, commitProgress, commitSettings } from '../src/cloud-push.ts'
 import { parseStoredReviewActivity } from '../src/streak.ts'
 import { applyAck, chunkItems, isDirty, runDirtyQueue } from '../src/record-sync.ts'
 
@@ -347,6 +347,28 @@ try {
     assert(saved.data().timeZone === data.timeZone, 'server retains canonical zone')
     assert(await commitActivity(alice, ALICE, id, data) === 'noop', 'repaired activity retry is idempotent')
   }
+  // Two independent clients for one account: extra vocabulary never enters German.
+  const germanBefore = await pullDeckCards(alice, ALICE)
+  const extraId = randomUUID()
+  await ensureExtraDeck(alice, ALICE, extraId)
+  await ensureExtraDeck(aliceSecond, ALICE, extraId)
+  await commitCard(alice, extraId, 'extra-card', content('extra-card', { de: 'bonjour' }), 0)
+  const extraPulled = await pullDeckCards(aliceSecond, extraId)
+  assert(extraPulled.length === 1 && extraPulled[0].data.de === 'bonjour', 'second client pulls the extra-deck card')
+  assert((await pullDeckCards(aliceSecond, ALICE)).length === germanBefore.length, 'German card count is unchanged')
+  const deckAcks = []
+  const isolated = await runDirtyQueue([
+    { kind: 'card', deckId: extraId, id: 'invalid-extra', contentRevision: 1, tombstoneRevision: 0 },
+    { kind: 'card', deckId: ALICE, id: 'valid-original', contentRevision: 1, tombstoneRevision: 0 },
+  ], {
+    locked: () => true,
+    push: item => commitCard(alice, item.deckId, item.id,
+      content(item.id, { example_de: item.deckId === extraId ? 'x'.repeat(1001) : 'valid' }), 0),
+    ack: async item => { deckAcks.push(item.deckId) },
+  })
+  assert(isolated.rejected.length === 1 && deckAcks.join() === ALICE, 'rejected extra write does not block original sync')
+  await commitCard(alice, extraId, 'extra-card', null, 999)
+  assert((await pullDeckCards(aliceSecond, extraId))[0].data.deletedAt === 999, 'extra-deck tombstone reaches second client')
   console.log('cloud sync emulator ok')
 } finally {
   await Promise.all(stores.map((store) => terminate(store).catch(() => {})))

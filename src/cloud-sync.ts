@@ -1,5 +1,5 @@
 import { cloudFirestore } from './cloud-handle.ts'
-import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettings, pullCloud } from './cloud-push.ts'
+import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettings, ensureExtraDeck, pullDeckCards, pullCloud } from './cloud-push.ts'
 import {
   getActiveDeck,
   recordAssignedDeck,
@@ -73,24 +73,29 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
   const uid = lock.uid
   try {
     if (!studyLockCurrent(lock)) return 'idle'
-    // A created deck stays on this device: no pull, merge, or push touches the cloud deck.
-    if (!deckSyncs(await getActiveDeck())) return 'local'
+    const active = await getActiveDeck()
+    if (!deckSyncs(active)) return 'local'
+    const original = active!.origin === 'original'
     if (!studyLockCurrent(lock)) return 'idle'
-    const deckId = await accountDeckId(db, uid)
+    const deckId = original ? await accountDeckId(db, uid) : active!.id
     if (!studyLockCurrent(lock)) return 'idle'
-    await recordAssignedDeck(deckId)
+    if (original) await recordAssignedDeck(deckId)
+    else await ensureExtraDeck(db, uid, deckId)
     if (!studyLockCurrent(lock)) return 'idle'
     const scope = { lock, deckId }
-    const docs = await pullCloud(db, uid, deckId)
+    const docs = original ? await pullCloud(db, uid, deckId) : {
+      cards: await pullDeckCards(db, deckId), progress: [], activity: [],
+      settings: { direction: 'de-en' as const, sessionSize: 20, tier: 3 as const, settingsUpdatedAt: 0 },
+    }
     if (!studyLockCurrent(lock)) return 'idle'
     const files = docsToFiles(docs, uid, 0)
     await mergeDeckIntoDb(files.deck, undefined, scope)
     if (!studyLockCurrent(lock)) return 'idle'
-    await mergeProgressIntoDb(files.user, undefined, scope)
+    if (original) await mergeProgressIntoDb(files.user, undefined, scope)
     if (!studyLockCurrent(lock)) return 'idle'
-    await insertMissingSeeds(seedCards())
+    if (original) await insertMissingSeeds(seedCards())
     if (!studyLockCurrent(lock)) return 'idle'
-    await applyStagedProgress(scope)
+    if (original) await applyStagedProgress(scope)
     if (!studyLockCurrent(lock)) return 'idle'
     const snapshot = await readCloudSnapshot(scope)
     if (!studyLockCurrent(lock)) return 'idle'
@@ -100,7 +105,7 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
       control.requestAgain()
       return 'idle'
     }
-    const result = await runDirtyQueue(listPushItems(snapshot.settings.pending), {
+    const result = await runDirtyQueue(listPushItems(snapshot.settings.pending, deckId), {
       locked: () => {
         const live = captureStudyLock()
         return live.uid === uid && live.generation === lock.generation
@@ -130,7 +135,10 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     const newerChanges = await acknowledgeRevision(after.settings.localRevision, undefined, scope)
     if (!studyLockCurrent(lock)) return 'idle'
     if (newerChanges) {
-      control.requestAgain()
+      // Another deck can remain pending without being uploadable in this pass.
+      // Retry only work in our scope, otherwise the foreground loop would spin.
+      const latest = await readCloudSnapshot(scope)
+      if (!latest || hasDirty(latest.settings.pending)) control.requestAgain()
       return 'pending'
     }
     return 'synced'

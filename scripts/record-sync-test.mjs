@@ -290,5 +290,5 @@ assert(!activityPending.activity.clean, 'acknowledged activity marks are pruned 
 assert(activityPending.activity.dirty.revision === 5, 'dirty activity marks survive normalization')
 
 assert(deckSyncs({ origin: 'original' }), 'the original deck syncs to the cloud deck')
-assert(!deckSyncs({ origin: 'local' }), 'a created deck skips the cloud push queue')
+assert(deckSyncs({ origin: 'local' }), 'a created deck syncs cards')
 assert(!deckSyncs(undefined), 'a missing active deck does not sync')

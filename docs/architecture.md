@@ -91,8 +91,13 @@ must reserve the UUID namespace for extra decks: Firestore rules cannot inspect
 Auth accounts or protect a future custom UID that deliberately uses a deck UUID.
 Existing uid-named personal-deck creation is unchanged. Card ids keep their
 existing 1–81 character validation. Ownership and membership cannot be changed by clients.
-These decks reuse the existing card validation; client provisioning and sync
-still use the account's assigned deck.
+These decks reuse the existing card validation. When an extra deck is selected,
+the client creates its private deck document if absent and syncs its cards and
+tombstones. The original German deck keeps the account's assigned path. Extra
+deck schedules, preferences, names and selection stay local; another client
+needs that deck's ID in its local deck list to select it. Production card sync
+requires a separate manual deployment of the additive rules; this change does
+not deploy them.
 
 `firestore.rules` denies unauthenticated access and validates client shapes,
 ownership, membership, and immutable account assignment. Rules do not govern
@@ -270,7 +275,7 @@ and its limits are in [Firebase setup](firebase-setup.md#restore-a-firestore-dum
 
 ## Deck selection during cloud sync
 
-A cloud pass pins its study lock and assigned original deck ID. Cloud merges,
+A cloud pass pins its study lock and selected deck ID. Cloud merges,
 progress application, snapshots and acknowledgements check that scope against
 `activeDeckId` inside their IndexedDB transaction. The in-memory generation
 counter alone cannot detect another tab changing the shared selection. If the
@@ -278,8 +283,14 @@ selection no longer matches, the transaction aborts rather than applying cloud
 cards or settings to a local deck. Snapshots already captured for the original
 deck remain scoped to that deck; a later selection cannot change their contents.
 
-Selecting a local deck immediately resets the sync badge to “On this device,”
-including when no sync is in flight. Returning to the original deck schedules
-its pending sync. The two-tab browser regression uses synthetic data and a
+Selecting either deck schedules its pending sync. Extra decks upload content
+and deletion records only; their local schedules and preferences do not keep
+the cloud queue pending. Card marks and queued acknowledgements carry the deck
+ID, and an acknowledgement naming a different deck is refused. A rejected
+extra-deck write remains pending there; returning to German still syncs its
+independent queue. Account-wide revision acknowledgement checks every deck’s
+cloud-eligible pending records atomically, so a clean selected deck cannot hide
+unsynced work elsewhere from the status badge or sign-out warning. Extra-deck
+schedules remain local and do not block that acknowledgement. The two-tab browser regression uses synthetic data and a
 stubbed cloud transport to exercise the real cloud orchestration and IndexedDB;
 it does not require an account or contact Firebase.

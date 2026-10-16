@@ -14,17 +14,31 @@ try {
   process.env.VITE_SYNC_BACKEND = ''
   server = await createServer({ cacheDir, plugins: [{
     name: 'isolated-cloud-transport', enforce: 'pre',
+    configureServer(server) {
+      // Exercise explicit passes without main.ts foreground handlers racing
+      // them when Playwright changes the visible tab. UI coverage lives in
+      // decks-ui-test.mjs; these pages only host the real DB/sync modules.
+      server.middlewares.use('/__deck-switch-sync-fixture', (_req, res) => {
+        res.setHeader('Content-Type', 'text/html')
+        res.end('<!doctype html><title>Deck sync fixture</title>')
+      })
+    },
     load(id) {
       if (id.endsWith('/src/sync-backend.ts')) return `export * from './cloud-sync.ts'`
       if (id.endsWith('/src/cloud-handle.ts')) return 'export function cloudFirestore() { return {} }'
       if (id.endsWith('/src/cloud-push.ts')) return `
         export async function accountDeckId() { return 'fixture-original' }
+        export async function ensureExtraDeck() {}
+        export async function pullDeckCards() { return [] }
         export async function pullCloud() {
           globalThis.pullStarted = true
           if (globalThis.waitForPull) await new Promise(resolve => { globalThis.releasePull = resolve })
           return globalThis.cloudDocs
         }
-        const commit = async (...args) => { globalThis.pushes.push(args); return 'wrote' }
+        const commit = async (...args) => {
+          if (globalThis.rejectDeck === args[1]) throw { code: 'permission-denied' }
+          globalThis.pushes.push(args); return 'wrote'
+        }
         export const commitCard = commit, commitProgress = commit, commitSettings = commit, commitActivity = commit
       `
     },
@@ -42,14 +56,13 @@ try {
   })
   const a = await context.newPage(), b = await context.newPage()
   for (const page of [a, b]) {
-    await page.goto('http://127.0.0.1:4183/')
-    await page.waitForSelector('#start')
+    await page.goto('http://127.0.0.1:4183/__deck-switch-sync-fixture')
   }
   await a.evaluate(async () => {
     const api = await import('/src/db.ts')
     const locks = await import('/src/study-lock.ts')
     const { filesToDocs } = await import('/src/firestore-docs.ts')
-    const sample = (await api.getAllCards())[0]
+    const sample = (await import('/src/seed.ts')).seedCards()[0]
     globalThis.sample = sample
     locks.bindStudyDatabase({ uid: 'fixture-user', dbName: 'fixture-shared' })
     await api.recordAssignedDeck('fixture-original')
@@ -59,8 +72,8 @@ try {
       cards: [{ ...sample, id: 'fixture-remote', updated_at: 100 }], deleted_ids: {} }
     globalThis.cloudDocs = filesToDocs(globalThis.remote, null)
     globalThis.pushes = []; globalThis.waitForPull = true
-    const sync = await import('/src/sync.ts')
-    globalThis.pass = sync.syncNow()
+    const sync = await import('/src/cloud-sync.ts')
+    globalThis.pass = sync.cloudSyncPass({ requestAgain() {} })
   })
   await a.waitForFunction(() => globalThis.pullStarted)
   const localId = await b.evaluate(async () => {
@@ -74,17 +87,16 @@ try {
     const locks = await import('/src/study-lock.ts')
     const originalLockStillValid = locks.studyLockCurrent(globalThis.scope.lock)
     globalThis.releasePull()
-    await globalThis.pass
+    const outcome = await globalThis.pass
     const { getSyncStatus } = await import('/src/sync.ts')
-    return { originalLockStillValid, status: getSyncStatus(), cards: await api.getAllCards(), pushes: globalThis.pushes.length,
+    return { outcome, originalLockStillValid, status: getSyncStatus(), cards: await api.getAllCards(), pushes: globalThis.pushes.length,
       active: (await api.getSettings()).activeDeckId }
   })
   assert.equal(result.originalLockStillValid, true, 'reproduces a foreign-tab switch without local generation invalidation')
   assert.equal(result.active, localId)
   assert.deepEqual(result.cards, [], 'the new local deck must not receive cloud cards')
   assert.equal(result.pushes, 0, 'a switched-away pass never pushes local data')
-  assert.deepEqual(result.status, { state: 'idle', message: 'On this device', at: null },
-    'the originating tab must settle on device-only status after the foreign-tab switch')
+  assert.equal(result.outcome, 'idle', 'the switched-away pass must stop')
 
   // The guards must also hold between stages, not just before/after the fetch.
   const guards = await a.evaluate(async () => {
@@ -117,7 +129,7 @@ try {
     const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
     return { outcome, ids: (await api.getAllCards()).map(c => c.id), settings: await api.getSettings(), pushes: globalThis.pushes }
   })
-  assert.equal(resumed.outcome, 'synced')
+  assert.equal(resumed.outcome, 'pending', 'unsent extra-deck content keeps the account pending')
   assert.equal(resumed.settings.sessionSize, 20)
   assert.equal(resumed.settings.direction, 'en-de')
   assert.equal(resumed.settings.tier, 2)
@@ -133,6 +145,136 @@ try {
   assert.equal(returned.direction, 'de-en')
   assert.equal(returned.tier, 3)
   assert.deepEqual(returned.wordTypes, ['verb'])
+  const extra = await a.evaluate(async () => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    const { listPushItems, hasDirty } = await import('/src/record-sync.ts')
+    const { captureStudyLock } = await import('/src/study-lock.ts')
+    const deckId = (await api.getSettings()).activeDeckId
+    const snapshot = await api.readCloudSnapshot({ lock: captureStudyLock(), deckId })
+    const item = listPushItems(snapshot.settings.pending, deckId).find(item => item.kind === 'card')
+    const wrongAck = await api.acknowledgePending({ ...item, deckId: 'fixture-original' },
+      { uid: 'fixture-user', generation: captureStudyLock().generation, scope: { lock: captureStudyLock(), deckId } })
+    globalThis.pushes = []
+    const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
+    return { outcome, wrongAck, item, pushes: globalThis.pushes, dirty: hasDirty((await api.readCloudSnapshot()).settings.pending) }
+  })
+  assert.equal(extra.item?.id, 'fixture-local', 'the explicit extra-deck pass starts with pending card content')
+  assert.equal(extra.item.deckId, localId)
+  assert.equal(extra.outcome, 'synced')
+  assert.equal(extra.wrongAck, false, 'an acknowledgement naming the other deck is refused')
+  assert.equal(extra.dirty, false, 'extra-deck schedules are local and do not keep cloud sync pending')
+  assert.equal(extra.pushes.length, 1, 'extra-deck sync sends card content only')
+  assert.equal(extra.pushes[0][1], localId)
+  assert.equal(extra.pushes[0][2], 'fixture-local')
+  const deniedExtra = await a.evaluate(async () => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    const local = (await api.getAllCards())[0]
+    await api.putCard({ ...local, en: 'edited locally', updated_at: Date.now() })
+    globalThis.rejectDeck = (await api.getSettings()).activeDeckId
+    const denied = await cloud.cloudSyncPass({ requestAgain() {} })
+    await api.switchActiveDeck('fixture-original')
+    const original = await cloud.cloudSyncPass({ requestAgain() {} })
+    return { denied, original }
+  })
+  assert.equal(deniedExtra.denied.state, 'rejected')
+  assert.equal(deniedExtra.original, 'pending', 'German cannot report account sync while an extra-deck card is rejected')
+  // Offline German work must survive a successful extra-deck pass in both
+  // the account revision used by sign-out and the foreground sync badge.
+  const pendingGerman = await a.evaluate(async (extraId) => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    const sync = await import('/src/sync.ts')
+    globalThis.rejectDeck = undefined
+    await api.putCard({ ...globalThis.sample, id: 'fixture-pending-german' })
+    await api.saveReview('fixture-pending-german', 'good', crypto.randomUUID(), Date.now(), 'UTC')
+    await api.putSettings({ sessionSize: 7 })
+    const before = await api.getSettings()
+    await api.switchActiveDeck(extraId)
+    let retries = 0
+    const outcome = await cloud.cloudSyncPass({ requestAgain() { retries++ } })
+    await sync.syncNow()
+    const after = await api.getSettings()
+    const status = sync.getSyncStatus()
+    await api.switchActiveDeck('fixture-original')
+    const pending = (await api.readCloudSnapshot()).settings.pending
+    const original = await cloud.cloudSyncPass({ requestAgain() {} })
+    await api.switchActiveDeck(extraId)
+    await sync.syncNow()
+    return { before, after, outcome, retries, status, pending, original,
+      final: await api.getSettings(), finalStatus: sync.getSyncStatus() }
+  }, localId)
+  assert.equal(pendingGerman.outcome, 'pending')
+  assert.equal(pendingGerman.retries, 0, 'another deck pending must not spin the foreground loop')
+  assert.equal(pendingGerman.after.acknowledgedRevision, pendingGerman.before.acknowledgedRevision)
+  assert(pendingGerman.after.localRevision > pendingGerman.after.acknowledgedRevision, 'sign-out still sees unacknowledged German work')
+  assert.equal(pendingGerman.status.message, 'Saved on this device')
+  for (const kind of ['cards', 'progress', 'activity']) {
+    assert(Object.values(pendingGerman.pending[kind]).some(mark => mark.revision > mark.acked), `${kind} remains pending`)
+  }
+  assert(pendingGerman.pending.settings.revision > pendingGerman.pending.settings.acked)
+  assert.equal(pendingGerman.original, 'synced')
+  assert.equal(pendingGerman.final.localRevision, pendingGerman.final.acknowledgedRevision)
+  assert.equal(pendingGerman.finalStatus.message, 'Synced')
+  // A deletion supersedes unsent content/progress. It must not strand the
+  // account clock, either for new deletions or stale marks from older clients.
+  await a.evaluate(id => { globalThis.extraId = id }, localId)
+  for (const deckId of ['fixture-original', localId]) {
+    const deleted = await a.evaluate(async (deckId) => {
+      const api = await import('/src/db.ts'), sync = await import('/src/sync.ts')
+      await api.switchActiveDeck(deckId)
+      await api.putCard({ ...globalThis.sample, id: `fixture-delete-before-upload-${deckId}` })
+      await api.deleteCard(`fixture-delete-before-upload-${deckId}`, 5000)
+      const before = await api.getSettings()
+      globalThis.pushes = []
+      await sync.syncNow()
+      return { before, after: await api.getSettings(), status: sync.getSyncStatus(), pushes: globalThis.pushes }
+    }, deckId)
+    assert.equal(deleted.before.pending.cards[`fixture-delete-before-upload-${deckId}`], undefined)
+    assert.equal(deleted.before.pending.progress[`fixture-delete-before-upload-${deckId}`], undefined)
+    assert.equal(deleted.status.message, 'Synced')
+    assert.equal(deleted.after.localRevision, deleted.after.acknowledgedRevision)
+    assert(deleted.pushes.some(args => args[1] === deckId && args[2] === `fixture-delete-before-upload-${deckId}`
+      && args[3] === null && args[4] === 5000), 'the deletion still uploads its tombstone')
+
+    const recovered = await a.evaluate(async (deckId) => {
+      const api = await import('/src/db.ts'), sync = await import('/src/sync.ts')
+      // Recreate marks persisted by the old delete path, including while this
+      // deck is inactive. No card row exists for these marks.
+      await new Promise((resolve, reject) => {
+        const request = indexedDB.open('fixture-shared')
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const db = request.result, tx = db.transaction('settings', 'readwrite')
+          const store = tx.objectStore('settings'), read = store.get('settings')
+          read.onsuccess = () => {
+            const settings = read.result
+            settings.localRevision++
+            for (const kind of ['cards', 'progress']) {
+              settings.pending[kind][`fixture-delete-before-upload-${deckId}`] = {
+                revision: settings.localRevision, acked: 0, deckId,
+              }
+            }
+            store.put(settings)
+          }
+          tx.oncomplete = () => { db.close(); resolve() }
+          tx.onabort = () => { db.close(); reject(tx.error) }
+        }
+      })
+      await sync.syncNow()
+      const recoveredStatus = sync.getSyncStatus()
+      const recoveredSettings = await api.getSettings()
+      if (recoveredStatus.message !== 'Synced' || recoveredSettings.localRevision !== recoveredSettings.acknowledgedRevision) {
+        throw new Error('stored orphan marks block the deleted card’s own deck')
+      }
+      await api.switchActiveDeck(deckId === 'fixture-original' ? globalThis.extraId : 'fixture-original')
+      await api.putCard({ ...globalThis.sample, id: `fixture-after-delete-${deckId}` })
+      globalThis.pushes = []
+      await sync.syncNow()
+      return { after: await api.getSettings(), status: sync.getSyncStatus(), pushes: globalThis.pushes }
+    }, deckId)
+    assert.equal(recovered.status.message, 'Synced', 'stored orphan marks cannot block a later upload on the other deck')
+    assert.equal(recovered.after.localRevision, recovered.after.acknowledgedRevision)
+    assert(recovered.pushes.some(args => args[2] === `fixture-after-delete-${deckId}`), 'later content still uploads')
+  }
   assert(resumed.ids.includes('fixture-remote'))
   assert(!resumed.ids.includes('fixture-local'))
   assert.deepEqual(external, [])

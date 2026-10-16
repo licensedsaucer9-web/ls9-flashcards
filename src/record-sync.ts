@@ -6,9 +6,9 @@ import { normalizeWordTypes, sameWordTypes } from './word-types.ts'
 /** Strictly under Firestore's 500-write transaction cap. */
 export const WRITE_CHUNK = 499
 
-/** Only the original deck is mirrored to the account's cloud deck. Other decks stay on this device. */
+/** Both original and created decks sync cards; schedules/settings remain original-only. */
 export function deckSyncs(deck: Pick<LocalDeck, 'origin'> | undefined): boolean {
-  return deck?.origin === 'original'
+  return !!deck
 }
 
 export function emptyPending(): PendingRecords {
@@ -23,7 +23,8 @@ function asMark(value: unknown): RecordMark | null {
   if (!value || typeof value !== 'object') return null
   const revision = wholeRevision((value as { revision?: unknown }).revision)
   if (revision <= 0) return null
-  return { revision, acked: Math.min(revision, wholeRevision((value as { acked?: unknown }).acked)) }
+  return { revision, acked: Math.min(revision, wholeRevision((value as { acked?: unknown }).acked)),
+    ...(typeof (value as RecordMark).deckId === 'string' ? { deckId: (value as RecordMark).deckId } : {}) }
 }
 
 function asMarkMap(value: unknown): Record<string, RecordMark> {
@@ -62,7 +63,7 @@ export function hasDirty(pending: PendingRecords): boolean {
 }
 
 export function bumpMark(current: RecordMark | null | undefined, revision: number): RecordMark {
-  return { revision, acked: current ? Math.min(current.acked, revision) : 0 }
+  return { ...current, revision, acked: current ? Math.min(current.acked, revision) : 0 }
 }
 
 /**
@@ -71,7 +72,7 @@ export function bumpMark(current: RecordMark | null | undefined, revision: numbe
  */
 export function applyAck(mark: RecordMark, sentRevision: number): RecordMark {
   if (sentRevision <= 0 || sentRevision > mark.revision) return mark
-  return { revision: mark.revision, acked: Math.max(mark.acked, sentRevision) }
+  return { ...mark, revision: mark.revision, acked: Math.max(mark.acked, sentRevision) }
 }
 
 export function ackAllowed(
@@ -110,13 +111,13 @@ export function reconcileStagedProgress(staged: Srs, current: Srs): Srs {
   return mergeProgress({ card: staged }, { card: current }).card
 }
 
-export type PushItem =
+export type PushItem = ({ deckId?: string } & (
   | { kind: 'card'; id: string; contentRevision: number; tombstoneRevision: number }
   | { kind: 'progress'; id: string; revision: number }
   | { kind: 'activity'; id: string; revision: number }
-  | { kind: 'settings'; revision: number }
+  | { kind: 'settings'; revision: number }))
 
-export function listPushItems(pending: PendingRecords): PushItem[] {
+export function listPushItems(pending: PendingRecords, deckId?: string): PushItem[] {
   const cards = new Map<string, { contentRevision: number; tombstoneRevision: number }>()
   for (const [id, mark] of Object.entries(pending.cards)) {
     if (isDirty(mark)) cards.set(id, { contentRevision: mark.revision, tombstoneRevision: 0 })
@@ -140,7 +141,7 @@ export function listPushItems(pending: PendingRecords): PushItem[] {
   for (const [id, mark] of Object.entries(pending.activity ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
     if (isDirty(mark)) items.push({ kind: 'activity', id, revision: mark.revision })
   }
-  return items
+  return items.map(item => deckId ? { ...item, deckId } : item)
 }
 
 export function chunkItems<T>(items: T[], size = WRITE_CHUNK): T[][] {
