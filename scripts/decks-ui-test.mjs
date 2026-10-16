@@ -60,6 +60,12 @@ try {
     const { activeDeckId, ...oldSettings } = preferences
     // This isolated database has its own activity fixture, not the source event.
     oldSettings.pending = { ...oldSettings.pending, activity: {} }
+    // Versions 2–4 predate deck-scoped pending marks. Do not inherit the
+    // current app's ownership fields when constructing these legacy rows.
+    for (const kind of ['cards', 'progress', 'tombstones']) {
+      oldSettings.pending[kind] = Object.fromEntries(Object.entries(oldSettings.pending[kind])
+        .map(([id, { deckId, ...mark }]) => [id, mark]))
+    }
     const read = name => new Promise((resolve, reject) => {
       const req = indexedDB.open(name)
       req.onerror = () => reject(req.error)
@@ -130,6 +136,31 @@ try {
       assert.deepEqual(result.attached.activity, result.before.activity)
       assert.deepEqual(result.attached.settings, [{ ...result.before.settings[0], activeDeckId: 'fixture-cloud-deck', deletedDeckIds: { 'deleted-fixture': 'fixture-cloud-deck' } }])
     }
+  }
+  // Current offline writes do carry ownership; attaching the cloud assignment
+  // must remap every record kind without changing its revision or ack state.
+  const reassigned = await page.evaluate(async () => {
+    const api = await import('/src/db.ts')
+    const { bindStudyDatabase, clearStudyBinding } = await import('/src/study-lock.ts')
+    const fixture = (await api.getAllCards())[0]
+    try {
+      bindStudyDatabase({ uid: 'fixture-account', dbName: 'deck-pending-assignment-fixture' })
+      await api.putCard({ ...fixture, id: 'pending-kept' })
+      await api.putCard({ ...fixture, id: 'pending-deleted' })
+      await api.deleteCard('pending-deleted', Date.now())
+      const before = await api.getSettings()
+      await api.recordAssignedDeck('fixture-cloud-deck')
+      await api.recordAssignedDeck('fixture-cloud-deck')
+      return { before, after: await api.getSettings() }
+    } finally { clearStudyBinding() }
+  })
+  for (const kind of ['cards', 'progress', 'tombstones']) {
+    assert(Object.keys(reassigned.before.pending[kind]).length > 0, `${kind} fixture contains pending writes`)
+    assert.deepEqual(reassigned.after.pending[kind], Object.fromEntries(
+      Object.entries(reassigned.before.pending[kind]).map(([id, mark]) => {
+        assert.equal(mark.deckId, 'local-german')
+        return [id, { ...mark, deckId: 'fixture-cloud-deck' }]
+      })), `${kind} assignment preserves revisions and remaps ownership`)
   }
   // Guest vocabulary copies must preserve another deck's tombstones and pending revisions.
   const guestCopy = await page.evaluate(async () => {
