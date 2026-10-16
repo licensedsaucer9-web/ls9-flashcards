@@ -81,6 +81,19 @@ GitHub data transport; the previous published build still has its old writer.
 | `decks/{deckId}` | Explicit deck membership. Clients cannot alter membership or assign themselves to a legacy deck. |
 | `decks/{deckId}/cards/{cardId}` | Vocabulary, content clock, optional rank/tier, and deletion tombstone; deck members can edit. |
 
+Rules also permit a signed-in user to create a private extra deck at a lowercase
+version-4 UUID, matching `createLocalDeck`'s `crypto.randomUUID()` ids (which also
+pass `validId`). The id must differ from their uid and have no existing account
+document at `users/{deckId}`. `ownerUid` must equal their uid and `memberUids`
+must contain only that uid. This excludes generated alphanumeric Auth UIDs,
+including accounts that have not provisioned yet. Admin-created custom Auth UIDs
+must reserve the UUID namespace for extra decks: Firestore rules cannot inspect
+Auth accounts or protect a future custom UID that deliberately uses a deck UUID.
+Existing uid-named personal-deck creation is unchanged. Card ids keep their
+existing 1–81 character validation. Ownership and membership cannot be changed by clients.
+These decks reuse the existing card validation; client provisioning and sync
+still use the account's assigned deck.
+
 `firestore.rules` denies unauthenticated access and validates client shapes,
 ownership, membership, and immutable account assignment. Rules do not govern
 Admin SDK operations. The operator importer validates its own inputs and
