@@ -321,3 +321,14 @@ unsynced work elsewhere from the status badge or sign-out warning. Extra-deck
 progress and settings participate in that acknowledgement. The two-tab browser regression uses synthetic data and a
 stubbed cloud transport to exercise the real cloud orchestration and IndexedDB;
 it does not require an account or contact Firebase.
+
+## Additional language starters
+
+The optional French and Spanish built-ins reuse the private extra-deck paths and
+legacy wire field names. Their deterministic per-account IDs and zero-clock
+seed content preserve normal merges, user edits and seed tombstones; selection
+and new-card insertion are atomic. Built-ins are protected from whole-deck deletion.
+No database/schema migration is required. The article whitelist is additive and
+requires a separate rules deployment before production sync. See
+[starter-decks.md](starter-decks.md) for article/gender tokens, identity, seed-update
+policy, content licensing, supported backups and device-local deck-list limits.

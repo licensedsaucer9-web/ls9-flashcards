@@ -1,0 +1,8511 @@
+{
+  "language": "fr",
+  "corpusSha256": "f81f7c570b6433764da99aa30f4dfb08d81c5926301377b709af23a13b1f9596",
+  "cards": [
+    {
+      "id": "seed-fr-001",
+      "de": "homme",
+      "en": "man",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'homme.",
+      "example_en": "We are talking about the man.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 157,
+      "rankForm": "homme",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-002",
+      "de": "femme",
+      "en": "woman",
+      "article": "la",
+      "example_de": "Nous parlons de la femme.",
+      "example_en": "We are talking about the woman.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 160,
+      "rankForm": "femme",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-003",
+      "de": "enfant",
+      "en": "child",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'enfant.",
+      "example_en": "We are talking about the child.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 376,
+      "rankForm": "enfant",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-004",
+      "de": "garçon",
+      "en": "boy",
+      "article": "le",
+      "example_de": "Nous parlons du garçon.",
+      "example_en": "We are talking about the boy.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 468,
+      "rankForm": "garçon",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-005",
+      "de": "fille",
+      "en": "girl",
+      "article": "la",
+      "example_de": "Nous parlons de la fille.",
+      "example_en": "We are talking about the girl.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 179,
+      "rankForm": "fille",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-006",
+      "de": "père",
+      "en": "father",
+      "article": "le",
+      "example_de": "Nous parlons du père.",
+      "example_en": "We are talking about the father.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 146,
+      "rankForm": "père",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-007",
+      "de": "mère",
+      "en": "mother",
+      "article": "la",
+      "example_de": "Nous parlons de la mère.",
+      "example_en": "We are talking about the mother.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 176,
+      "rankForm": "mère",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-008",
+      "de": "frère",
+      "en": "brother",
+      "article": "le",
+      "example_de": "Nous parlons du frère.",
+      "example_en": "We are talking about the brother.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 325,
+      "rankForm": "frère",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-009",
+      "de": "sœur",
+      "en": "sister",
+      "article": "la",
+      "example_de": "Nous parlons de la sœur.",
+      "example_en": "We are talking about the sister.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 783,
+      "rankForm": "sœur",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-010",
+      "de": "fils",
+      "en": "son",
+      "article": "le",
+      "example_de": "Nous parlons du fils.",
+      "example_en": "We are talking about the son.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 229,
+      "rankForm": "fils",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-011",
+      "de": "famille",
+      "en": "family",
+      "article": "la",
+      "example_de": "Nous parlons de la famille.",
+      "example_en": "We are talking about the family.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 236,
+      "rankForm": "famille",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-012",
+      "de": "bébé",
+      "en": "baby",
+      "article": "le",
+      "example_de": "Nous parlons du bébé.",
+      "example_en": "We are talking about the baby.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 341,
+      "rankForm": "bébé",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-013",
+      "de": "grand-père",
+      "en": "grandfather",
+      "article": "le",
+      "example_de": "Nous parlons du grand-père.",
+      "example_en": "We are talking about the grandfather.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1389,
+      "rankForm": "grand-père",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-014",
+      "de": "grand-mère",
+      "en": "grandmother",
+      "article": "la",
+      "example_de": "Nous parlons de la grand-mère.",
+      "example_en": "We are talking about the grandmother.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1254,
+      "rankForm": "grand-mère",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-015",
+      "de": "oncle",
+      "en": "uncle",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'oncle.",
+      "example_en": "We are talking about the uncle.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 785,
+      "rankForm": "oncle",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-016",
+      "de": "tante",
+      "en": "aunt",
+      "article": "la",
+      "example_de": "Nous parlons de la tante.",
+      "example_en": "We are talking about the aunt.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1259,
+      "rankForm": "tante",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-017",
+      "de": "cousin",
+      "en": "cousin",
+      "article": "le",
+      "example_de": "Nous parlons du cousin.",
+      "example_en": "We are talking about the cousin.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1961,
+      "rankForm": "cousin",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-018",
+      "de": "ami",
+      "en": "friend",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'ami.",
+      "example_en": "We are talking about the friend.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 273,
+      "rankForm": "ami",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-019",
+      "de": "voisin",
+      "en": "neighbor",
+      "article": "le",
+      "example_de": "Nous parlons du voisin.",
+      "example_en": "We are talking about the neighbor.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2939,
+      "rankForm": "voisin",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-020",
+      "de": "mari",
+      "en": "husband",
+      "article": "le",
+      "example_de": "Nous parlons du mari.",
+      "example_en": "We are talking about the husband.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 407,
+      "rankForm": "mari",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-021",
+      "de": "personne",
+      "en": "person",
+      "article": "la",
+      "example_de": "Nous parlons de la personne.",
+      "example_en": "We are talking about the person.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 144,
+      "rankForm": "personne",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-022",
+      "de": "couple",
+      "en": "couple",
+      "article": "le",
+      "example_de": "Nous parlons du couple.",
+      "example_en": "We are talking about the couple.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1471,
+      "rankForm": "couple",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-023",
+      "de": "nom",
+      "en": "name",
+      "article": "le",
+      "example_de": "Nous parlons du nom.",
+      "example_en": "We are talking about the name.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 204,
+      "rankForm": "nom",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-024",
+      "de": "âge",
+      "en": "age",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'âge.",
+      "example_en": "We are talking about the age.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 744,
+      "rankForm": "âge",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-025",
+      "de": "vie",
+      "en": "life",
+      "article": "la",
+      "example_de": "Nous parlons de la vie.",
+      "example_en": "We are talking about the life.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 129,
+      "rankForm": "vie",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-026",
+      "de": "mort",
+      "en": "death",
+      "article": "la",
+      "example_de": "Nous parlons de la mort.",
+      "example_en": "We are talking about the death.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 173,
+      "rankForm": "mort",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-027",
+      "de": "corps",
+      "en": "body",
+      "article": "le",
+      "example_de": "Nous parlons du corps.",
+      "example_en": "We are talking about the body.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 355,
+      "rankForm": "corps",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-028",
+      "de": "tête",
+      "en": "head",
+      "article": "la",
+      "example_de": "Nous parlons de la tête.",
+      "example_en": "We are talking about the head.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 245,
+      "rankForm": "tête",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-029",
+      "de": "visage",
+      "en": "face",
+      "article": "le",
+      "example_de": "Nous parlons du visage.",
+      "example_en": "We are talking about the face.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 659,
+      "rankForm": "visage",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-030",
+      "de": "œil",
+      "en": "eye",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'œil.",
+      "example_en": "We are talking about the eye.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1178,
+      "rankForm": "œil",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-031",
+      "de": "oreille",
+      "en": "ear",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'oreille.",
+      "example_en": "We are talking about the ear.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2333,
+      "rankForm": "oreille",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-032",
+      "de": "nez",
+      "en": "nose",
+      "article": "le",
+      "example_de": "Nous parlons du nez.",
+      "example_en": "We are talking about the nose.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1153,
+      "rankForm": "nez",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-033",
+      "de": "bouche",
+      "en": "mouth",
+      "article": "la",
+      "example_de": "Nous parlons de la bouche.",
+      "example_en": "We are talking about the mouth.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1049,
+      "rankForm": "bouche",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-034",
+      "de": "dent",
+      "en": "tooth",
+      "article": "la",
+      "example_de": "Nous parlons de la dent.",
+      "example_en": "We are talking about the tooth.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4138,
+      "rankForm": "dent",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-035",
+      "de": "langue",
+      "en": "tongue",
+      "article": "la",
+      "example_de": "Nous parlons de la langue.",
+      "example_en": "We are talking about the tongue.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1557,
+      "rankForm": "langue",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-036",
+      "de": "cheveu",
+      "en": "hair",
+      "article": "le",
+      "example_de": "Nous parlons du cheveu.",
+      "example_en": "We are talking about the hair.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 9592,
+      "rankForm": "cheveu",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-037",
+      "de": "cou",
+      "en": "neck",
+      "article": "le",
+      "example_de": "Nous parlons du cou.",
+      "example_en": "We are talking about the neck.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1679,
+      "rankForm": "cou",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-038",
+      "de": "épaule",
+      "en": "shoulder",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'épaule.",
+      "example_en": "We are talking about the shoulder.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3272,
+      "rankForm": "épaule",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-039",
+      "de": "bras",
+      "en": "arm",
+      "article": "le",
+      "example_de": "Nous parlons du bras.",
+      "example_en": "We are talking about the arm.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 656,
+      "rankForm": "bras",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-040",
+      "de": "main",
+      "en": "hand",
+      "article": "la",
+      "example_de": "Nous parlons de la main.",
+      "example_en": "We are talking about the hand.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 373,
+      "rankForm": "main",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-041",
+      "de": "doigt",
+      "en": "finger",
+      "article": "le",
+      "example_de": "Nous parlons du doigt.",
+      "example_en": "We are talking about the finger.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1932,
+      "rankForm": "doigt",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-042",
+      "de": "dos",
+      "en": "back",
+      "article": "le",
+      "example_de": "Nous parlons du dos.",
+      "example_en": "We are talking about the back.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 790,
+      "rankForm": "dos",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-043",
+      "de": "ventre",
+      "en": "belly",
+      "article": "le",
+      "example_de": "Nous parlons du ventre.",
+      "example_en": "We are talking about the belly.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2073,
+      "rankForm": "ventre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-044",
+      "de": "jambe",
+      "en": "leg",
+      "article": "la",
+      "example_de": "Nous parlons de la jambe.",
+      "example_en": "We are talking about the leg.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1701,
+      "rankForm": "jambe",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-045",
+      "de": "genou",
+      "en": "knee",
+      "article": "le",
+      "example_de": "Nous parlons du genou.",
+      "example_en": "We are talking about the knee.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4947,
+      "rankForm": "genou",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-046",
+      "de": "pied",
+      "en": "foot",
+      "article": "le",
+      "example_de": "Nous parlons du pied.",
+      "example_en": "We are talking about the foot.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 881,
+      "rankForm": "pied",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-047",
+      "de": "cœur",
+      "en": "heart",
+      "article": "le",
+      "example_de": "Nous parlons du cœur.",
+      "example_en": "We are talking about the heart.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 607,
+      "rankForm": "cœur",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-048",
+      "de": "sang",
+      "en": "blood",
+      "article": "le",
+      "example_de": "Nous parlons du sang.",
+      "example_en": "We are talking about the blood.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 301,
+      "rankForm": "sang",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-049",
+      "de": "peau",
+      "en": "skin",
+      "article": "la",
+      "example_de": "Nous parlons de la peau.",
+      "example_en": "We are talking about the skin.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1106,
+      "rankForm": "peau",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-050",
+      "de": "santé",
+      "en": "health",
+      "article": "la",
+      "example_de": "Nous parlons de la santé.",
+      "example_en": "We are talking about the health.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 992,
+      "rankForm": "santé",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-051",
+      "de": "maladie",
+      "en": "illness",
+      "article": "la",
+      "example_de": "Nous parlons de la maladie.",
+      "example_en": "We are talking about the illness.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1513,
+      "rankForm": "maladie",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-052",
+      "de": "douleur",
+      "en": "pain",
+      "article": "la",
+      "example_de": "Nous parlons de la douleur.",
+      "example_en": "We are talking about the pain.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1270,
+      "rankForm": "douleur",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-053",
+      "de": "médecin",
+      "en": "doctor",
+      "article": "le",
+      "example_de": "Nous parlons du médecin.",
+      "example_en": "We are talking about the doctor.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 828,
+      "rankForm": "médecin",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-054",
+      "de": "hôpital",
+      "en": "hospital",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'hôpital.",
+      "example_en": "We are talking about the hospital.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 622,
+      "rankForm": "hôpital",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-055",
+      "de": "pharmacie",
+      "en": "pharmacy",
+      "article": "la",
+      "example_de": "Nous parlons de la pharmacie.",
+      "example_en": "We are talking about the pharmacy.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 6150,
+      "rankForm": "pharmacie",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-056",
+      "de": "médicament",
+      "en": "medicine",
+      "article": "le",
+      "example_de": "Nous parlons du médicament.",
+      "example_en": "We are talking about the medicine.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4538,
+      "rankForm": "médicament",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-057",
+      "de": "rendez-vous",
+      "en": "appointment",
+      "article": "le",
+      "example_de": "Nous parlons du rendez-vous.",
+      "example_en": "We are talking about the appointment.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 687,
+      "rankForm": "rendez-vous",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-058",
+      "de": "maison",
+      "en": "house",
+      "article": "la",
+      "example_de": "Nous parlons de la maison.",
+      "example_en": "We are talking about the house.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 189,
+      "rankForm": "maison",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-059",
+      "de": "appartement",
+      "en": "apartment",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'appartement.",
+      "example_en": "We are talking about the apartment.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1056,
+      "rankForm": "appartement",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-060",
+      "de": "pièce",
+      "en": "room",
+      "article": "la",
+      "example_de": "Nous parlons de la pièce.",
+      "example_en": "We are talking about the room.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 701,
+      "rankForm": "pièce",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-061",
+      "de": "chambre",
+      "en": "bedroom",
+      "article": "la",
+      "example_de": "Nous parlons de la chambre.",
+      "example_en": "We are talking about the bedroom.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 394,
+      "rankForm": "chambre",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-062",
+      "de": "cuisine",
+      "en": "kitchen",
+      "article": "la",
+      "example_de": "Nous parlons de la cuisine.",
+      "example_en": "We are talking about the kitchen.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 998,
+      "rankForm": "cuisine",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-063",
+      "de": "salle de bains",
+      "en": "bathroom",
+      "article": "la",
+      "example_de": "Nous parlons de la salle de bains.",
+      "example_en": "We are talking about the bathroom.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 637,
+      "rankForm": "salle",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-064",
+      "de": "salon",
+      "en": "living room",
+      "article": "le",
+      "example_de": "Nous parlons du salon.",
+      "example_en": "We are talking about the living room.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1978,
+      "rankForm": "salon",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-065",
+      "de": "porte",
+      "en": "door",
+      "article": "la",
+      "example_de": "Nous parlons de la porte.",
+      "example_en": "We are talking about the door.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 287,
+      "rankForm": "porte",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-066",
+      "de": "fenêtre",
+      "en": "window",
+      "article": "la",
+      "example_de": "Nous parlons de la fenêtre.",
+      "example_en": "We are talking about the window.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1279,
+      "rankForm": "fenêtre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-067",
+      "de": "mur",
+      "en": "wall",
+      "article": "le",
+      "example_de": "Nous parlons du mur.",
+      "example_en": "We are talking about the wall.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1206,
+      "rankForm": "mur",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-068",
+      "de": "toit",
+      "en": "roof",
+      "article": "le",
+      "example_de": "Nous parlons du toit.",
+      "example_en": "We are talking about the roof.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1781,
+      "rankForm": "toit",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-069",
+      "de": "sol",
+      "en": "floor",
+      "article": "le",
+      "example_de": "Nous parlons du sol.",
+      "example_en": "We are talking about the floor.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1242,
+      "rankForm": "sol",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-070",
+      "de": "escalier",
+      "en": "staircase",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'escalier.",
+      "example_en": "We are talking about the staircase.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3875,
+      "rankForm": "escalier",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-071",
+      "de": "ascenseur",
+      "en": "elevator",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'ascenseur.",
+      "example_en": "We are talking about the elevator.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2627,
+      "rankForm": "ascenseur",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-072",
+      "de": "clé",
+      "en": "key",
+      "article": "la",
+      "example_de": "Nous parlons de la clé.",
+      "example_en": "We are talking about the key.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1025,
+      "rankForm": "clé",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-073",
+      "de": "table",
+      "en": "table",
+      "article": "la",
+      "example_de": "Nous parlons de la table.",
+      "example_en": "We are talking about the table.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 824,
+      "rankForm": "table",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-074",
+      "de": "chaise",
+      "en": "chair",
+      "article": "la",
+      "example_de": "Nous parlons de la chaise.",
+      "example_en": "We are talking about the chair.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2146,
+      "rankForm": "chaise",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-075",
+      "de": "lit",
+      "en": "bed",
+      "article": "le",
+      "example_de": "Nous parlons du lit.",
+      "example_en": "We are talking about the bed.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 551,
+      "rankForm": "lit",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-076",
+      "de": "canapé",
+      "en": "sofa",
+      "article": "le",
+      "example_de": "Nous parlons du canapé.",
+      "example_en": "We are talking about the sofa.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2854,
+      "rankForm": "canapé",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-077",
+      "de": "armoire",
+      "en": "wardrobe",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'armoire.",
+      "example_en": "We are talking about the wardrobe.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 6928,
+      "rankForm": "armoire",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-078",
+      "de": "étagère",
+      "en": "shelf",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'étagère.",
+      "example_en": "We are talking about the shelf.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 10279,
+      "rankForm": "étagère",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-079",
+      "de": "lampe",
+      "en": "lamp",
+      "article": "la",
+      "example_de": "Nous parlons de la lampe.",
+      "example_en": "We are talking about the lamp.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3893,
+      "rankForm": "lampe",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-080",
+      "de": "miroir",
+      "en": "mirror",
+      "article": "le",
+      "example_de": "Nous parlons du miroir.",
+      "example_en": "We are talking about the mirror.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3028,
+      "rankForm": "miroir",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-081",
+      "de": "tapis",
+      "en": "rug",
+      "article": "le",
+      "example_de": "Nous parlons du tapis.",
+      "example_en": "We are talking about the rug.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2741,
+      "rankForm": "tapis",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-082",
+      "de": "rideau",
+      "en": "curtain",
+      "article": "le",
+      "example_de": "Nous parlons du rideau.",
+      "example_en": "We are talking about the curtain.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 6453,
+      "rankForm": "rideau",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-083",
+      "de": "coussin",
+      "en": "cushion",
+      "article": "le",
+      "example_de": "Nous parlons du coussin.",
+      "example_en": "We are talking about the cushion.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 11144,
+      "rankForm": "coussin",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-084",
+      "de": "couverture",
+      "en": "blanket",
+      "article": "la",
+      "example_de": "Nous parlons de la couverture.",
+      "example_en": "We are talking about the blanket.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1776,
+      "rankForm": "couverture",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-085",
+      "de": "serviette",
+      "en": "towel",
+      "article": "la",
+      "example_de": "Nous parlons de la serviette.",
+      "example_en": "We are talking about the towel.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4027,
+      "rankForm": "serviette",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-086",
+      "de": "savon",
+      "en": "soap",
+      "article": "le",
+      "example_de": "Nous parlons du savon.",
+      "example_en": "We are talking about the soap.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 5604,
+      "rankForm": "savon",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-087",
+      "de": "douche",
+      "en": "shower",
+      "article": "la",
+      "example_de": "Nous parlons de la douche.",
+      "example_en": "We are talking about the shower.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1965,
+      "rankForm": "douche",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-088",
+      "de": "baignoire",
+      "en": "bathtub",
+      "article": "la",
+      "example_de": "Nous parlons de la baignoire.",
+      "example_en": "We are talking about the bathtub.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 5449,
+      "rankForm": "baignoire",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-089",
+      "de": "réfrigérateur",
+      "en": "refrigerator",
+      "article": "le",
+      "example_de": "Nous parlons du réfrigérateur.",
+      "example_en": "We are talking about the refrigerator.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 13133,
+      "rankForm": "réfrigérateur",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-090",
+      "de": "four",
+      "en": "oven",
+      "article": "le",
+      "example_de": "Nous parlons du four.",
+      "example_en": "We are talking about the oven.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4340,
+      "rankForm": "four",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-091",
+      "de": "machine",
+      "en": "machine",
+      "article": "la",
+      "example_de": "Nous parlons de la machine.",
+      "example_en": "We are talking about the machine.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1305,
+      "rankForm": "machine",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-092",
+      "de": "assiette",
+      "en": "plate",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'assiette.",
+      "example_en": "We are talking about the plate.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4974,
+      "rankForm": "assiette",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-093",
+      "de": "verre",
+      "en": "drinking glass",
+      "article": "le",
+      "example_de": "Nous parlons du verre.",
+      "example_en": "We are talking about the drinking glass.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 609,
+      "rankForm": "verre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-094",
+      "de": "tasse",
+      "en": "cup",
+      "article": "la",
+      "example_de": "Nous parlons de la tasse.",
+      "example_en": "We are talking about the cup.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2992,
+      "rankForm": "tasse",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-095",
+      "de": "bol",
+      "en": "bowl",
+      "article": "le",
+      "example_de": "Nous parlons du bol.",
+      "example_en": "We are talking about the bowl.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3748,
+      "rankForm": "bol",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-096",
+      "de": "couteau",
+      "en": "knife",
+      "article": "le",
+      "example_de": "Nous parlons du couteau.",
+      "example_en": "We are talking about the knife.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1445,
+      "rankForm": "couteau",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-097",
+      "de": "fourchette",
+      "en": "fork",
+      "article": "la",
+      "example_de": "Nous parlons de la fourchette.",
+      "example_en": "We are talking about the fork.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 9285,
+      "rankForm": "fourchette",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-098",
+      "de": "cuillère",
+      "en": "spoon",
+      "article": "la",
+      "example_de": "Nous parlons de la cuillère.",
+      "example_en": "We are talking about the spoon.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 8122,
+      "rankForm": "cuillère",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-099",
+      "de": "bouteille",
+      "en": "bottle",
+      "article": "la",
+      "example_de": "Nous parlons de la bouteille.",
+      "example_en": "We are talking about the bottle.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1648,
+      "rankForm": "bouteille",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-100",
+      "de": "boîte",
+      "en": "box",
+      "article": "la",
+      "example_de": "Nous parlons de la boîte.",
+      "example_en": "We are talking about the box.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 961,
+      "rankForm": "boîte",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-101",
+      "de": "sac",
+      "en": "bag",
+      "article": "le",
+      "example_de": "Nous parlons du sac.",
+      "example_en": "We are talking about the bag.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 731,
+      "rankForm": "sac",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-102",
+      "de": "panier",
+      "en": "basket",
+      "article": "le",
+      "example_de": "Nous parlons du panier.",
+      "example_en": "We are talking about the basket.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4799,
+      "rankForm": "panier",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-103",
+      "de": "nourriture",
+      "en": "food",
+      "article": "la",
+      "example_de": "Nous parlons de la nourriture.",
+      "example_en": "We are talking about the food.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1183,
+      "rankForm": "nourriture",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-104",
+      "de": "repas",
+      "en": "meal",
+      "article": "le",
+      "example_de": "Nous parlons du repas.",
+      "example_en": "We are talking about the meal.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1423,
+      "rankForm": "repas",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-105",
+      "de": "petit-déjeuner",
+      "en": "breakfast",
+      "article": "le",
+      "example_de": "Nous parlons du petit-déjeuner.",
+      "example_en": "We are talking about the breakfast.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1021,
+      "rankForm": "déjeuner",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-106",
+      "de": "dîner",
+      "en": "dinner",
+      "article": "le",
+      "example_de": "Nous parlons du dîner.",
+      "example_en": "We are talking about the dinner.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 650,
+      "rankForm": "dîner",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-107",
+      "de": "pain",
+      "en": "bread",
+      "article": "le",
+      "example_de": "Nous parlons du pain.",
+      "example_en": "We are talking about the bread.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1741,
+      "rankForm": "pain",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-108",
+      "de": "beurre",
+      "en": "butter",
+      "article": "le",
+      "example_de": "Nous parlons du beurre.",
+      "example_en": "We are talking about the butter.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3257,
+      "rankForm": "beurre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-109",
+      "de": "fromage",
+      "en": "cheese",
+      "article": "le",
+      "example_de": "Nous parlons du fromage.",
+      "example_en": "We are talking about the cheese.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2385,
+      "rankForm": "fromage",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-110",
+      "de": "lait",
+      "en": "milk",
+      "article": "le",
+      "example_de": "Nous parlons du lait.",
+      "example_en": "We are talking about the milk.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1606,
+      "rankForm": "lait",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-111",
+      "de": "œuf",
+      "en": "egg",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'œuf.",
+      "example_en": "We are talking about the egg.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 6231,
+      "rankForm": "œuf",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-112",
+      "de": "viande",
+      "en": "meat",
+      "article": "la",
+      "example_de": "Nous parlons de la viande.",
+      "example_en": "We are talking about the meat.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1844,
+      "rankForm": "viande",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-113",
+      "de": "poulet",
+      "en": "chicken",
+      "article": "le",
+      "example_de": "Nous parlons du poulet.",
+      "example_en": "We are talking about the chicken.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1879,
+      "rankForm": "poulet",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-114",
+      "de": "poisson",
+      "en": "fish (food)",
+      "article": "le",
+      "example_de": "Nous parlons du poisson.",
+      "example_en": "We are talking about the fish.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1593,
+      "rankForm": "poisson",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-115",
+      "de": "riz",
+      "en": "rice",
+      "article": "le",
+      "example_de": "Nous parlons du riz.",
+      "example_en": "We are talking about the rice.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3973,
+      "rankForm": "riz",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-116",
+      "de": "pomme de terre",
+      "en": "potato",
+      "article": "la",
+      "example_de": "Nous parlons de la pomme de terre.",
+      "example_en": "We are talking about the potato.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4048,
+      "rankForm": "pomme",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-117",
+      "de": "légume",
+      "en": "vegetable",
+      "article": "le",
+      "example_de": "Nous parlons du légume.",
+      "example_en": "We are talking about the vegetable.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 13934,
+      "rankForm": "légume",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-118",
+      "de": "fruit",
+      "en": "fruit",
+      "article": "le",
+      "example_de": "Nous parlons du fruit.",
+      "example_en": "We are talking about the fruit.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4311,
+      "rankForm": "fruit",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-119",
+      "de": "pomme",
+      "en": "apple",
+      "article": "la",
+      "example_de": "Nous parlons de la pomme.",
+      "example_en": "We are talking about the apple.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4048,
+      "rankForm": "pomme",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-120",
+      "de": "poire",
+      "en": "pear",
+      "article": "la",
+      "example_de": "Nous parlons de la poire.",
+      "example_en": "We are talking about the pear.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 12617,
+      "rankForm": "poire",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-121",
+      "de": "banane",
+      "en": "banana",
+      "article": "la",
+      "example_de": "Nous parlons de la banane.",
+      "example_en": "We are talking about the banana.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 6686,
+      "rankForm": "banane",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-122",
+      "de": "orange",
+      "en": "orange",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'orange.",
+      "example_en": "We are talking about the orange.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3288,
+      "rankForm": "orange",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-123",
+      "de": "citron",
+      "en": "lemon",
+      "article": "le",
+      "example_de": "Nous parlons du citron.",
+      "example_en": "We are talking about the lemon.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 5719,
+      "rankForm": "citron",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-124",
+      "de": "fraise",
+      "en": "strawberry",
+      "article": "la",
+      "example_de": "Nous parlons de la fraise.",
+      "example_en": "We are talking about the strawberry.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 10922,
+      "rankForm": "fraise",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-125",
+      "de": "tomate",
+      "en": "tomato",
+      "article": "la",
+      "example_de": "Nous parlons de la tomate.",
+      "example_en": "We are talking about the tomato.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 9870,
+      "rankForm": "tomate",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-126",
+      "de": "carotte",
+      "en": "carrot",
+      "article": "la",
+      "example_de": "Nous parlons de la carotte.",
+      "example_en": "We are talking about the carrot.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 11728,
+      "rankForm": "carotte",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-127",
+      "de": "oignon",
+      "en": "onion",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'oignon.",
+      "example_en": "We are talking about the onion.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 12696,
+      "rankForm": "oignon",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-128",
+      "de": "ail",
+      "en": "garlic",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'ail.",
+      "example_en": "We are talking about the garlic.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 9204,
+      "rankForm": "ail",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-129",
+      "de": "salade",
+      "en": "salad",
+      "article": "la",
+      "example_de": "Nous parlons de la salade.",
+      "example_en": "We are talking about the salad.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3597,
+      "rankForm": "salade",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-130",
+      "de": "soupe",
+      "en": "soup",
+      "article": "la",
+      "example_de": "Nous parlons de la soupe.",
+      "example_en": "We are talking about the soup.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2548,
+      "rankForm": "soupe",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-131",
+      "de": "sel",
+      "en": "salt",
+      "article": "le",
+      "example_de": "Nous parlons du sel.",
+      "example_en": "We are talking about the salt.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4291,
+      "rankForm": "sel",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-132",
+      "de": "poivre",
+      "en": "pepper (seasoning)",
+      "article": "le",
+      "example_de": "Nous parlons du poivre.",
+      "example_en": "We are talking about the pepper.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 10105,
+      "rankForm": "poivre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-133",
+      "de": "sucre",
+      "en": "sugar",
+      "article": "le",
+      "example_de": "Nous parlons du sucre.",
+      "example_en": "We are talking about the sugar.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2482,
+      "rankForm": "sucre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-134",
+      "de": "huile",
+      "en": "oil",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'huile.",
+      "example_en": "We are talking about the oil.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3292,
+      "rankForm": "huile",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-135",
+      "de": "gâteau",
+      "en": "cake",
+      "article": "le",
+      "example_de": "Nous parlons du gâteau.",
+      "example_en": "We are talking about the cake.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1674,
+      "rankForm": "gâteau",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-136",
+      "de": "chocolat",
+      "en": "chocolate",
+      "article": "le",
+      "example_de": "Nous parlons du chocolat.",
+      "example_en": "We are talking about the chocolate.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2118,
+      "rankForm": "chocolat",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-137",
+      "de": "glace",
+      "en": "ice cream",
+      "article": "la",
+      "example_de": "Nous parlons de la glace.",
+      "example_en": "We are talking about the ice cream.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1317,
+      "rankForm": "glace",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-138",
+      "de": "eau",
+      "en": "water",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'eau.",
+      "example_en": "We are talking about the water.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 398,
+      "rankForm": "eau",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-139",
+      "de": "café",
+      "en": "coffee",
+      "article": "le",
+      "example_de": "Nous parlons du café.",
+      "example_en": "We are talking about the coffee.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 598,
+      "rankForm": "café",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-140",
+      "de": "thé",
+      "en": "tea",
+      "article": "le",
+      "example_de": "Nous parlons du thé.",
+      "example_en": "We are talking about the tea.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1203,
+      "rankForm": "thé",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-141",
+      "de": "jus",
+      "en": "juice",
+      "article": "le",
+      "example_de": "Nous parlons du jus.",
+      "example_en": "We are talking about the juice.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2550,
+      "rankForm": "jus",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-142",
+      "de": "vin",
+      "en": "wine",
+      "article": "le",
+      "example_de": "Nous parlons du vin.",
+      "example_en": "We are talking about the wine.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1146,
+      "rankForm": "vin",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-143",
+      "de": "bière",
+      "en": "beer",
+      "article": "la",
+      "example_de": "Nous parlons de la bière.",
+      "example_en": "We are talking about the beer.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1129,
+      "rankForm": "bière",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-144",
+      "de": "restaurant",
+      "en": "restaurant",
+      "article": "le",
+      "example_de": "Nous parlons du restaurant.",
+      "example_en": "We are talking about the restaurant.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1495,
+      "rankForm": "restaurant",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-145",
+      "de": "menu",
+      "en": "menu",
+      "article": "le",
+      "example_de": "Nous parlons du menu.",
+      "example_en": "We are talking about the menu.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4422,
+      "rankForm": "menu",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-146",
+      "de": "addition",
+      "en": "restaurant bill",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'addition.",
+      "example_en": "We are talking about the restaurant bill.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 7028,
+      "rankForm": "addition",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-147",
+      "de": "serveur",
+      "en": "waiter",
+      "article": "le",
+      "example_de": "Nous parlons du serveur.",
+      "example_en": "We are talking about the waiter.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4310,
+      "rankForm": "serveur",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-148",
+      "de": "vêtement",
+      "en": "item of clothing",
+      "article": "le",
+      "example_de": "Nous parlons du vêtement.",
+      "example_en": "We are talking about the item of clothing.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 12347,
+      "rankForm": "vêtement",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-149",
+      "de": "chemise",
+      "en": "shirt",
+      "article": "la",
+      "example_de": "Nous parlons de la chemise.",
+      "example_en": "We are talking about the shirt.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2125,
+      "rankForm": "chemise",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-150",
+      "de": "pantalon",
+      "en": "pair of pants",
+      "article": "le",
+      "example_de": "Nous parlons du pantalon.",
+      "example_en": "We are talking about the pair of pants.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1984,
+      "rankForm": "pantalon",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-151",
+      "de": "robe",
+      "en": "dress",
+      "article": "la",
+      "example_de": "Nous parlons de la robe.",
+      "example_en": "We are talking about the dress.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1131,
+      "rankForm": "robe",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-152",
+      "de": "jupe",
+      "en": "skirt",
+      "article": "la",
+      "example_de": "Nous parlons de la jupe.",
+      "example_en": "We are talking about the skirt.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 6831,
+      "rankForm": "jupe",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-153",
+      "de": "manteau",
+      "en": "coat",
+      "article": "le",
+      "example_de": "Nous parlons du manteau.",
+      "example_en": "We are talking about the coat.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2590,
+      "rankForm": "manteau",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-154",
+      "de": "veste",
+      "en": "jacket",
+      "article": "la",
+      "example_de": "Nous parlons de la veste.",
+      "example_en": "We are talking about the jacket.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2050,
+      "rankForm": "veste",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-155",
+      "de": "pull",
+      "en": "sweater",
+      "article": "le",
+      "example_de": "Nous parlons du pull.",
+      "example_en": "We are talking about the sweater.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 5502,
+      "rankForm": "pull",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-156",
+      "de": "chaussure",
+      "en": "shoe",
+      "article": "la",
+      "example_de": "Nous parlons de la chaussure.",
+      "example_en": "We are talking about the shoe.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 5030,
+      "rankForm": "chaussure",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-157",
+      "de": "chaussette",
+      "en": "sock",
+      "article": "la",
+      "example_de": "Nous parlons de la chaussette.",
+      "example_en": "We are talking about the sock.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 11305,
+      "rankForm": "chaussette",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-158",
+      "de": "chapeau",
+      "en": "hat",
+      "article": "le",
+      "example_de": "Nous parlons du chapeau.",
+      "example_en": "We are talking about the hat.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1723,
+      "rankForm": "chapeau",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-159",
+      "de": "écharpe",
+      "en": "scarf",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'écharpe.",
+      "example_en": "We are talking about the scarf.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 8887,
+      "rankForm": "écharpe",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-160",
+      "de": "gant",
+      "en": "glove",
+      "article": "le",
+      "example_de": "Nous parlons du gant.",
+      "example_en": "We are talking about the glove.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 6183,
+      "rankForm": "gant",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-161",
+      "de": "ceinture",
+      "en": "belt",
+      "article": "la",
+      "example_de": "Nous parlons de la ceinture.",
+      "example_en": "We are talking about the belt.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2814,
+      "rankForm": "ceinture",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-162",
+      "de": "poche",
+      "en": "pocket",
+      "article": "la",
+      "example_de": "Nous parlons de la poche.",
+      "example_en": "We are talking about the pocket.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1829,
+      "rankForm": "poche",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-163",
+      "de": "montre",
+      "en": "watch",
+      "article": "la",
+      "example_de": "Nous parlons de la montre.",
+      "example_en": "We are talking about the watch.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 880,
+      "rankForm": "montre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-164",
+      "de": "bague",
+      "en": "ring",
+      "article": "la",
+      "example_de": "Nous parlons de la bague.",
+      "example_en": "We are talking about the ring.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2069,
+      "rankForm": "bague",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-165",
+      "de": "portefeuille",
+      "en": "wallet",
+      "article": "le",
+      "example_de": "Nous parlons du portefeuille.",
+      "example_en": "We are talking about the wallet.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3342,
+      "rankForm": "portefeuille",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-166",
+      "de": "parapluie",
+      "en": "umbrella",
+      "article": "le",
+      "example_de": "Nous parlons du parapluie.",
+      "example_en": "We are talking about the umbrella.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 9071,
+      "rankForm": "parapluie",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-167",
+      "de": "ville",
+      "en": "city",
+      "article": "la",
+      "example_de": "Nous parlons de la ville.",
+      "example_en": "We are talking about the city.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 332,
+      "rankForm": "ville",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-168",
+      "de": "village",
+      "en": "village",
+      "article": "le",
+      "example_de": "Nous parlons du village.",
+      "example_en": "We are talking about the village.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1323,
+      "rankForm": "village",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-169",
+      "de": "pays",
+      "en": "country",
+      "article": "le",
+      "example_de": "Nous parlons du pays.",
+      "example_en": "We are talking about the country.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 494,
+      "rankForm": "pays",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-170",
+      "de": "rue",
+      "en": "street",
+      "article": "la",
+      "example_de": "Nous parlons de la rue.",
+      "example_en": "We are talking about the street.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 746,
+      "rankForm": "rue",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-171",
+      "de": "route",
+      "en": "road",
+      "article": "la",
+      "example_de": "Nous parlons de la route.",
+      "example_en": "We are talking about the road.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 557,
+      "rankForm": "route",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-172",
+      "de": "place",
+      "en": "square",
+      "article": "la",
+      "example_de": "Nous parlons de la place.",
+      "example_en": "We are talking about the square.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 342,
+      "rankForm": "place",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-173",
+      "de": "pont",
+      "en": "bridge",
+      "article": "le",
+      "example_de": "Nous parlons du pont.",
+      "example_en": "We are talking about the bridge.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1586,
+      "rankForm": "pont",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-174",
+      "de": "parc",
+      "en": "park",
+      "article": "le",
+      "example_de": "Nous parlons du parc.",
+      "example_en": "We are talking about the park.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1780,
+      "rankForm": "parc",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-175",
+      "de": "jardin",
+      "en": "garden",
+      "article": "le",
+      "example_de": "Nous parlons du jardin.",
+      "example_en": "We are talking about the garden.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1812,
+      "rankForm": "jardin",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-176",
+      "de": "magasin",
+      "en": "shop",
+      "article": "le",
+      "example_de": "Nous parlons du magasin.",
+      "example_en": "We are talking about the shop.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1262,
+      "rankForm": "magasin",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-177",
+      "de": "marché",
+      "en": "market",
+      "article": "le",
+      "example_de": "Nous parlons du marché.",
+      "example_en": "We are talking about the market.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 633,
+      "rankForm": "marché",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-178",
+      "de": "supermarché",
+      "en": "supermarket",
+      "article": "le",
+      "example_de": "Nous parlons du supermarché.",
+      "example_en": "We are talking about the supermarket.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 6450,
+      "rankForm": "supermarché",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-179",
+      "de": "boulangerie",
+      "en": "bakery",
+      "article": "la",
+      "example_de": "Nous parlons de la boulangerie.",
+      "example_en": "We are talking about the bakery.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 12751,
+      "rankForm": "boulangerie",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-180",
+      "de": "banque",
+      "en": "bank",
+      "article": "la",
+      "example_de": "Nous parlons de la banque.",
+      "example_en": "We are talking about the bank.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1192,
+      "rankForm": "banque",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-181",
+      "de": "poste",
+      "en": "post office",
+      "article": "la",
+      "example_de": "Nous parlons de la poste.",
+      "example_en": "We are talking about the post office.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 957,
+      "rankForm": "poste",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-182",
+      "de": "école",
+      "en": "school",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'école.",
+      "example_en": "We are talking about the school.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 437,
+      "rankForm": "école",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-183",
+      "de": "université",
+      "en": "university",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'université.",
+      "example_en": "We are talking about the university.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1453,
+      "rankForm": "université",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-184",
+      "de": "bibliothèque",
+      "en": "library",
+      "article": "la",
+      "example_de": "Nous parlons de la bibliothèque.",
+      "example_en": "We are talking about the library.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2979,
+      "rankForm": "bibliothèque",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-185",
+      "de": "musée",
+      "en": "museum",
+      "article": "le",
+      "example_de": "Nous parlons du musée.",
+      "example_en": "We are talking about the museum.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3182,
+      "rankForm": "musée",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-186",
+      "de": "cinéma",
+      "en": "cinema",
+      "article": "le",
+      "example_de": "Nous parlons du cinéma.",
+      "example_en": "We are talking about the cinema.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1711,
+      "rankForm": "cinéma",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-187",
+      "de": "théâtre",
+      "en": "theater",
+      "article": "le",
+      "example_de": "Nous parlons du théâtre.",
+      "example_en": "We are talking about the theater.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2185,
+      "rankForm": "théâtre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-188",
+      "de": "église",
+      "en": "church",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'église.",
+      "example_en": "We are talking about the church.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1234,
+      "rankForm": "église",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-189",
+      "de": "hôtel",
+      "en": "hotel",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'hôtel.",
+      "example_en": "We are talking about the hotel.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 808,
+      "rankForm": "hôtel",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-190",
+      "de": "gare",
+      "en": "station",
+      "article": "la",
+      "example_de": "Nous parlons de la gare.",
+      "example_en": "We are talking about the station.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2316,
+      "rankForm": "gare",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-191",
+      "de": "aéroport",
+      "en": "airport",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'aéroport.",
+      "example_en": "We are talking about the airport.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2003,
+      "rankForm": "aéroport",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-192",
+      "de": "voiture",
+      "en": "car",
+      "article": "la",
+      "example_de": "Nous parlons de la voiture.",
+      "example_en": "We are talking about the car.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 257,
+      "rankForm": "voiture",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-193",
+      "de": "bus",
+      "en": "bus",
+      "article": "le",
+      "example_de": "Nous parlons du bus.",
+      "example_en": "We are talking about the bus.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1429,
+      "rankForm": "bus",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-194",
+      "de": "train",
+      "en": "train",
+      "article": "le",
+      "example_de": "Nous parlons du train.",
+      "example_en": "We are talking about the train.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 360,
+      "rankForm": "train",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-195",
+      "de": "métro",
+      "en": "subway",
+      "article": "le",
+      "example_de": "Nous parlons du métro.",
+      "example_en": "We are talking about the subway.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3818,
+      "rankForm": "métro",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-196",
+      "de": "vélo",
+      "en": "bicycle",
+      "article": "le",
+      "example_de": "Nous parlons du vélo.",
+      "example_en": "We are talking about the bicycle.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2679,
+      "rankForm": "vélo",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-197",
+      "de": "moto",
+      "en": "motorcycle",
+      "article": "la",
+      "example_de": "Nous parlons de la moto.",
+      "example_en": "We are talking about the motorcycle.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3096,
+      "rankForm": "moto",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-198",
+      "de": "avion",
+      "en": "airplane",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'avion.",
+      "example_en": "We are talking about the airplane.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 821,
+      "rankForm": "avion",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-199",
+      "de": "bateau",
+      "en": "boat",
+      "article": "le",
+      "example_de": "Nous parlons du bateau.",
+      "example_en": "We are talking about the boat.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 830,
+      "rankForm": "bateau",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-200",
+      "de": "taxi",
+      "en": "taxi",
+      "article": "le",
+      "example_de": "Nous parlons du taxi.",
+      "example_en": "We are talking about the taxi.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1494,
+      "rankForm": "taxi",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-201",
+      "de": "billet",
+      "en": "ticket",
+      "article": "le",
+      "example_de": "Nous parlons du billet.",
+      "example_en": "We are talking about the ticket.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2463,
+      "rankForm": "billet",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-202",
+      "de": "voyage",
+      "en": "trip",
+      "article": "le",
+      "example_de": "Nous parlons du voyage.",
+      "example_en": "We are talking about the trip.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 768,
+      "rankForm": "voyage",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-203",
+      "de": "valise",
+      "en": "suitcase",
+      "article": "la",
+      "example_de": "Nous parlons de la valise.",
+      "example_en": "We are talking about the suitcase.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3140,
+      "rankForm": "valise",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-204",
+      "de": "passeport",
+      "en": "passport",
+      "article": "le",
+      "example_de": "Nous parlons du passeport.",
+      "example_en": "We are talking about the passport.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4047,
+      "rankForm": "passeport",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-205",
+      "de": "carte",
+      "en": "map",
+      "article": "la",
+      "example_de": "Nous parlons de la carte.",
+      "example_en": "We are talking about the map.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 713,
+      "rankForm": "carte",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-206",
+      "de": "adresse",
+      "en": "address",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'adresse.",
+      "example_en": "We are talking about the address.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1097,
+      "rankForm": "adresse",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-207",
+      "de": "chemin",
+      "en": "path",
+      "article": "le",
+      "example_de": "Nous parlons du chemin.",
+      "example_en": "We are talking about the path.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 654,
+      "rankForm": "chemin",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-208",
+      "de": "distance",
+      "en": "distance",
+      "article": "la",
+      "example_de": "Nous parlons de la distance.",
+      "example_en": "We are talking about the distance.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2180,
+      "rankForm": "distance",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-209",
+      "de": "vitesse",
+      "en": "speed",
+      "article": "la",
+      "example_de": "Nous parlons de la vitesse.",
+      "example_en": "We are talking about the speed.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1733,
+      "rankForm": "vitesse",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-210",
+      "de": "monde",
+      "en": "world",
+      "article": "le",
+      "example_de": "Nous parlons du monde.",
+      "example_en": "We are talking about the world.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 136,
+      "rankForm": "monde",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-211",
+      "de": "terre",
+      "en": "earth",
+      "article": "la",
+      "example_de": "Nous parlons de la terre.",
+      "example_en": "We are talking about the earth.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 401,
+      "rankForm": "terre",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-212",
+      "de": "mer",
+      "en": "sea",
+      "article": "la",
+      "example_de": "Nous parlons de la mer.",
+      "example_en": "We are talking about the sea.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1124,
+      "rankForm": "mer",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-213",
+      "de": "océan",
+      "en": "ocean",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'océan.",
+      "example_en": "We are talking about the ocean.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2678,
+      "rankForm": "océan",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-214",
+      "de": "plage",
+      "en": "beach",
+      "article": "la",
+      "example_de": "Nous parlons de la plage.",
+      "example_en": "We are talking about the beach.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1784,
+      "rankForm": "plage",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-215",
+      "de": "montagne",
+      "en": "mountain",
+      "article": "la",
+      "example_de": "Nous parlons de la montagne.",
+      "example_en": "We are talking about the mountain.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2197,
+      "rankForm": "montagne",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-216",
+      "de": "colline",
+      "en": "hill",
+      "article": "la",
+      "example_de": "Nous parlons de la colline.",
+      "example_en": "We are talking about the hill.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4625,
+      "rankForm": "colline",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-217",
+      "de": "forêt",
+      "en": "forest",
+      "article": "la",
+      "example_de": "Nous parlons de la forêt.",
+      "example_en": "We are talking about the forest.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2214,
+      "rankForm": "forêt",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-218",
+      "de": "arbre",
+      "en": "tree",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'arbre.",
+      "example_en": "We are talking about the tree.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1758,
+      "rankForm": "arbre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-219",
+      "de": "fleur",
+      "en": "flower",
+      "article": "la",
+      "example_de": "Nous parlons de la fleur.",
+      "example_en": "We are talking about the flower.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2842,
+      "rankForm": "fleur",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-220",
+      "de": "plante",
+      "en": "plant",
+      "article": "la",
+      "example_de": "Nous parlons de la plante.",
+      "example_en": "We are talking about the plant.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4421,
+      "rankForm": "plante",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-221",
+      "de": "herbe",
+      "en": "grass",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'herbe.",
+      "example_en": "We are talking about the grass.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2420,
+      "rankForm": "herbe",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-222",
+      "de": "feuille",
+      "en": "leaf",
+      "article": "la",
+      "example_de": "Nous parlons de la feuille.",
+      "example_en": "We are talking about the leaf.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 5174,
+      "rankForm": "feuille",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-223",
+      "de": "rivière",
+      "en": "river",
+      "article": "la",
+      "example_de": "Nous parlons de la rivière.",
+      "example_en": "We are talking about the river.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2188,
+      "rankForm": "rivière",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-224",
+      "de": "lac",
+      "en": "lake",
+      "article": "le",
+      "example_de": "Nous parlons du lac.",
+      "example_en": "We are talking about the lake.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2277,
+      "rankForm": "lac",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-225",
+      "de": "île",
+      "en": "island",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'île.",
+      "example_en": "We are talking about the island.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1534,
+      "rankForm": "île",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-226",
+      "de": "pierre",
+      "en": "stone",
+      "article": "la",
+      "example_de": "Nous parlons de la pierre.",
+      "example_en": "We are talking about the stone.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1359,
+      "rankForm": "pierre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-227",
+      "de": "sable",
+      "en": "sand",
+      "article": "le",
+      "example_de": "Nous parlons du sable.",
+      "example_en": "We are talking about the sand.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3196,
+      "rankForm": "sable",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-228",
+      "de": "ciel",
+      "en": "sky",
+      "article": "le",
+      "example_de": "Nous parlons du ciel.",
+      "example_en": "We are talking about the sky.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 973,
+      "rankForm": "ciel",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-229",
+      "de": "soleil",
+      "en": "sun",
+      "article": "le",
+      "example_de": "Nous parlons du soleil.",
+      "example_en": "We are talking about the sun.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 892,
+      "rankForm": "soleil",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-230",
+      "de": "lune",
+      "en": "moon",
+      "article": "la",
+      "example_de": "Nous parlons de la lune.",
+      "example_en": "We are talking about the moon.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1195,
+      "rankForm": "lune",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-231",
+      "de": "étoile",
+      "en": "star",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'étoile.",
+      "example_en": "We are talking about the star.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2890,
+      "rankForm": "étoile",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-232",
+      "de": "nuage",
+      "en": "cloud",
+      "article": "le",
+      "example_de": "Nous parlons du nuage.",
+      "example_en": "We are talking about the cloud.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 5547,
+      "rankForm": "nuage",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-233",
+      "de": "pluie",
+      "en": "rain",
+      "article": "la",
+      "example_de": "Nous parlons de la pluie.",
+      "example_en": "We are talking about the rain.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2108,
+      "rankForm": "pluie",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-234",
+      "de": "neige",
+      "en": "snow",
+      "article": "la",
+      "example_de": "Nous parlons de la neige.",
+      "example_en": "We are talking about the snow.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2123,
+      "rankForm": "neige",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-235",
+      "de": "vent",
+      "en": "wind",
+      "article": "le",
+      "example_de": "Nous parlons du vent.",
+      "example_en": "We are talking about the wind.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1437,
+      "rankForm": "vent",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-236",
+      "de": "orage",
+      "en": "storm",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'orage.",
+      "example_en": "We are talking about the storm.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 5898,
+      "rankForm": "orage",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-237",
+      "de": "feu",
+      "en": "fire",
+      "article": "le",
+      "example_de": "Nous parlons du feu.",
+      "example_en": "We are talking about the fire.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 444,
+      "rankForm": "feu",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-238",
+      "de": "air",
+      "en": "air",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'air.",
+      "example_en": "We are talking about the air.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 217,
+      "rankForm": "air",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-239",
+      "de": "nature",
+      "en": "nature",
+      "article": "la",
+      "example_de": "Nous parlons de la nature.",
+      "example_en": "We are talking about the nature.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1356,
+      "rankForm": "nature",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-240",
+      "de": "animal",
+      "en": "animal",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'animal.",
+      "example_en": "We are talking about the animal.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1900,
+      "rankForm": "animal",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-241",
+      "de": "chien",
+      "en": "dog",
+      "article": "le",
+      "example_de": "Nous parlons du chien.",
+      "example_en": "We are talking about the dog.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 594,
+      "rankForm": "chien",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-242",
+      "de": "chat",
+      "en": "cat",
+      "article": "le",
+      "example_de": "Nous parlons du chat.",
+      "example_en": "We are talking about the cat.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1442,
+      "rankForm": "chat",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-243",
+      "de": "oiseau",
+      "en": "bird",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'oiseau.",
+      "example_en": "We are talking about the bird.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2046,
+      "rankForm": "oiseau",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-244",
+      "de": "cheval",
+      "en": "horse",
+      "article": "le",
+      "example_de": "Nous parlons du cheval.",
+      "example_en": "We are talking about the horse.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1070,
+      "rankForm": "cheval",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-245",
+      "de": "vache",
+      "en": "cow",
+      "article": "la",
+      "example_de": "Nous parlons de la vache.",
+      "example_en": "We are talking about the cow.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2279,
+      "rankForm": "vache",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-246",
+      "de": "mouton",
+      "en": "sheep",
+      "article": "le",
+      "example_de": "Nous parlons du mouton.",
+      "example_en": "We are talking about the sheep.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 8211,
+      "rankForm": "mouton",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-247",
+      "de": "cochon",
+      "en": "pig",
+      "article": "le",
+      "example_de": "Nous parlons du cochon.",
+      "example_en": "We are talking about the pig.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3122,
+      "rankForm": "cochon",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-248",
+      "de": "poule",
+      "en": "hen",
+      "article": "la",
+      "example_de": "Nous parlons de la poule.",
+      "example_en": "We are talking about the hen.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3167,
+      "rankForm": "poule",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-249",
+      "de": "canard",
+      "en": "duck",
+      "article": "le",
+      "example_de": "Nous parlons du canard.",
+      "example_en": "We are talking about the duck.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4703,
+      "rankForm": "canard",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-250",
+      "de": "lapin",
+      "en": "rabbit",
+      "article": "le",
+      "example_de": "Nous parlons du lapin.",
+      "example_en": "We are talking about the rabbit.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2598,
+      "rankForm": "lapin",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-251",
+      "de": "souris",
+      "en": "mouse",
+      "article": "la",
+      "example_de": "Nous parlons de la souris.",
+      "example_en": "We are talking about the mouse.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2087,
+      "rankForm": "souris",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-252",
+      "de": "insecte",
+      "en": "insect",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'insecte.",
+      "example_en": "We are talking about the insect.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 8689,
+      "rankForm": "insecte",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-253",
+      "de": "abeille",
+      "en": "bee",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'abeille.",
+      "example_en": "We are talking about the bee.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 10097,
+      "rankForm": "abeille",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-254",
+      "de": "papillon",
+      "en": "butterfly",
+      "article": "le",
+      "example_de": "Nous parlons du papillon.",
+      "example_en": "We are talking about the butterfly.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 6026,
+      "rankForm": "papillon",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-255",
+      "de": "jour",
+      "en": "day",
+      "article": "le",
+      "example_de": "Nous parlons du jour.",
+      "example_en": "We are talking about the day.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 197,
+      "rankForm": "jour",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-256",
+      "de": "nuit",
+      "en": "night",
+      "article": "la",
+      "example_de": "Nous parlons de la nuit.",
+      "example_en": "We are talking about the night.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 207,
+      "rankForm": "nuit",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-257",
+      "de": "matin",
+      "en": "morning",
+      "article": "le",
+      "example_de": "Nous parlons du matin.",
+      "example_en": "We are talking about the morning.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 378,
+      "rankForm": "matin",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-258",
+      "de": "soir",
+      "en": "evening",
+      "article": "le",
+      "example_de": "Nous parlons du soir.",
+      "example_en": "We are talking about the evening.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 194,
+      "rankForm": "soir",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-259",
+      "de": "semaine",
+      "en": "week",
+      "article": "la",
+      "example_de": "Nous parlons de la semaine.",
+      "example_en": "We are talking about the week.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 441,
+      "rankForm": "semaine",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-260",
+      "de": "mois",
+      "en": "month",
+      "article": "le",
+      "example_de": "Nous parlons du mois.",
+      "example_en": "We are talking about the month.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 324,
+      "rankForm": "mois",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-261",
+      "de": "année",
+      "en": "year",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'année.",
+      "example_en": "We are talking about the year.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 559,
+      "rankForm": "année",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-262",
+      "de": "heure",
+      "en": "hour",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'heure.",
+      "example_en": "We are talking about the hour.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 290,
+      "rankForm": "heure",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-263",
+      "de": "minute",
+      "en": "minute",
+      "article": "la",
+      "example_de": "Nous parlons de la minute.",
+      "example_en": "We are talking about the minute.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 510,
+      "rankForm": "minute",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-264",
+      "de": "seconde",
+      "en": "second",
+      "article": "la",
+      "example_de": "Nous parlons de la seconde.",
+      "example_en": "We are talking about the second.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 626,
+      "rankForm": "seconde",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-265",
+      "de": "printemps",
+      "en": "spring",
+      "article": "le",
+      "example_de": "Nous parlons du printemps.",
+      "example_en": "We are talking about the spring.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3150,
+      "rankForm": "printemps",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-266",
+      "de": "été",
+      "en": "summer",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'été.",
+      "example_en": "We are talking about the summer.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 99,
+      "rankForm": "été",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-267",
+      "de": "automne",
+      "en": "autumn",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'automne.",
+      "example_en": "We are talking about the autumn.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 5159,
+      "rankForm": "automne",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-268",
+      "de": "hiver",
+      "en": "winter",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'hiver.",
+      "example_en": "We are talking about the winter.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2589,
+      "rankForm": "hiver",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-269",
+      "de": "temps",
+      "en": "time / weather",
+      "article": "le",
+      "example_de": "Nous parlons du temps.",
+      "example_en": "We are talking about the time.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 117,
+      "rankForm": "temps",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-270",
+      "de": "moment",
+      "en": "moment",
+      "article": "le",
+      "example_de": "Nous parlons du moment.",
+      "example_en": "We are talking about the moment.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 213,
+      "rankForm": "moment",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-271",
+      "de": "date",
+      "en": "date",
+      "article": "la",
+      "example_de": "Nous parlons de la date.",
+      "example_en": "We are talking about the date.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1597,
+      "rankForm": "date",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-272",
+      "de": "calendrier",
+      "en": "calendar",
+      "article": "le",
+      "example_de": "Nous parlons du calendrier.",
+      "example_en": "We are talking about the calendar.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 7210,
+      "rankForm": "calendrier",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-273",
+      "de": "travail",
+      "en": "work",
+      "article": "le",
+      "example_de": "Nous parlons du travail.",
+      "example_en": "We are talking about the work.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 242,
+      "rankForm": "travail",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-274",
+      "de": "métier",
+      "en": "profession",
+      "article": "le",
+      "example_de": "Nous parlons du métier.",
+      "example_en": "We are talking about the profession.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2020,
+      "rankForm": "métier",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-275",
+      "de": "bureau",
+      "en": "office",
+      "article": "le",
+      "example_de": "Nous parlons du bureau.",
+      "example_en": "We are talking about the office.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 419,
+      "rankForm": "bureau",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-276",
+      "de": "entreprise",
+      "en": "company",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'entreprise.",
+      "example_en": "We are talking about the company.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1626,
+      "rankForm": "entreprise",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-277",
+      "de": "collègue",
+      "en": "colleague",
+      "article": "le",
+      "example_de": "Nous parlons du collègue.",
+      "example_en": "We are talking about the colleague.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3158,
+      "rankForm": "collègue",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-278",
+      "de": "patron",
+      "en": "boss",
+      "article": "le",
+      "example_de": "Nous parlons du patron.",
+      "example_en": "We are talking about the boss.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 753,
+      "rankForm": "patron",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-279",
+      "de": "client",
+      "en": "customer",
+      "article": "le",
+      "example_de": "Nous parlons du client.",
+      "example_en": "We are talking about the customer.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1096,
+      "rankForm": "client",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-280",
+      "de": "argent",
+      "en": "money",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'argent.",
+      "example_en": "We are talking about the money.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 205,
+      "rankForm": "argent",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-281",
+      "de": "prix",
+      "en": "price",
+      "article": "le",
+      "example_de": "Nous parlons du prix.",
+      "example_en": "We are talking about the price.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 741,
+      "rankForm": "prix",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-282",
+      "de": "salaire",
+      "en": "salary",
+      "article": "le",
+      "example_de": "Nous parlons du salaire.",
+      "example_en": "We are talking about the salary.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2811,
+      "rankForm": "salaire",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-283",
+      "de": "facture",
+      "en": "invoice",
+      "article": "la",
+      "example_de": "Nous parlons de la facture.",
+      "example_en": "We are talking about the invoice.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 4648,
+      "rankForm": "facture",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-284",
+      "de": "projet",
+      "en": "project",
+      "article": "le",
+      "example_de": "Nous parlons du projet.",
+      "example_en": "We are talking about the project.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1284,
+      "rankForm": "projet",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-285",
+      "de": "réunion",
+      "en": "meeting",
+      "article": "la",
+      "example_de": "Nous parlons de la réunion.",
+      "example_en": "We are talking about the meeting.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1066,
+      "rankForm": "réunion",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-286",
+      "de": "problème",
+      "en": "problem",
+      "article": "le",
+      "example_de": "Nous parlons du problème.",
+      "example_en": "We are talking about the problem.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 222,
+      "rankForm": "problème",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-287",
+      "de": "solution",
+      "en": "solution",
+      "article": "la",
+      "example_de": "Nous parlons de la solution.",
+      "example_en": "We are talking about the solution.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1349,
+      "rankForm": "solution",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-288",
+      "de": "question",
+      "en": "question",
+      "article": "la",
+      "example_de": "Nous parlons de la question.",
+      "example_en": "We are talking about the question.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 311,
+      "rankForm": "question",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-289",
+      "de": "réponse",
+      "en": "answer",
+      "article": "la",
+      "example_de": "Nous parlons de la réponse.",
+      "example_en": "We are talking about the answer.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 876,
+      "rankForm": "réponse",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-290",
+      "de": "idée",
+      "en": "idea",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'idée.",
+      "example_en": "We are talking about the idea.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 263,
+      "rankForm": "idée",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-291",
+      "de": "raison",
+      "en": "reason",
+      "article": "la",
+      "example_de": "Nous parlons de la raison.",
+      "example_en": "We are talking about the reason.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 208,
+      "rankForm": "raison",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-292",
+      "de": "exemple",
+      "en": "example",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'exemple.",
+      "example_en": "We are talking about the example.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1109,
+      "rankForm": "exemple",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-293",
+      "de": "histoire",
+      "en": "story / history",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'histoire.",
+      "example_en": "We are talking about the story.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 313,
+      "rankForm": "histoire",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-294",
+      "de": "livre",
+      "en": "book",
+      "article": "le",
+      "example_de": "Nous parlons du livre.",
+      "example_en": "We are talking about the book.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 668,
+      "rankForm": "livre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-295",
+      "de": "cahier",
+      "en": "notebook",
+      "article": "le",
+      "example_de": "Nous parlons du cahier.",
+      "example_en": "We are talking about the notebook.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 10237,
+      "rankForm": "cahier",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-296",
+      "de": "stylo",
+      "en": "pen",
+      "article": "le",
+      "example_de": "Nous parlons du stylo.",
+      "example_en": "We are talking about the pen.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3962,
+      "rankForm": "stylo",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-297",
+      "de": "crayon",
+      "en": "pencil",
+      "article": "le",
+      "example_de": "Nous parlons du crayon.",
+      "example_en": "We are talking about the pencil.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 7607,
+      "rankForm": "crayon",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-298",
+      "de": "papier",
+      "en": "paper",
+      "article": "le",
+      "example_de": "Nous parlons du papier.",
+      "example_en": "We are talking about the paper.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1455,
+      "rankForm": "papier",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-299",
+      "de": "page",
+      "en": "page",
+      "article": "la",
+      "example_de": "Nous parlons de la page.",
+      "example_en": "We are talking about the page.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1854,
+      "rankForm": "page",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-300",
+      "de": "mot",
+      "en": "word",
+      "article": "le",
+      "example_de": "Nous parlons du mot.",
+      "example_en": "We are talking about the word.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 521,
+      "rankForm": "mot",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-301",
+      "de": "phrase",
+      "en": "sentence",
+      "article": "la",
+      "example_de": "Nous parlons de la phrase.",
+      "example_en": "We are talking about the sentence.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3936,
+      "rankForm": "phrase",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-302",
+      "de": "lettre",
+      "en": "letter (alphabet)",
+      "article": "la",
+      "example_de": "Nous parlons de la lettre.",
+      "example_en": "We are talking about the letter.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 934,
+      "rankForm": "lettre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-303",
+      "de": "cours",
+      "en": "lesson",
+      "article": "le",
+      "example_de": "Nous parlons du cours.",
+      "example_en": "We are talking about the lesson.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 496,
+      "rankForm": "cours",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-304",
+      "de": "professeur",
+      "en": "teacher",
+      "article": "le",
+      "example_de": "Nous parlons du professeur.",
+      "example_en": "We are talking about the teacher.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 927,
+      "rankForm": "professeur",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-305",
+      "de": "élève",
+      "en": "pupil",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'élève.",
+      "example_en": "We are talking about the pupil.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2860,
+      "rankForm": "élève",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-306",
+      "de": "examen",
+      "en": "exam",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'examen.",
+      "example_en": "We are talking about the exam.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2175,
+      "rankForm": "examen",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-307",
+      "de": "exercice",
+      "en": "exercise",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'exercice.",
+      "example_en": "We are talking about the exercise.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 3418,
+      "rankForm": "exercice",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-308",
+      "de": "leçon",
+      "en": "lesson (unit)",
+      "article": "la",
+      "example_de": "Nous parlons de la leçon.",
+      "example_en": "We are talking about the lesson.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2037,
+      "rankForm": "leçon",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-309",
+      "de": "téléphone",
+      "en": "telephone",
+      "article": "le",
+      "example_de": "Nous parlons du téléphone.",
+      "example_en": "We are talking about the telephone.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 448,
+      "rankForm": "téléphone",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-310",
+      "de": "ordinateur",
+      "en": "computer",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'ordinateur.",
+      "example_en": "We are talking about the computer.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1354,
+      "rankForm": "ordinateur",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-311",
+      "de": "écran",
+      "en": "screen",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'écran.",
+      "example_en": "We are talking about the screen.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2750,
+      "rankForm": "écran",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-312",
+      "de": "clavier",
+      "en": "keyboard",
+      "article": "le",
+      "example_de": "Nous parlons du clavier.",
+      "example_en": "We are talking about the keyboard.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 12026,
+      "rankForm": "clavier",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-313",
+      "de": "message",
+      "en": "message",
+      "article": "le",
+      "example_de": "Nous parlons du message.",
+      "example_en": "We are talking about the message.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 671,
+      "rankForm": "message",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-314",
+      "de": "photo",
+      "en": "photo",
+      "article": "la",
+      "example_de": "Nous parlons de la photo.",
+      "example_en": "We are talking about the photo.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 603,
+      "rankForm": "photo",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-315",
+      "de": "image",
+      "en": "image",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'image.",
+      "example_en": "We are talking about the image.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1549,
+      "rankForm": "image",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-316",
+      "de": "journal",
+      "en": "newspaper",
+      "article": "le",
+      "example_de": "Nous parlons du journal.",
+      "example_en": "We are talking about the newspaper.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1098,
+      "rankForm": "journal",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-317",
+      "de": "musique",
+      "en": "music",
+      "article": "la",
+      "example_de": "Nous parlons de la musique.",
+      "example_en": "We are talking about the music.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 614,
+      "rankForm": "musique",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-318",
+      "de": "chanson",
+      "en": "song",
+      "article": "la",
+      "example_de": "Nous parlons de la chanson.",
+      "example_en": "We are talking about the song.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1007,
+      "rankForm": "chanson",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-319",
+      "de": "film",
+      "en": "film",
+      "article": "le",
+      "example_de": "Nous parlons du film.",
+      "example_en": "We are talking about the film.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 529,
+      "rankForm": "film",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-320",
+      "de": "jeu",
+      "en": "game",
+      "article": "le",
+      "example_de": "Nous parlons du jeu.",
+      "example_en": "We are talking about the game.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 492,
+      "rankForm": "jeu",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-321",
+      "de": "sport",
+      "en": "sport",
+      "article": "le",
+      "example_de": "Nous parlons du sport.",
+      "example_en": "We are talking about the sport.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2094,
+      "rankForm": "sport",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-322",
+      "de": "ballon",
+      "en": "ball",
+      "article": "le",
+      "example_de": "Nous parlons du ballon.",
+      "example_en": "We are talking about the ball.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 2770,
+      "rankForm": "ballon",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-323",
+      "de": "équipe",
+      "en": "team",
+      "article": "l_f",
+      "example_de": "Nous parlons de l'équipe.",
+      "example_en": "We are talking about the team.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 457,
+      "rankForm": "équipe",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-324",
+      "de": "fête",
+      "en": "party",
+      "article": "la",
+      "example_de": "Nous parlons de la fête.",
+      "example_en": "We are talking about the party.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 491,
+      "rankForm": "fête",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-325",
+      "de": "cadeau",
+      "en": "gift",
+      "article": "le",
+      "example_de": "Nous parlons du cadeau.",
+      "example_en": "We are talking about the gift.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 859,
+      "rankForm": "cadeau",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-326",
+      "de": "anniversaire",
+      "en": "birthday",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'anniversaire.",
+      "example_en": "We are talking about the birthday.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 796,
+      "rankForm": "anniversaire",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-327",
+      "de": "bonheur",
+      "en": "happiness",
+      "article": "le",
+      "example_de": "Nous parlons du bonheur.",
+      "example_en": "We are talking about the happiness.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1483,
+      "rankForm": "bonheur",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-328",
+      "de": "peur",
+      "en": "fear",
+      "article": "la",
+      "example_de": "Nous parlons de la peur.",
+      "example_en": "We are talking about the fear.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 224,
+      "rankForm": "peur",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-329",
+      "de": "amour",
+      "en": "love",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'amour.",
+      "example_en": "We are talking about the love.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 299,
+      "rankForm": "amour",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-330",
+      "de": "paix",
+      "en": "peace",
+      "article": "la",
+      "example_de": "Nous parlons de la paix.",
+      "example_en": "We are talking about the peace.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 792,
+      "rankForm": "paix",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-331",
+      "de": "guerre",
+      "en": "war",
+      "article": "la",
+      "example_de": "Nous parlons de la guerre.",
+      "example_en": "We are talking about the war.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 463,
+      "rankForm": "guerre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-332",
+      "de": "liberté",
+      "en": "freedom",
+      "article": "la",
+      "example_de": "Nous parlons de la liberté.",
+      "example_en": "We are talking about the freedom.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1197,
+      "rankForm": "liberté",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-333",
+      "de": "vérité",
+      "en": "truth",
+      "article": "la",
+      "example_de": "Nous parlons de la vérité.",
+      "example_en": "We are talking about the truth.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 436,
+      "rankForm": "vérité",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-334",
+      "de": "rêve",
+      "en": "dream",
+      "article": "le",
+      "example_de": "Nous parlons du rêve.",
+      "example_en": "We are talking about the dream.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 712,
+      "rankForm": "rêve",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-335",
+      "de": "espoir",
+      "en": "hope",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'espoir.",
+      "example_en": "We are talking about the hope.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1246,
+      "rankForm": "espoir",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-336",
+      "de": "chance",
+      "en": "luck",
+      "article": "la",
+      "example_de": "Nous parlons de la chance.",
+      "example_en": "We are talking about the luck.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 264,
+      "rankForm": "chance",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-337",
+      "de": "besoin",
+      "en": "need",
+      "article": "le",
+      "example_de": "Nous parlons du besoin.",
+      "example_en": "We are talking about the need.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 124,
+      "rankForm": "besoin",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-338",
+      "de": "choix",
+      "en": "choice",
+      "article": "le",
+      "example_de": "Nous parlons du choix.",
+      "example_en": "We are talking about the choice.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 526,
+      "rankForm": "choix",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-339",
+      "de": "droit",
+      "en": "right (entitlement)",
+      "article": "le",
+      "example_de": "Nous parlons du droit.",
+      "example_en": "We are talking about the right.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 395,
+      "rankForm": "droit",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-340",
+      "de": "loi",
+      "en": "law",
+      "article": "la",
+      "example_de": "Nous parlons de la loi.",
+      "example_en": "We are talking about the law.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 929,
+      "rankForm": "loi",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-341",
+      "de": "gouvernement",
+      "en": "government",
+      "article": "le",
+      "example_de": "Nous parlons du gouvernement.",
+      "example_en": "We are talking about the government.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1094,
+      "rankForm": "gouvernement",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-342",
+      "de": "police",
+      "en": "police",
+      "article": "la",
+      "example_de": "Nous parlons de la police.",
+      "example_en": "We are talking about the police.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 322,
+      "rankForm": "police",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-343",
+      "de": "service",
+      "en": "service",
+      "article": "le",
+      "example_de": "Nous parlons du service.",
+      "example_en": "We are talking about the service.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 562,
+      "rankForm": "service",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-344",
+      "de": "numéro",
+      "en": "number",
+      "article": "le",
+      "example_de": "Nous parlons du numéro.",
+      "example_en": "We are talking about the number.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 499,
+      "rankForm": "numéro",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-345",
+      "de": "couleur",
+      "en": "color",
+      "article": "la",
+      "example_de": "Nous parlons de la couleur.",
+      "example_en": "We are talking about the color.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1563,
+      "rankForm": "couleur",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-346",
+      "de": "forme",
+      "en": "shape",
+      "article": "la",
+      "example_de": "Nous parlons de la forme.",
+      "example_en": "We are talking about the shape.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 935,
+      "rankForm": "forme",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-347",
+      "de": "taille",
+      "en": "size",
+      "article": "la",
+      "example_de": "Nous parlons de la taille.",
+      "example_en": "We are talking about the size.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1438,
+      "rankForm": "taille",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-348",
+      "de": "poids",
+      "en": "weight",
+      "article": "le",
+      "example_de": "Nous parlons du poids.",
+      "example_en": "We are talking about the weight.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1828,
+      "rankForm": "poids",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-349",
+      "de": "force",
+      "en": "strength",
+      "article": "la",
+      "example_de": "Nous parlons de la force.",
+      "example_en": "We are talking about the strength.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 755,
+      "rankForm": "force",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-350",
+      "de": "fin",
+      "en": "end",
+      "article": "la",
+      "example_de": "Nous parlons de la fin.",
+      "example_en": "We are talking about the end.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 409,
+      "rankForm": "fin",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-351",
+      "de": "début",
+      "en": "beginning",
+      "article": "le",
+      "example_de": "Nous parlons du début.",
+      "example_en": "We are talking about the beginning.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 718,
+      "rankForm": "début",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-352",
+      "de": "centre",
+      "en": "center",
+      "article": "le",
+      "example_de": "Nous parlons du centre.",
+      "example_en": "We are talking about the center.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 1004,
+      "rankForm": "centre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-353",
+      "de": "côté",
+      "en": "side",
+      "article": "le",
+      "example_de": "Nous parlons du côté.",
+      "example_en": "We are talking about the side.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 370,
+      "rankForm": "côté",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-354",
+      "de": "partie",
+      "en": "part",
+      "article": "la",
+      "example_de": "Nous parlons de la partie.",
+      "example_en": "We are talking about the part.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 312,
+      "rankForm": "partie",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-355",
+      "de": "liste",
+      "en": "list",
+      "article": "la",
+      "example_de": "Nous parlons de la liste.",
+      "example_en": "We are talking about the list.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 787,
+      "rankForm": "liste",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-356",
+      "de": "groupe",
+      "en": "group",
+      "article": "le",
+      "example_de": "Nous parlons du groupe.",
+      "example_en": "We are talking about the group.",
+      "tags": [
+        "a1",
+        "noun"
+      ],
+      "rank": 711,
+      "rankForm": "groupe",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-357",
+      "de": "grand",
+      "en": "big",
+      "article": "none",
+      "example_de": "Il est grand.",
+      "example_en": "It is big.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 270,
+      "rankForm": "grand",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-358",
+      "de": "petit",
+      "en": "small",
+      "article": "none",
+      "example_de": "Il est petit.",
+      "example_en": "It is small.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 188,
+      "rankForm": "petit",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-359",
+      "de": "bon",
+      "en": "good",
+      "article": "none",
+      "example_de": "Il est bon.",
+      "example_en": "It is good.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 93,
+      "rankForm": "bon",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-360",
+      "de": "mauvais",
+      "en": "bad",
+      "article": "none",
+      "example_de": "Il est mauvais.",
+      "example_en": "It is bad.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 520,
+      "rankForm": "mauvais",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-361",
+      "de": "nouveau",
+      "en": "new",
+      "article": "none",
+      "example_de": "Il est nouveau.",
+      "example_en": "It is new.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 298,
+      "rankForm": "nouveau",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-362",
+      "de": "vieux",
+      "en": "old",
+      "article": "none",
+      "example_de": "Il est vieux.",
+      "example_en": "It is old.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 377,
+      "rankForm": "vieux",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-363",
+      "de": "jeune",
+      "en": "young",
+      "article": "none",
+      "example_de": "Il est jeune.",
+      "example_en": "He is young.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 428,
+      "rankForm": "jeune",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-364",
+      "de": "beau",
+      "en": "beautiful",
+      "article": "none",
+      "example_de": "Il est beau.",
+      "example_en": "It is beautiful.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 427,
+      "rankForm": "beau",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-365",
+      "de": "joli",
+      "en": "pretty / beautiful",
+      "article": "none",
+      "example_de": "Il est joli.",
+      "example_en": "It is pretty.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 913,
+      "rankForm": "joli",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-366",
+      "de": "long",
+      "en": "long",
+      "article": "none",
+      "example_de": "Il est long.",
+      "example_en": "It is long.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 745,
+      "rankForm": "long",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-367",
+      "de": "court",
+      "en": "short",
+      "article": "none",
+      "example_de": "Il est court.",
+      "example_en": "It is short.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1373,
+      "rankForm": "court",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-368",
+      "de": "haut",
+      "en": "high / tall",
+      "article": "none",
+      "example_de": "Il est haut.",
+      "example_en": "It is high.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 636,
+      "rankForm": "haut",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-369",
+      "de": "bas",
+      "en": "low",
+      "article": "none",
+      "example_de": "Il est bas.",
+      "example_en": "It is low.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 535,
+      "rankForm": "bas",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-370",
+      "de": "large",
+      "en": "wide",
+      "article": "none",
+      "example_de": "Il est large.",
+      "example_en": "It is wide.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 3310,
+      "rankForm": "large",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-371",
+      "de": "étroit",
+      "en": "narrow",
+      "article": "none",
+      "example_de": "Il est étroit.",
+      "example_en": "It is narrow.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 10437,
+      "rankForm": "étroit",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-372",
+      "de": "gros",
+      "en": "fat / thick",
+      "article": "none",
+      "example_de": "Il est gros.",
+      "example_en": "It is fat.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 413,
+      "rankForm": "gros",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-373",
+      "de": "mince",
+      "en": "thin",
+      "article": "none",
+      "example_de": "Il est mince.",
+      "example_en": "It is thin.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1728,
+      "rankForm": "mince",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-374",
+      "de": "lourd",
+      "en": "heavy",
+      "article": "none",
+      "example_de": "Il est lourd.",
+      "example_en": "It is heavy.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 2702,
+      "rankForm": "lourd",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-375",
+      "de": "léger",
+      "en": "light (weight)",
+      "article": "none",
+      "example_de": "Il est léger.",
+      "example_en": "It is light.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 3763,
+      "rankForm": "léger",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-376",
+      "de": "fort",
+      "en": "strong",
+      "article": "none",
+      "example_de": "Il est fort.",
+      "example_en": "It is strong.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 474,
+      "rankForm": "fort",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-377",
+      "de": "faible",
+      "en": "weak",
+      "article": "none",
+      "example_de": "Il est faible.",
+      "example_en": "It is weak.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1578,
+      "rankForm": "faible",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-378",
+      "de": "rapide",
+      "en": "fast",
+      "article": "none",
+      "example_de": "Il est rapide.",
+      "example_en": "It is fast.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1288,
+      "rankForm": "rapide",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-379",
+      "de": "lent",
+      "en": "slow",
+      "article": "none",
+      "example_de": "Il est lent.",
+      "example_en": "It is slow.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 5544,
+      "rankForm": "lent",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-380",
+      "de": "facile",
+      "en": "easy",
+      "article": "none",
+      "example_de": "Il est facile.",
+      "example_en": "It is easy.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 533,
+      "rankForm": "facile",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-381",
+      "de": "difficile",
+      "en": "difficult",
+      "article": "none",
+      "example_de": "Il est difficile.",
+      "example_en": "It is difficult.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 566,
+      "rankForm": "difficile",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-382",
+      "de": "simple",
+      "en": "simple",
+      "article": "none",
+      "example_de": "Il est simple.",
+      "example_en": "It is simple.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 643,
+      "rankForm": "simple",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-383",
+      "de": "compliqué",
+      "en": "complicated",
+      "article": "none",
+      "example_de": "Il est compliqué.",
+      "example_en": "It is complicated.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1852,
+      "rankForm": "compliqué",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-384",
+      "de": "possible",
+      "en": "possible",
+      "article": "none",
+      "example_de": "Il est possible.",
+      "example_en": "It is possible.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 422,
+      "rankForm": "possible",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-385",
+      "de": "impossible",
+      "en": "impossible",
+      "article": "none",
+      "example_de": "Il est impossible.",
+      "example_en": "It is impossible.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 574,
+      "rankForm": "impossible",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-386",
+      "de": "important",
+      "en": "important",
+      "article": "none",
+      "example_de": "Il est important.",
+      "example_en": "It is important.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 470,
+      "rankForm": "important",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-387",
+      "de": "nécessaire",
+      "en": "necessary",
+      "article": "none",
+      "example_de": "Il est nécessaire.",
+      "example_en": "It is necessary.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1372,
+      "rankForm": "nécessaire",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-388",
+      "de": "utile",
+      "en": "useful",
+      "article": "none",
+      "example_de": "Il est utile.",
+      "example_en": "It is useful.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1627,
+      "rankForm": "utile",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-389",
+      "de": "inutile",
+      "en": "useless",
+      "article": "none",
+      "example_de": "Il est inutile.",
+      "example_en": "It is useless.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1170,
+      "rankForm": "inutile",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-390",
+      "de": "intéressant",
+      "en": "interesting",
+      "article": "none",
+      "example_de": "Il est intéressant.",
+      "example_en": "It is interesting.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1166,
+      "rankForm": "intéressant",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-391",
+      "de": "ennuyeux",
+      "en": "boring",
+      "article": "none",
+      "example_de": "Il est ennuyeux.",
+      "example_en": "It is boring.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 3699,
+      "rankForm": "ennuyeux",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-392",
+      "de": "cher",
+      "en": "expensive",
+      "article": "none",
+      "example_de": "Il est cher.",
+      "example_en": "It is expensive.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 727,
+      "rankForm": "cher",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-393",
+      "de": "gratuit",
+      "en": "free (no charge)",
+      "article": "none",
+      "example_de": "Il est gratuit.",
+      "example_en": "It is free.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 3730,
+      "rankForm": "gratuit",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-394",
+      "de": "riche",
+      "en": "rich",
+      "article": "none",
+      "example_de": "Il est riche.",
+      "example_en": "He is rich.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1408,
+      "rankForm": "riche",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-395",
+      "de": "pauvre",
+      "en": "poor",
+      "article": "none",
+      "example_de": "Il est pauvre.",
+      "example_en": "He is poor.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 691,
+      "rankForm": "pauvre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-396",
+      "de": "plein",
+      "en": "full",
+      "article": "none",
+      "example_de": "Il est plein.",
+      "example_en": "It is full.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 476,
+      "rankForm": "plein",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-397",
+      "de": "vide",
+      "en": "empty",
+      "article": "none",
+      "example_de": "Il est vide.",
+      "example_en": "It is empty.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1235,
+      "rankForm": "vide",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-398",
+      "de": "propre",
+      "en": "clean",
+      "article": "none",
+      "example_de": "Il est propre.",
+      "example_en": "It is clean.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 543,
+      "rankForm": "propre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-399",
+      "de": "sale",
+      "en": "dirty",
+      "article": "none",
+      "example_de": "Il est sale.",
+      "example_en": "It is dirty.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 802,
+      "rankForm": "sale",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-400",
+      "de": "chaud",
+      "en": "hot",
+      "article": "none",
+      "example_de": "Il est chaud.",
+      "example_en": "It is hot.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 922,
+      "rankForm": "chaud",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-401",
+      "de": "froid",
+      "en": "cold",
+      "article": "none",
+      "example_de": "Il est froid.",
+      "example_en": "It is cold.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 949,
+      "rankForm": "froid",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-402",
+      "de": "tiède",
+      "en": "lukewarm",
+      "article": "none",
+      "example_de": "Il est tiède.",
+      "example_en": "It is lukewarm.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 17789,
+      "rankForm": "tiède",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-403",
+      "de": "sec",
+      "en": "dry",
+      "article": "none",
+      "example_de": "Il est sec.",
+      "example_en": "It is dry.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 4513,
+      "rankForm": "sec",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-404",
+      "de": "mouillé",
+      "en": "wet",
+      "article": "none",
+      "example_de": "Il est mouillé.",
+      "example_en": "It is wet.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 6634,
+      "rankForm": "mouillé",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-405",
+      "de": "ouvert",
+      "en": "open",
+      "article": "none",
+      "example_de": "Il est ouvert.",
+      "example_en": "It is open.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1121,
+      "rankForm": "ouvert",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-406",
+      "de": "fermé",
+      "en": "closed",
+      "article": "none",
+      "example_de": "Il est fermé.",
+      "example_en": "It is closed.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1734,
+      "rankForm": "fermé",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-407",
+      "de": "clair",
+      "en": "clear",
+      "article": "none",
+      "example_de": "Il est clair.",
+      "example_en": "It is clear.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 842,
+      "rankForm": "clair",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-408",
+      "de": "sombre",
+      "en": "dark",
+      "article": "none",
+      "example_de": "Il est sombre.",
+      "example_en": "It is dark.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 2360,
+      "rankForm": "sombre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-409",
+      "de": "blanc",
+      "en": "white",
+      "article": "none",
+      "example_de": "Il est blanc.",
+      "example_en": "It is white.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1010,
+      "rankForm": "blanc",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-410",
+      "de": "noir",
+      "en": "black",
+      "article": "none",
+      "example_de": "Il est noir.",
+      "example_en": "It is black.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 750,
+      "rankForm": "noir",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-411",
+      "de": "rouge",
+      "en": "red",
+      "article": "none",
+      "example_de": "Il est rouge.",
+      "example_en": "It is red.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 825,
+      "rankForm": "rouge",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-412",
+      "de": "bleu",
+      "en": "blue",
+      "article": "none",
+      "example_de": "Il est bleu.",
+      "example_en": "It is blue.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1581,
+      "rankForm": "bleu",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-413",
+      "de": "vert",
+      "en": "green",
+      "article": "none",
+      "example_de": "Il est vert.",
+      "example_en": "It is green.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 2080,
+      "rankForm": "vert",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-414",
+      "de": "jaune",
+      "en": "yellow",
+      "article": "none",
+      "example_de": "Il est jaune.",
+      "example_en": "It is yellow.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 3033,
+      "rankForm": "jaune",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-415",
+      "de": "gris",
+      "en": "gray",
+      "article": "none",
+      "example_de": "Il est gris.",
+      "example_en": "It is gray.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 4692,
+      "rankForm": "gris",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-416",
+      "de": "rose",
+      "en": "pink",
+      "article": "none",
+      "example_de": "Il est rose.",
+      "example_en": "It is pink.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1327,
+      "rankForm": "rose",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-417",
+      "de": "orange",
+      "en": "orange (color)",
+      "article": "none",
+      "example_de": "Il est orange.",
+      "example_en": "It is orange.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 3288,
+      "rankForm": "orange",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-418",
+      "de": "marron",
+      "en": "brown",
+      "article": "none",
+      "example_de": "Il est marron.",
+      "example_en": "It is brown.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 6909,
+      "rankForm": "marron",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-419",
+      "de": "heureux",
+      "en": "happy",
+      "article": "none",
+      "example_de": "Il est heureux.",
+      "example_en": "He is happy.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 539,
+      "rankForm": "heureux",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-420",
+      "de": "triste",
+      "en": "sad",
+      "article": "none",
+      "example_de": "Il est triste.",
+      "example_en": "He is sad.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 985,
+      "rankForm": "triste",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-421",
+      "de": "fatigué",
+      "en": "tired",
+      "article": "none",
+      "example_de": "Il est fatigué.",
+      "example_en": "He is tired.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1901,
+      "rankForm": "fatigué",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-422",
+      "de": "malade",
+      "en": "ill",
+      "article": "none",
+      "example_de": "Il est malade.",
+      "example_en": "He is ill.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 638,
+      "rankForm": "malade",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-423",
+      "de": "prêt",
+      "en": "ready",
+      "article": "none",
+      "example_de": "Il est prêt.",
+      "example_en": "He is ready.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 417,
+      "rankForm": "prêt",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-424",
+      "de": "occupé",
+      "en": "busy",
+      "article": "none",
+      "example_de": "Il est occupé.",
+      "example_en": "He is busy.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1223,
+      "rankForm": "occupé",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-425",
+      "de": "libre",
+      "en": "free (available)",
+      "article": "none",
+      "example_de": "Il est libre.",
+      "example_en": "He is free.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 803,
+      "rankForm": "libre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-426",
+      "de": "seul",
+      "en": "alone",
+      "article": "none",
+      "example_de": "Il est seul.",
+      "example_en": "He is alone.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 215,
+      "rankForm": "seul",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-427",
+      "de": "gentil",
+      "en": "kind",
+      "article": "none",
+      "example_de": "Il est gentil.",
+      "example_en": "He is kind.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 640,
+      "rankForm": "gentil",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-428",
+      "de": "poli",
+      "en": "polite",
+      "article": "none",
+      "example_de": "Il est poli.",
+      "example_en": "He is polite.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 6126,
+      "rankForm": "poli",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-429",
+      "de": "calme",
+      "en": "calm",
+      "article": "none",
+      "example_de": "Il est calme.",
+      "example_en": "He is calm.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 599,
+      "rankForm": "calme",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-430",
+      "de": "nerveux",
+      "en": "nervous",
+      "article": "none",
+      "example_de": "Il est nerveux.",
+      "example_en": "He is nervous.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1945,
+      "rankForm": "nerveux",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-431",
+      "de": "content",
+      "en": "pleased",
+      "article": "none",
+      "example_de": "Il est content.",
+      "example_en": "He is pleased.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 724,
+      "rankForm": "content",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-432",
+      "de": "fâché",
+      "en": "angry",
+      "article": "none",
+      "example_de": "Il est fâché.",
+      "example_en": "He is angry.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 3800,
+      "rankForm": "fâché",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-433",
+      "de": "sûr",
+      "en": "sure / safe",
+      "article": "none",
+      "example_de": "Il est sûr.",
+      "example_en": "He is sure.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 140,
+      "rankForm": "sûr",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-434",
+      "de": "dangereux",
+      "en": "dangerous",
+      "article": "none",
+      "example_de": "Il est dangereux.",
+      "example_en": "It is dangerous.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 941,
+      "rankForm": "dangereux",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-435",
+      "de": "proche",
+      "en": "nearby",
+      "article": "none",
+      "example_de": "Il est proche.",
+      "example_en": "It is nearby.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1267,
+      "rankForm": "proche",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-436",
+      "de": "lointain",
+      "en": "distant",
+      "article": "none",
+      "example_de": "Il est lointain.",
+      "example_en": "It is distant.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 10128,
+      "rankForm": "lointain",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-437",
+      "de": "vrai",
+      "en": "true",
+      "article": "none",
+      "example_de": "Il est vrai.",
+      "example_en": "It is true.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 159,
+      "rankForm": "vrai",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-438",
+      "de": "faux",
+      "en": "false",
+      "article": "none",
+      "example_de": "Il est faux.",
+      "example_en": "It is false.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 709,
+      "rankForm": "faux",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-439",
+      "de": "correct",
+      "en": "correct",
+      "article": "none",
+      "example_de": "Il est correct.",
+      "example_en": "It is correct.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 2910,
+      "rankForm": "correct",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-440",
+      "de": "différent",
+      "en": "different",
+      "article": "none",
+      "example_de": "Il est différent.",
+      "example_en": "It is different.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1022,
+      "rankForm": "différent",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-441",
+      "de": "pareil",
+      "en": "the same",
+      "article": "none",
+      "example_de": "Il est pareil.",
+      "example_en": "It is the same.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 890,
+      "rankForm": "pareil",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-442",
+      "de": "dernier",
+      "en": "last",
+      "article": "none",
+      "example_de": "C’est le dernier.",
+      "example_en": "It is the last.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 482,
+      "rankForm": "dernier",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-443",
+      "de": "premier",
+      "en": "first",
+      "article": "none",
+      "example_de": "C’est le premier.",
+      "example_en": "It is the first.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 368,
+      "rankForm": "premier",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-444",
+      "de": "prochain",
+      "en": "next",
+      "article": "none",
+      "example_de": "Le prochain train arrive.",
+      "example_en": "The next train is arriving.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1057,
+      "rankForm": "prochain",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-445",
+      "de": "normal",
+      "en": "normal",
+      "article": "none",
+      "example_de": "Il est normal.",
+      "example_en": "It is normal.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 939,
+      "rankForm": "normal",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-446",
+      "de": "spécial",
+      "en": "special",
+      "article": "none",
+      "example_de": "Il est spécial.",
+      "example_en": "It is special.",
+      "tags": [
+        "a1",
+        "adj"
+      ],
+      "rank": 1248,
+      "rankForm": "spécial",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-447",
+      "de": "être",
+      "en": "to be (identity)",
+      "article": "none",
+      "example_de": "Je veux être médecin.",
+      "example_en": "I want to be a doctor.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 65,
+      "rankForm": "être",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-448",
+      "de": "avoir",
+      "en": "to have",
+      "article": "none",
+      "example_de": "Nous avons un chien.",
+      "example_en": "We have a dog.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 101,
+      "rankForm": "avoir",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-449",
+      "de": "faire",
+      "en": "to do / make",
+      "article": "none",
+      "example_de": "Je fais du pain.",
+      "example_en": "I make bread.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 58,
+      "rankForm": "faire",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-450",
+      "de": "aller",
+      "en": "to go",
+      "article": "none",
+      "example_de": "Je vais au marché.",
+      "example_en": "I am going to the market.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 131,
+      "rankForm": "aller",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-451",
+      "de": "venir",
+      "en": "to come",
+      "article": "none",
+      "example_de": "Tu viens avec moi ?",
+      "example_en": "Are you coming with me?",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 272,
+      "rankForm": "venir",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-452",
+      "de": "voir",
+      "en": "to see",
+      "article": "none",
+      "example_de": "Je vois la mer.",
+      "example_en": "I can see the sea.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 103,
+      "rankForm": "voir",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-453",
+      "de": "regarder",
+      "en": "to look at",
+      "article": "none",
+      "example_de": "Elle regarde la lune.",
+      "example_en": "She looks at the moon.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 525,
+      "rankForm": "regarder",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-454",
+      "de": "entendre",
+      "en": "to hear",
+      "article": "none",
+      "example_de": "J'entends un oiseau.",
+      "example_en": "I hear a bird.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 537,
+      "rankForm": "entendre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-455",
+      "de": "écouter",
+      "en": "to listen to",
+      "article": "none",
+      "example_de": "Nous écoutons la radio.",
+      "example_en": "We listen to the radio.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 980,
+      "rankForm": "écouter",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-456",
+      "de": "parler",
+      "en": "to speak",
+      "article": "none",
+      "example_de": "Je parle français.",
+      "example_en": "I speak French.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 143,
+      "rankForm": "parler",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-457",
+      "de": "dire",
+      "en": "to say",
+      "article": "none",
+      "example_de": "Il dit bonjour.",
+      "example_en": "He says hello.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 83,
+      "rankForm": "dire",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-458",
+      "de": "demander",
+      "en": "to ask",
+      "article": "none",
+      "example_de": "Je demande le prix.",
+      "example_en": "I ask the price.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 424,
+      "rankForm": "demander",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-459",
+      "de": "répondre",
+      "en": "to answer",
+      "article": "none",
+      "example_de": "Elle répond à la question.",
+      "example_en": "She answers the question.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1140,
+      "rankForm": "répondre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-460",
+      "de": "lire",
+      "en": "to read",
+      "article": "none",
+      "example_de": "Je lis un livre.",
+      "example_en": "I read a book.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 911,
+      "rankForm": "lire",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-461",
+      "de": "écrire",
+      "en": "to write",
+      "article": "none",
+      "example_de": "Nous écrivons une lettre.",
+      "example_en": "We write a letter.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1047,
+      "rankForm": "écrire",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-462",
+      "de": "comprendre",
+      "en": "to understand",
+      "article": "none",
+      "example_de": "Je comprends la phrase.",
+      "example_en": "I understand the sentence.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 628,
+      "rankForm": "comprendre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-463",
+      "de": "apprendre",
+      "en": "to learn",
+      "article": "none",
+      "example_de": "Il apprend à nager.",
+      "example_en": "He is learning to swim.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 748,
+      "rankForm": "apprendre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-464",
+      "de": "savoir",
+      "en": "to know (a fact)",
+      "article": "none",
+      "example_de": "Je sais où il habite.",
+      "example_en": "I know where he lives.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 200,
+      "rankForm": "savoir",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-465",
+      "de": "connaître",
+      "en": "to know (be familiar with)",
+      "article": "none",
+      "example_de": "Je connais cette ville.",
+      "example_en": "I know this city.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 933,
+      "rankForm": "connaître",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-466",
+      "de": "penser",
+      "en": "to think",
+      "article": "none",
+      "example_de": "Je pense à ma famille.",
+      "example_en": "I am thinking about my family.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 516,
+      "rankForm": "penser",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-467",
+      "de": "croire",
+      "en": "to believe",
+      "article": "none",
+      "example_de": "Je crois ton histoire.",
+      "example_en": "I believe your story.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 410,
+      "rankForm": "croire",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-468",
+      "de": "vouloir",
+      "en": "to want",
+      "article": "none",
+      "example_de": "Je veux un café.",
+      "example_en": "I want a coffee.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 902,
+      "rankForm": "vouloir",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-469",
+      "de": "pouvoir",
+      "en": "to be able to",
+      "article": "none",
+      "example_de": "Je peux venir demain.",
+      "example_en": "I can come tomorrow.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 365,
+      "rankForm": "pouvoir",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-470",
+      "de": "devoir",
+      "en": "to have to",
+      "article": "none",
+      "example_de": "Je dois partir.",
+      "example_en": "I have to leave.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 563,
+      "rankForm": "devoir",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-471",
+      "de": "aimer",
+      "en": "to like",
+      "article": "none",
+      "example_de": "J'aime ce livre.",
+      "example_en": "I like this book.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 976,
+      "rankForm": "aimer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-472",
+      "de": "préférer",
+      "en": "to prefer",
+      "article": "none",
+      "example_de": "Je préfère le thé.",
+      "example_en": "I prefer tea.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 20711,
+      "rankForm": "préférer",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-473",
+      "de": "détester",
+      "en": "to hate",
+      "article": "none",
+      "example_de": "Je déteste attendre.",
+      "example_en": "I hate waiting.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 5594,
+      "rankForm": "détester",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-474",
+      "de": "manger",
+      "en": "to eat",
+      "article": "none",
+      "example_de": "Nous mangeons une pomme.",
+      "example_en": "We eat an apple.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 460,
+      "rankForm": "manger",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-475",
+      "de": "boire",
+      "en": "to drink",
+      "article": "none",
+      "example_de": "Je bois de l'eau.",
+      "example_en": "I drink water.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 676,
+      "rankForm": "boire",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-476",
+      "de": "cuisiner",
+      "en": "to cook",
+      "article": "none",
+      "example_de": "Il cuisine le soir.",
+      "example_en": "He cooks in the evening.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 3945,
+      "rankForm": "cuisiner",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-477",
+      "de": "dormir",
+      "en": "to sleep",
+      "article": "none",
+      "example_de": "Le bébé dort.",
+      "example_en": "The baby is sleeping.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 707,
+      "rankForm": "dormir",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-478",
+      "de": "se réveiller",
+      "en": "to wake up",
+      "article": "none",
+      "example_de": "Je me réveille tôt.",
+      "example_en": "I wake up early.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 2084,
+      "rankForm": "réveiller",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-479",
+      "de": "se lever",
+      "en": "to get up",
+      "article": "none",
+      "example_de": "Je me lève à sept heures.",
+      "example_en": "I get up at seven.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1757,
+      "rankForm": "lever",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-480",
+      "de": "se laver",
+      "en": "to wash oneself",
+      "article": "none",
+      "example_de": "Je me lave les mains.",
+      "example_en": "I wash my hands.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 2468,
+      "rankForm": "laver",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-481",
+      "de": "s'habiller",
+      "en": "to get dressed",
+      "article": "none",
+      "example_de": "Elle s'habille vite.",
+      "example_en": "She gets dressed quickly.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 3722,
+      "rankForm": "habiller",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-482",
+      "de": "travailler",
+      "en": "to work",
+      "article": "none",
+      "example_de": "Nous travaillons ici.",
+      "example_en": "We work here.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 522,
+      "rankForm": "travailler",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-483",
+      "de": "étudier",
+      "en": "to study",
+      "article": "none",
+      "example_de": "J'étudie le soir.",
+      "example_en": "I study in the evening.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 2492,
+      "rankForm": "étudier",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-484",
+      "de": "jouer",
+      "en": "to play",
+      "article": "none",
+      "example_de": "Les enfants jouent dehors.",
+      "example_en": "The children play outside.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 423,
+      "rankForm": "jouer",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-485",
+      "de": "marcher",
+      "en": "to walk",
+      "article": "none",
+      "example_de": "Je marche dans le parc.",
+      "example_en": "I walk in the park.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 882,
+      "rankForm": "marcher",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-486",
+      "de": "courir",
+      "en": "to run",
+      "article": "none",
+      "example_de": "Elle court tous les jours.",
+      "example_en": "She runs every day.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1583,
+      "rankForm": "courir",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-487",
+      "de": "nager",
+      "en": "to swim",
+      "article": "none",
+      "example_de": "Nous nageons dans la mer.",
+      "example_en": "We swim in the sea.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 3430,
+      "rankForm": "nager",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-488",
+      "de": "danser",
+      "en": "to dance",
+      "article": "none",
+      "example_de": "Tu danses très bien.",
+      "example_en": "You dance very well.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1294,
+      "rankForm": "danser",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-489",
+      "de": "chanter",
+      "en": "to sing",
+      "article": "none",
+      "example_de": "Il chante une chanson.",
+      "example_en": "He sings a song.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1394,
+      "rankForm": "chanter",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-490",
+      "de": "rire",
+      "en": "to laugh",
+      "article": "none",
+      "example_de": "Les enfants rient.",
+      "example_en": "The children laugh.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1052,
+      "rankForm": "rire",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-491",
+      "de": "pleurer",
+      "en": "to cry",
+      "article": "none",
+      "example_de": "Le bébé pleure.",
+      "example_en": "The baby is crying.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1540,
+      "rankForm": "pleurer",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-492",
+      "de": "sourire",
+      "en": "to smile",
+      "article": "none",
+      "example_de": "Elle sourit souvent.",
+      "example_en": "She often smiles.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1605,
+      "rankForm": "sourire",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-493",
+      "de": "acheter",
+      "en": "to buy",
+      "article": "none",
+      "example_de": "J'achète du pain.",
+      "example_en": "I buy bread.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 733,
+      "rankForm": "acheter",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-494",
+      "de": "vendre",
+      "en": "to sell",
+      "article": "none",
+      "example_de": "Il vend sa voiture.",
+      "example_en": "He is selling his car.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1030,
+      "rankForm": "vendre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-495",
+      "de": "payer",
+      "en": "to pay",
+      "article": "none",
+      "example_de": "Je paie le billet.",
+      "example_en": "I pay for the ticket.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 589,
+      "rankForm": "payer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-496",
+      "de": "coûter",
+      "en": "to cost",
+      "article": "none",
+      "example_de": "Ce livre coûte dix euros.",
+      "example_en": "This book costs ten euros.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 4807,
+      "rankForm": "coûter",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-497",
+      "de": "ouvrir",
+      "en": "to open",
+      "article": "none",
+      "example_de": "J'ouvre la fenêtre.",
+      "example_en": "I open the window.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 990,
+      "rankForm": "ouvrir",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-498",
+      "de": "fermer",
+      "en": "to close",
+      "article": "none",
+      "example_de": "Elle ferme la porte.",
+      "example_en": "She closes the door.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1546,
+      "rankForm": "fermer",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-499",
+      "de": "commencer",
+      "en": "to begin",
+      "article": "none",
+      "example_de": "Le cours commence à neuf heures.",
+      "example_en": "The lesson begins at nine.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 696,
+      "rankForm": "commencer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-500",
+      "de": "finir",
+      "en": "to finish",
+      "article": "none",
+      "example_de": "Je finis mon travail.",
+      "example_en": "I finish my work.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 797,
+      "rankForm": "finir",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-501",
+      "de": "continuer",
+      "en": "to continue",
+      "article": "none",
+      "example_de": "Nous continuons le voyage.",
+      "example_en": "We continue the trip.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 906,
+      "rankForm": "continuer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-502",
+      "de": "arrêter",
+      "en": "to stop",
+      "article": "none",
+      "example_de": "Il arrête la voiture.",
+      "example_en": "He stops the car.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 390,
+      "rankForm": "arrêter",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-503",
+      "de": "attendre",
+      "en": "to wait",
+      "article": "none",
+      "example_de": "J'attends le bus.",
+      "example_en": "I am waiting for the bus.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 486,
+      "rankForm": "attendre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-504",
+      "de": "rester",
+      "en": "to stay",
+      "article": "none",
+      "example_de": "Je reste à la maison.",
+      "example_en": "I am staying at home.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 305,
+      "rankForm": "rester",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-505",
+      "de": "partir",
+      "en": "to leave",
+      "article": "none",
+      "example_de": "Nous partons demain.",
+      "example_en": "We leave tomorrow.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 252,
+      "rankForm": "partir",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-506",
+      "de": "arriver",
+      "en": "to arrive",
+      "article": "none",
+      "example_de": "Le train arrive bientôt.",
+      "example_en": "The train arrives soon.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 461,
+      "rankForm": "arriver",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-507",
+      "de": "entrer",
+      "en": "to enter",
+      "article": "none",
+      "example_de": "Elle entre dans la cuisine.",
+      "example_en": "She enters the kitchen.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 540,
+      "rankForm": "entrer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-508",
+      "de": "sortir",
+      "en": "to go out",
+      "article": "none",
+      "example_de": "Je sors avec mes amis.",
+      "example_en": "I go out with my friends.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 288,
+      "rankForm": "sortir",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-509",
+      "de": "monter",
+      "en": "to go up",
+      "article": "none",
+      "example_de": "Nous montons l'escalier.",
+      "example_en": "We go up the stairs.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1042,
+      "rankForm": "monter",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-510",
+      "de": "descendre",
+      "en": "to go down",
+      "article": "none",
+      "example_de": "Je descends du train.",
+      "example_en": "I get off the train.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1452,
+      "rankForm": "descendre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-511",
+      "de": "conduire",
+      "en": "to drive",
+      "article": "none",
+      "example_de": "Elle conduit prudemment.",
+      "example_en": "She drives carefully.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1240,
+      "rankForm": "conduire",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-512",
+      "de": "voyager",
+      "en": "to travel",
+      "article": "none",
+      "example_de": "Nous voyageons en train.",
+      "example_en": "We travel by train.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 3040,
+      "rankForm": "voyager",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-513",
+      "de": "porter",
+      "en": "to carry / wear",
+      "article": "none",
+      "example_de": "Il porte un sac.",
+      "example_en": "He carries a bag.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 839,
+      "rankForm": "porter",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-514",
+      "de": "apporter",
+      "en": "to bring",
+      "article": "none",
+      "example_de": "J'apporte le dessert.",
+      "example_en": "I bring the dessert.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1767,
+      "rankForm": "apporter",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-515",
+      "de": "prendre",
+      "en": "to take",
+      "article": "none",
+      "example_de": "Je prends le train.",
+      "example_en": "I take the train.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 196,
+      "rankForm": "prendre",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-516",
+      "de": "donner",
+      "en": "to give",
+      "article": "none",
+      "example_de": "Elle donne un livre à son frère.",
+      "example_en": "She gives her brother a book.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 351,
+      "rankForm": "donner",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-517",
+      "de": "recevoir",
+      "en": "to receive",
+      "article": "none",
+      "example_de": "Je reçois une lettre.",
+      "example_en": "I receive a letter.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1787,
+      "rankForm": "recevoir",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-518",
+      "de": "envoyer",
+      "en": "to send",
+      "article": "none",
+      "example_de": "Nous envoyons un message.",
+      "example_en": "We send a message.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 885,
+      "rankForm": "envoyer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-519",
+      "de": "mettre",
+      "en": "to put",
+      "article": "none",
+      "example_de": "Je mets le livre sur la table.",
+      "example_en": "I put the book on the table.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 328,
+      "rankForm": "mettre",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-520",
+      "de": "trouver",
+      "en": "to find",
+      "article": "none",
+      "example_de": "Je trouve mes clés.",
+      "example_en": "I find my keys.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 233,
+      "rankForm": "trouver",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-521",
+      "de": "chercher",
+      "en": "to look for",
+      "article": "none",
+      "example_de": "Elle cherche son téléphone.",
+      "example_en": "She is looking for her phone.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 318,
+      "rankForm": "chercher",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-522",
+      "de": "perdre",
+      "en": "to lose",
+      "article": "none",
+      "example_de": "Je perds souvent mon stylo.",
+      "example_en": "I often lose my pen.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 576,
+      "rankForm": "perdre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-523",
+      "de": "gagner",
+      "en": "to win / earn",
+      "article": "none",
+      "example_de": "Notre équipe gagne le match.",
+      "example_en": "Our team wins the match.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 738,
+      "rankForm": "gagner",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-524",
+      "de": "aider",
+      "en": "to help",
+      "article": "none",
+      "example_de": "Il aide sa mère.",
+      "example_en": "He helps his mother.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 216,
+      "rankForm": "aider",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-525",
+      "de": "utiliser",
+      "en": "to use",
+      "article": "none",
+      "example_de": "J'utilise un ordinateur.",
+      "example_en": "I use a computer.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 775,
+      "rankForm": "utiliser",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-526",
+      "de": "essayer",
+      "en": "to try",
+      "article": "none",
+      "example_de": "J'essaie de comprendre.",
+      "example_en": "I try to understand.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 517,
+      "rankForm": "essayer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-527",
+      "de": "choisir",
+      "en": "to choose",
+      "article": "none",
+      "example_de": "Elle choisit une robe.",
+      "example_en": "She chooses a dress.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1341,
+      "rankForm": "choisir",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-528",
+      "de": "décider",
+      "en": "to decide",
+      "article": "none",
+      "example_de": "Nous décidons de rester.",
+      "example_en": "We decide to stay.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1714,
+      "rankForm": "décider",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-529",
+      "de": "changer",
+      "en": "to change",
+      "article": "none",
+      "example_de": "Je change de place.",
+      "example_en": "I change seats.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 536,
+      "rankForm": "changer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-530",
+      "de": "expliquer",
+      "en": "to explain",
+      "article": "none",
+      "example_de": "Il explique la règle.",
+      "example_en": "He explains the rule.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 860,
+      "rankForm": "expliquer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-531",
+      "de": "montrer",
+      "en": "to show",
+      "article": "none",
+      "example_de": "Elle montre une photo.",
+      "example_en": "She shows a photo.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 601,
+      "rankForm": "montrer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-532",
+      "de": "oublier",
+      "en": "to forget",
+      "article": "none",
+      "example_de": "J'oublie son nom.",
+      "example_en": "I forget his name.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 970,
+      "rankForm": "oublier",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-533",
+      "de": "se souvenir",
+      "en": "to remember",
+      "article": "none",
+      "example_de": "Je me souviens de cette journée.",
+      "example_en": "I remember that day.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1266,
+      "rankForm": "souvenir",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-534",
+      "de": "rencontrer",
+      "en": "to meet",
+      "article": "none",
+      "example_de": "Je rencontre un ami au parc.",
+      "example_en": "I meet a friend in the park.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 694,
+      "rankForm": "rencontrer",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-535",
+      "de": "inviter",
+      "en": "to invite",
+      "article": "none",
+      "example_de": "Nous invitons nos voisins.",
+      "example_en": "We invite our neighbors.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 2443,
+      "rankForm": "inviter",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-536",
+      "de": "visiter",
+      "en": "to visit",
+      "article": "none",
+      "example_de": "Elle visite le musée.",
+      "example_en": "She visits the museum.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 3133,
+      "rankForm": "visiter",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-537",
+      "de": "habiter",
+      "en": "to live (reside)",
+      "article": "none",
+      "example_de": "J'habite près de la gare.",
+      "example_en": "I live near the station.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 6318,
+      "rankForm": "habiter",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-538",
+      "de": "naître",
+      "en": "to be born",
+      "article": "none",
+      "example_de": "Les bébés naissent à l'hôpital.",
+      "example_en": "Babies are born in the hospital.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 7014,
+      "rankForm": "naître",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-539",
+      "de": "mourir",
+      "en": "to die",
+      "article": "none",
+      "example_de": "Les plantes meurent sans eau.",
+      "example_en": "Plants die without water.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 420,
+      "rankForm": "mourir",
+      "tier": 1
+    },
+    {
+      "id": "seed-fr-540",
+      "de": "grandir",
+      "en": "to grow",
+      "article": "none",
+      "example_de": "Cet arbre grandit vite.",
+      "example_en": "This tree grows quickly.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 3902,
+      "rankForm": "grandir",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-541",
+      "de": "tomber",
+      "en": "to fall",
+      "article": "none",
+      "example_de": "La neige tombe.",
+      "example_en": "The snow is falling.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 485,
+      "rankForm": "tomber",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-542",
+      "de": "pleuvoir",
+      "en": "to rain",
+      "article": "none",
+      "example_de": "Il pleut aujourd'hui.",
+      "example_en": "It is raining today.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 8295,
+      "rankForm": "pleuvoir",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-543",
+      "de": "neiger",
+      "en": "to snow",
+      "article": "none",
+      "example_de": "Il neige en hiver.",
+      "example_en": "It snows in winter.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 26517,
+      "rankForm": "neiger",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-544",
+      "de": "couper",
+      "en": "to cut",
+      "article": "none",
+      "example_de": "Je coupe le pain.",
+      "example_en": "I cut the bread.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1667,
+      "rankForm": "couper",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-545",
+      "de": "laver",
+      "en": "to wash",
+      "article": "none",
+      "example_de": "Elle lave la voiture.",
+      "example_en": "She washes the car.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 2468,
+      "rankForm": "laver",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-546",
+      "de": "nettoyer",
+      "en": "to clean",
+      "article": "none",
+      "example_de": "Nous nettoyons la cuisine.",
+      "example_en": "We clean the kitchen.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1910,
+      "rankForm": "nettoyer",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-547",
+      "de": "réparer",
+      "en": "to repair",
+      "article": "none",
+      "example_de": "Il répare le vélo.",
+      "example_en": "He repairs the bicycle.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1722,
+      "rankForm": "réparer",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-548",
+      "de": "construire",
+      "en": "to build",
+      "article": "none",
+      "example_de": "Ils construisent une maison.",
+      "example_en": "They are building a house.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 2309,
+      "rankForm": "construire",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-549",
+      "de": "dessiner",
+      "en": "to draw",
+      "article": "none",
+      "example_de": "Je dessine un chat.",
+      "example_en": "I draw a cat.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 6633,
+      "rankForm": "dessiner",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-550",
+      "de": "peindre",
+      "en": "to paint",
+      "article": "none",
+      "example_de": "Elle peint un paysage.",
+      "example_en": "She paints a landscape.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 5188,
+      "rankForm": "peindre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-551",
+      "de": "toucher",
+      "en": "to touch",
+      "article": "none",
+      "example_de": "Ne touche pas le four !",
+      "example_en": "Do not touch the oven!",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1432,
+      "rankForm": "toucher",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-552",
+      "de": "sentir",
+      "en": "to smell",
+      "article": "none",
+      "example_de": "Cette fleur sent bon.",
+      "example_en": "This flower smells good.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 989,
+      "rankForm": "sentir",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-553",
+      "de": "rêver",
+      "en": "to dream",
+      "article": "none",
+      "example_de": "Je rêve de voyager.",
+      "example_en": "I dream of traveling.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 3751,
+      "rankForm": "rêver",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-554",
+      "de": "espérer",
+      "en": "to hope / wish",
+      "article": "none",
+      "example_de": "J'espère te revoir.",
+      "example_en": "I hope to see you again.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 3899,
+      "rankForm": "espérer",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-555",
+      "de": "promettre",
+      "en": "to promise",
+      "article": "none",
+      "example_de": "Je promets de venir.",
+      "example_en": "I promise to come.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 4885,
+      "rankForm": "promettre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-556",
+      "de": "permettre",
+      "en": "to allow",
+      "article": "none",
+      "example_de": "Ce billet permet d'entrer.",
+      "example_en": "This ticket allows entry.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 2105,
+      "rankForm": "permettre",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-557",
+      "de": "accepter",
+      "en": "to accept",
+      "article": "none",
+      "example_de": "Elle accepte l'invitation.",
+      "example_en": "She accepts the invitation.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1412,
+      "rankForm": "accepter",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-558",
+      "de": "refuser",
+      "en": "to refuse",
+      "article": "none",
+      "example_de": "Il refuse de partir.",
+      "example_en": "He refuses to leave.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 3186,
+      "rankForm": "refuser",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-559",
+      "de": "suivre",
+      "en": "to follow",
+      "article": "none",
+      "example_de": "Je suis le chemin.",
+      "example_en": "I follow the path.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 873,
+      "rankForm": "suivre",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-560",
+      "de": "revenir",
+      "en": "to return",
+      "article": "none",
+      "example_de": "Je reviens demain.",
+      "example_en": "I will come back tomorrow.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 689,
+      "rankForm": "revenir",
+      "tier": 2
+    },
+    {
+      "id": "seed-fr-561",
+      "de": "se reposer",
+      "en": "to rest",
+      "article": "none",
+      "example_de": "Nous nous reposons après le travail.",
+      "example_en": "We rest after work.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1957,
+      "rankForm": "reposer",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-562",
+      "de": "se promener",
+      "en": "to take a walk",
+      "article": "none",
+      "example_de": "Je me promène dans le jardin.",
+      "example_en": "I take a walk in the garden.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 4090,
+      "rankForm": "promener",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-563",
+      "de": "se rappeler",
+      "en": "to recall",
+      "article": "none",
+      "example_de": "Je me rappelle son nom.",
+      "example_en": "I remember his name.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 1357,
+      "rankForm": "rappeler",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-564",
+      "de": "louer",
+      "en": "to rent",
+      "article": "none",
+      "example_de": "Nous louons un appartement.",
+      "example_en": "We rent an apartment.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 4603,
+      "rankForm": "louer",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-565",
+      "de": "réserver",
+      "en": "to reserve",
+      "article": "none",
+      "example_de": "Je réserve une table.",
+      "example_en": "I reserve a table.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 9862,
+      "rankForm": "réserver",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-566",
+      "de": "emprunter",
+      "en": "to borrow",
+      "article": "none",
+      "example_de": "J'emprunte un livre à la bibliothèque.",
+      "example_en": "I borrow a book from the library.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 3346,
+      "rankForm": "emprunter",
+      "tier": 3
+    },
+    {
+      "id": "seed-fr-567",
+      "de": "prêter",
+      "en": "to lend",
+      "article": "none",
+      "example_de": "Je prête mon vélo à un ami.",
+      "example_en": "I lend my bicycle to a friend.",
+      "tags": [
+        "a1",
+        "verb"
+      ],
+      "rank": 5114,
+      "rankForm": "prêter",
+      "tier": 3
+    }
+  ]
+}

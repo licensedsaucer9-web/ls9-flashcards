@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-A local-first flashcard PWA (Vite + TypeScript), bundled with a German vocabulary deck. It supports multiple decks, SM-2-style review, card editing, CSV import, and offline study. Decks lets you create empty decks, switch between them, and save study preferences per deck. Articles, word types, and tiers can be enabled for each subject.
+A local-first flashcard PWA (Vite + TypeScript), bundled with a German vocabulary deck and optional French and Spanish starters. It supports multiple decks, SM-2-style review, card editing, CSV import, and offline study. Decks lets you create empty decks, switch between them, and save study preferences per deck. Articles, word types, and tiers can be enabled for each subject.
 
 **Release state, 2026-10-17:** The public site’s `release.json` reports `1.3.0` with the Firebase production backend; its source was verified at `0aaf08b78b33e1604c250e3cf751553b0e3c18bf`. This includes forgiving streaks, multi-deck creation/selection, per-deck preferences and cloud progress, and swipe tab navigation. Deck names, selection, optional-feature switches, and local deck deletion remain device-local; another device needs an extra deck's ID in its local list to select it. Version `1.2.0` added the word-type filter, and `1.1.0` added word-type badges; `1.0.0` shipped on 2026-10-07. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified the original production login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) records current operations and remaining evidence.
 
@@ -28,9 +28,22 @@ On a Firebase build, Google sign-in gives each account its own schedule in Fires
 
 The private [ls9-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) repo is a frozen recovery snapshot of the legacy deck. This source has no GitHub data writer or token form. Keep `PUBLIC_SITE_DEPLOY_KEY` for Pages deployment.
 
+## Available language decks
+
+German–English has 514 cards. **Decks → Starter decks** explicitly adds and selects
+French–English or Spanish–English, each with **567 cards** (356 nouns, 121 verbs,
+90 adjectives), examples and independent frequency tiers. Repeated addition keeps
+edits, deleted cards and progress. New accounts continue to start with German only.
+The same-account starter ID is stable across devices; add that starter on each
+device to select it, then let normal private per-deck sync restore cloud state.
+Deck lists/names/selection remain local, and generic extra decks still need their
+ID on another device. See [starter deck content, licensing, ranking and compatibility](docs/starter-decks.md),
+including the **separate additive rules deployment required before production sync**.
+French/Spanish deck content is CC BY-SA 4.0; application code remains MIT.
+
 ## Deck tiers
 
-The 514 built-in words are split into three tiers by how common they are, and you pick the
+The 514 German built-in words are split into three tiers by how common they are, and you pick the
 tier you want to study. Higher tiers include the lower ones.
 
 | Tier | Words | Cumulative |
@@ -195,4 +208,4 @@ The [archived multi-deck proposal](docs/archive/multi-deck-proposal-20261010.md)
 
 ## License
 
-MIT — © 2026 licensedsaucer9-web. See [LICENSE](LICENSE).
+MIT — © 2026 licensedsaucer9-web. See [LICENSE](LICENSE). French/Spanish starter content is CC BY-SA 4.0; see [attribution](docs/starter-decks.md#content-and-ranking-provenance).

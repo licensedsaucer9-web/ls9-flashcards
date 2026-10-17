@@ -1,0 +1,572 @@
+# Original curated beginner vocabulary, CC BY-SA 4.0; see docs/starter-decks.md.
+# Columns: immutable key, French article, French, Spanish article, Spanish, English.
+# Nouns: examples introduce a topic with parler de / hablar de.
+001	l_m	homme	el	hombre	man
+002	la	femme	la	mujer	woman
+003	l_m	enfant	el	niño	child
+004	le	garçon	el	chico	boy
+005	la	fille	la	chica	girl
+006	le	père	el	padre	father
+007	la	mère	la	madre	mother
+008	le	frère	el	hermano	brother
+009	la	sœur	la	hermana	sister
+010	le	fils	el	hijo	son
+011	la	famille	la	familia	family
+012	le	bébé	el	bebé	baby
+013	le	grand-père	el	abuelo	grandfather
+014	la	grand-mère	la	abuela	grandmother
+015	l_m	oncle	el	tío	uncle
+016	la	tante	la	tía	aunt
+017	le	cousin	el	primo	cousin
+018	l_m	ami	el	amigo	friend
+019	le	voisin	el	vecino	neighbor
+020	le	mari	el	marido	husband
+021	la	personne	la	persona	person
+022	le	couple	la	pareja	couple
+023	le	nom	el	nombre	name
+024	l_m	âge	la	edad	age
+025	la	vie	la	vida	life
+026	la	mort	la	muerte	death
+027	le	corps	el	cuerpo	body
+028	la	tête	la	cabeza	head
+029	le	visage	la	cara	face
+030	l_m	œil	el	ojo	eye
+031	l_f	oreille	la	oreja	ear
+032	le	nez	la	nariz	nose
+033	la	bouche	la	boca	mouth
+034	la	dent	el	diente	tooth
+035	la	langue	la	lengua	tongue
+036	le	cheveu	el	pelo	hair
+037	le	cou	el	cuello	neck
+038	l_f	épaule	el	hombro	shoulder
+039	le	bras	el	brazo	arm
+040	la	main	la	mano	hand
+041	le	doigt	el	dedo	finger
+042	le	dos	la	espalda	back
+043	le	ventre	el	vientre	belly
+044	la	jambe	la	pierna	leg
+045	le	genou	la	rodilla	knee
+046	le	pied	el	pie	foot
+047	le	cœur	el	corazón	heart
+048	le	sang	la	sangre	blood
+049	la	peau	la	piel	skin
+050	la	santé	la	salud	health
+051	la	maladie	la	enfermedad	illness
+052	la	douleur	el	dolor	pain
+053	le	médecin	el	médico	doctor
+054	l_m	hôpital	el	hospital	hospital
+055	la	pharmacie	la	farmacia	pharmacy
+056	le	médicament	el	medicamento	medicine
+057	le	rendez-vous	la	cita	appointment
+058	la	maison	la	casa	house
+059	l_m	appartement	el	piso	apartment
+060	la	pièce	la	habitación	room
+061	la	chambre	el	dormitorio	bedroom
+062	la	cuisine	la	cocina	kitchen
+063	la	salle de bains	el	cuarto de baño	bathroom
+064	le	salon	el	salón	living room
+065	la	porte	la	puerta	door
+066	la	fenêtre	la	ventana	window
+067	le	mur	la	pared	wall
+068	le	toit	el	tejado	roof
+069	le	sol	el	suelo	floor
+070	l_m	escalier	la	escalera	staircase
+071	l_m	ascenseur	el	ascensor	elevator
+072	la	clé	la	llave	key
+073	la	table	la	mesa	table
+074	la	chaise	la	silla	chair
+075	le	lit	la	cama	bed
+076	le	canapé	el	sofá	sofa
+077	l_f	armoire	el	armario	wardrobe
+078	l_f	étagère	la	estantería	shelf
+079	la	lampe	la	lámpara	lamp
+080	le	miroir	el	espejo	mirror
+081	le	tapis	la	alfombra	rug
+082	le	rideau	la	cortina	curtain
+083	le	coussin	el	cojín	cushion
+084	la	couverture	la	manta	blanket
+085	la	serviette	la	toalla	towel
+086	le	savon	el	jabón	soap
+087	la	douche	la	ducha	shower
+088	la	baignoire	la	bañera	bathtub
+089	le	réfrigérateur	el	frigorífico	refrigerator
+090	le	four	el	horno	oven
+091	la	machine	la	máquina	machine
+092	l_f	assiette	el	plato	plate
+093	le	verre	el	vaso	drinking glass
+094	la	tasse	la	taza	cup
+095	le	bol	el	cuenco	bowl
+096	le	couteau	el	cuchillo	knife
+097	la	fourchette	el	tenedor	fork
+098	la	cuillère	la	cuchara	spoon
+099	la	bouteille	la	botella	bottle
+100	la	boîte	la	caja	box
+101	le	sac	la	bolsa	bag
+102	le	panier	la	cesta	basket
+103	la	nourriture	la	comida	food
+104	le	repas	el	almuerzo	meal / lunch
+105	le	petit-déjeuner	el	desayuno	breakfast
+106	le	dîner	la	cena	dinner
+107	le	pain	el	pan	bread
+108	le	beurre	la	mantequilla	butter
+109	le	fromage	el	queso	cheese
+110	le	lait	la	leche	milk
+111	l_m	œuf	el	huevo	egg
+112	la	viande	la	carne	meat
+113	le	poulet	el	pollo	chicken
+114	le	poisson	el	pescado	fish (food)
+115	le	riz	el	arroz	rice
+116	la	pomme de terre	la	patata	potato
+117	le	légume	la	verdura	vegetable
+118	le	fruit	la	fruta	fruit
+119	la	pomme	la	manzana	apple
+120	la	poire	la	pera	pear
+121	la	banane	el	plátano	banana
+122	l_f	orange	la	naranja	orange
+123	le	citron	el	limón	lemon
+124	la	fraise	la	fresa	strawberry
+125	la	tomate	el	tomate	tomato
+126	la	carotte	la	zanahoria	carrot
+127	l_m	oignon	la	cebolla	onion
+128	l_m	ail	el	ajo	garlic
+129	la	salade	la	ensalada	salad
+130	la	soupe	la	sopa	soup
+131	le	sel	la	sal	salt
+132	le	poivre	la	pimienta	pepper (seasoning)
+133	le	sucre	el	azúcar	sugar
+134	l_f	huile	el	aceite	oil
+135	le	gâteau	la	tarta	cake
+136	le	chocolat	el	chocolate	chocolate
+137	la	glace	el	helado	ice cream
+138	l_f	eau	el_f	agua	water
+139	le	café	el	café	coffee
+140	le	thé	el	té	tea
+141	le	jus	el	zumo	juice
+142	le	vin	el	vino	wine
+143	la	bière	la	cerveza	beer
+144	le	restaurant	el	restaurante	restaurant
+145	le	menu	el	menú	menu
+146	l_f	addition	la	cuenta	restaurant bill
+147	le	serveur	el	camarero	waiter
+148	le	vêtement	la	prenda	item of clothing
+149	la	chemise	la	camisa	shirt
+150	le	pantalon	el	pantalón	pair of pants
+151	la	robe	el	vestido	dress
+152	la	jupe	la	falda	skirt
+153	le	manteau	el	abrigo	coat
+154	la	veste	la	chaqueta	jacket
+155	le	pull	el	jersey	sweater
+156	la	chaussure	el	zapato	shoe
+157	la	chaussette	el	calcetín	sock
+158	le	chapeau	el	sombrero	hat
+159	l_f	écharpe	la	bufanda	scarf
+160	le	gant	el	guante	glove
+161	la	ceinture	el	cinturón	belt
+162	la	poche	el	bolsillo	pocket
+163	la	montre	el	reloj	watch
+164	la	bague	el	anillo	ring
+165	le	portefeuille	la	cartera	wallet
+166	le	parapluie	el	paraguas	umbrella
+167	la	ville	la	ciudad	city
+168	le	village	el	pueblo	village
+169	le	pays	el	país	country
+170	la	rue	la	calle	street
+171	la	route	la	carretera	road
+172	la	place	la	plaza	square
+173	le	pont	el	puente	bridge
+174	le	parc	el	parque	park
+175	le	jardin	el	jardín	garden
+176	le	magasin	la	tienda	shop
+177	le	marché	el	mercado	market
+178	le	supermarché	el	supermercado	supermarket
+179	la	boulangerie	la	panadería	bakery
+180	la	banque	el	banco	bank
+181	la	poste	la	oficina de correos	post office
+182	l_f	école	la	escuela	school
+183	l_f	université	la	universidad	university
+184	la	bibliothèque	la	biblioteca	library
+185	le	musée	el	museo	museum
+186	le	cinéma	el	cine	cinema
+187	le	théâtre	el	teatro	theater
+188	l_f	église	la	iglesia	church
+189	l_m	hôtel	el	hotel	hotel
+190	la	gare	la	estación	station
+191	l_m	aéroport	el	aeropuerto	airport
+192	la	voiture	el	coche	car
+193	le	bus	el	autobús	bus
+194	le	train	el	tren	train
+195	le	métro	el	metro	subway
+196	le	vélo	la	bicicleta	bicycle
+197	la	moto	la	moto	motorcycle
+198	l_m	avion	el	avión	airplane
+199	le	bateau	el	barco	boat
+200	le	taxi	el	taxi	taxi
+201	le	billet	el	billete	ticket
+202	le	voyage	el	viaje	trip
+203	la	valise	la	maleta	suitcase
+204	le	passeport	el	pasaporte	passport
+205	la	carte	el	mapa	map
+206	l_f	adresse	la	dirección	address
+207	le	chemin	el	camino	path
+208	la	distance	la	distancia	distance
+209	la	vitesse	la	velocidad	speed
+210	le	monde	el	mundo	world
+211	la	terre	la	tierra	earth
+212	la	mer	el	mar	sea
+213	l_m	océan	el	océano	ocean
+214	la	plage	la	playa	beach
+215	la	montagne	la	montaña	mountain
+216	la	colline	la	colina	hill
+217	la	forêt	el	bosque	forest
+218	l_m	arbre	el	árbol	tree
+219	la	fleur	la	flor	flower
+220	la	plante	la	planta	plant
+221	l_f	herbe	la	hierba	grass
+222	la	feuille	la	hoja	leaf
+223	la	rivière	el	río	river
+224	le	lac	el	lago	lake
+225	l_f	île	la	isla	island
+226	la	pierre	la	piedra	stone
+227	le	sable	la	arena	sand
+228	le	ciel	el	cielo	sky
+229	le	soleil	el	sol	sun
+230	la	lune	la	luna	moon
+231	l_f	étoile	la	estrella	star
+232	le	nuage	la	nube	cloud
+233	la	pluie	la	lluvia	rain
+234	la	neige	la	nieve	snow
+235	le	vent	el	viento	wind
+236	l_m	orage	la	tormenta	storm
+237	le	feu	el	fuego	fire
+238	l_m	air	el	aire	air
+239	la	nature	la	naturaleza	nature
+240	l_m	animal	el	animal	animal
+241	le	chien	el	perro	dog
+242	le	chat	el	gato	cat
+243	l_m	oiseau	el	pájaro	bird
+244	le	cheval	el	caballo	horse
+245	la	vache	la	vaca	cow
+246	le	mouton	la	oveja	sheep
+247	le	cochon	el	cerdo	pig
+248	la	poule	la	gallina	hen
+249	le	canard	el	pato	duck
+250	le	lapin	el	conejo	rabbit
+251	la	souris	el	ratón	mouse
+252	l_m	insecte	el	insecto	insect
+253	l_f	abeille	la	abeja	bee
+254	le	papillon	la	mariposa	butterfly
+255	le	jour	el	día	day
+256	la	nuit	la	noche	night
+257	le	matin	la	mañana	morning
+258	le	soir	la	tarde	evening / late afternoon
+259	la	semaine	la	semana	week
+260	le	mois	el	mes	month
+261	l_f	année	el	año	year
+262	l_f	heure	la	hora	hour
+263	la	minute	el	minuto	minute
+264	la	seconde	el	segundo	second
+265	le	printemps	la	primavera	spring
+266	l_m	été	el	verano	summer
+267	l_m	automne	el	otoño	autumn
+268	l_m	hiver	el	invierno	winter
+269	le	temps	el	tiempo	time / weather
+270	le	moment	el	momento	moment
+271	la	date	la	fecha	date
+272	le	calendrier	el	calendario	calendar
+273	le	travail	el	trabajo	work
+274	le	métier	la	profesión	profession
+275	le	bureau	la	oficina	office
+276	l_f	entreprise	la	empresa	company
+277	le	collègue	el	compañero	colleague
+278	le	patron	el	jefe	boss
+279	le	client	el	cliente	customer
+280	l_m	argent	el	dinero	money
+281	le	prix	el	precio	price
+282	le	salaire	el	sueldo	salary
+283	la	facture	la	factura	invoice
+284	le	projet	el	proyecto	project
+285	la	réunion	la	reunión	meeting
+286	le	problème	el	problema	problem
+287	la	solution	la	solución	solution
+288	la	question	la	pregunta	question
+289	la	réponse	la	respuesta	answer
+290	l_f	idée	la	idea	idea
+291	la	raison	la	razón	reason
+292	l_m	exemple	el	ejemplo	example
+293	l_f	histoire	la	historia	story / history
+294	le	livre	el	libro	book
+295	le	cahier	el	cuaderno	notebook
+296	le	stylo	el	bolígrafo	pen
+297	le	crayon	el	lápiz	pencil
+298	le	papier	el	papel	paper
+299	la	page	la	página	page
+300	le	mot	la	palabra	word
+301	la	phrase	la	frase	sentence
+302	la	lettre	la	letra	letter (alphabet)
+303	le	cours	la	clase	lesson
+304	le	professeur	el	profesor	teacher
+305	l_m	élève	el	alumno	pupil
+306	l_m	examen	el	examen	exam
+307	l_m	exercice	el	ejercicio	exercise
+308	la	leçon	la	lección	lesson (unit)
+309	le	téléphone	el	teléfono	telephone
+310	l_m	ordinateur	el	ordenador	computer
+311	l_m	écran	la	pantalla	screen
+312	le	clavier	el	teclado	keyboard
+313	le	message	el	mensaje	message
+314	la	photo	la	foto	photo
+315	l_f	image	la	imagen	image
+316	le	journal	el	periódico	newspaper
+317	la	musique	la	música	music
+318	la	chanson	la	canción	song
+319	le	film	la	película	film
+320	le	jeu	el	juego	game
+321	le	sport	el	deporte	sport
+322	le	ballon	la	pelota	ball
+323	l_f	équipe	el	equipo	team
+324	la	fête	la	fiesta	party
+325	le	cadeau	el	regalo	gift
+326	l_m	anniversaire	el	cumpleaños	birthday
+327	le	bonheur	la	felicidad	happiness
+328	la	peur	el	miedo	fear
+329	l_m	amour	el	amor	love
+330	la	paix	la	paz	peace
+331	la	guerre	la	guerra	war
+332	la	liberté	la	libertad	freedom
+333	la	vérité	la	verdad	truth
+334	le	rêve	el	sueño	dream
+335	l_m	espoir	la	esperanza	hope
+336	la	chance	la	suerte	luck
+337	le	besoin	la	necesidad	need
+338	le	choix	la	elección	choice
+339	le	droit	el	derecho	right (entitlement)
+340	la	loi	la	ley	law
+341	le	gouvernement	el	gobierno	government
+342	la	police	la	policía	police
+343	le	service	el	servicio	service
+344	le	numéro	el	número	number
+345	la	couleur	el	color	color
+346	la	forme	la	forma	shape
+347	la	taille	el	tamaño	size
+348	le	poids	el	peso	weight
+349	la	force	la	fuerza	strength
+350	la	fin	el	final	end
+351	le	début	el	principio	beginning
+352	le	centre	el	centro	center
+353	le	côté	el	lado	side
+354	la	partie	la	parte	part
+355	la	liste	la	lista	list
+356	le	groupe	el	grupo	group
+# Adjectives: citation forms; examples use an inanimate masculine referent.
+357	@adj	grand	grande	big
+358	@adj	petit	pequeño	small
+359	@adj	bon	bueno	good
+360	@adj	mauvais	malo	bad
+361	@adj	nouveau	nuevo	new
+362	@adj	vieux	viejo	old
+363	@adj	jeune	joven	young
+364	@adj	beau	bonito	beautiful
+365	@adj	joli	hermoso	pretty / beautiful
+366	@adj	long	largo	long
+367	@adj	court	corto	short
+368	@adj	haut	alto	high / tall
+369	@adj	bas	bajo	low
+370	@adj	large	ancho	wide
+371	@adj	étroit	estrecho	narrow
+372	@adj	gros	gordo	fat / thick
+373	@adj	mince	delgado	thin
+374	@adj	lourd	pesado	heavy
+375	@adj	léger	ligero	light (weight)
+376	@adj	fort	fuerte	strong
+377	@adj	faible	débil	weak
+378	@adj	rapide	rápido	fast
+379	@adj	lent	lento	slow
+380	@adj	facile	fácil	easy
+381	@adj	difficile	difícil	difficult
+382	@adj	simple	sencillo	simple
+383	@adj	compliqué	complicado	complicated
+384	@adj	possible	posible	possible
+385	@adj	impossible	imposible	impossible
+386	@adj	important	importante	important
+387	@adj	nécessaire	necesario	necessary
+388	@adj	utile	útil	useful
+389	@adj	inutile	inútil	useless
+390	@adj	intéressant	interesante	interesting
+391	@adj	ennuyeux	aburrido	boring
+392	@adj	cher	caro	expensive
+393	@adj	gratuit	gratis	free (no charge)
+394	@adj	riche	rico	rich
+395	@adj	pauvre	pobre	poor
+396	@adj	plein	lleno	full
+397	@adj	vide	vacío	empty
+398	@adj	propre	limpio	clean
+399	@adj	sale	sucio	dirty
+400	@adj	chaud	caliente	hot
+401	@adj	froid	frío	cold
+402	@adj	tiède	tibio	lukewarm
+403	@adj	sec	seco	dry
+404	@adj	mouillé	mojado	wet
+405	@adj	ouvert	abierto	open
+406	@adj	fermé	cerrado	closed
+407	@adj	clair	claro	clear
+408	@adj	sombre	oscuro	dark
+409	@adj	blanc	blanco	white
+410	@adj	noir	negro	black
+411	@adj	rouge	rojo	red
+412	@adj	bleu	azul	blue
+413	@adj	vert	verde	green
+414	@adj	jaune	amarillo	yellow
+415	@adj	gris	gris	gray
+416	@adj	rose	rosa	pink
+417	@adj	orange	naranja	orange (color)
+418	@adj	marron	marrón	brown
+419	@adj	heureux	feliz	happy
+420	@adj	triste	triste	sad
+421	@adj	fatigué	cansado	tired
+422	@adj	malade	enfermo	ill
+423	@adj	prêt	listo	ready
+424	@adj	occupé	ocupado	busy
+425	@adj	libre	libre	free (available)
+426	@adj	seul	solo	alone
+427	@adj	gentil	amable	kind
+428	@adj	poli	educado	polite
+429	@adj	calme	tranquilo	calm
+430	@adj	nerveux	nervioso	nervous
+431	@adj	content	contento	pleased
+432	@adj	fâché	enfadado	angry
+433	@adj	sûr	seguro	sure / safe
+434	@adj	dangereux	peligroso	dangerous
+435	@adj	proche	cercano	nearby
+436	@adj	lointain	lejano	distant
+437	@adj	vrai	verdadero	true
+438	@adj	faux	falso	false
+439	@adj	correct	correcto	correct
+440	@adj	différent	diferente	different
+441	@adj	pareil	igual	the same
+442	@adj	dernier	último	last
+443	@adj	premier	primero	first
+444	@adj	prochain	próximo	next
+445	@adj	normal	normal	normal
+446	@adj	spécial	especial	special
+# Verbs: infinitives and original parallel example sentences.
+447	@verb	être	ser	to be (identity)	Je veux être médecin.	Quiero ser médico.	I want to be a doctor.
+448	@verb	avoir	tener	to have	Nous avons un chien.	Tenemos un perro.	We have a dog.
+449	@verb	faire	hacer	to do / make	Je fais du pain.	Hago pan.	I make bread.
+450	@verb	aller	ir	to go	Je vais au marché.	Voy al mercado.	I am going to the market.
+451	@verb	venir	venir	to come	Tu viens avec moi ?	¿Vienes conmigo?	Are you coming with me?
+452	@verb	voir	ver	to see	Je vois la mer.	Veo el mar.	I can see the sea.
+453	@verb	regarder	mirar	to look at	Elle regarde la lune.	Ella mira la luna.	She looks at the moon.
+454	@verb	entendre	oír	to hear	J'entends un oiseau.	Oigo un pájaro.	I hear a bird.
+455	@verb	écouter	escuchar	to listen to	Nous écoutons la radio.	Escuchamos la radio.	We listen to the radio.
+456	@verb	parler	hablar	to speak	Je parle français.	Hablo español.	I speak French. / I speak Spanish.
+457	@verb	dire	decir	to say	Il dit bonjour.	Él dice hola.	He says hello.
+458	@verb	demander	preguntar	to ask	Je demande le prix.	Pregunto el precio.	I ask the price.
+459	@verb	répondre	responder	to answer	Elle répond à la question.	Ella responde a la pregunta.	She answers the question.
+460	@verb	lire	leer	to read	Je lis un livre.	Leo un libro.	I read a book.
+461	@verb	écrire	escribir	to write	Nous écrivons une lettre.	Escribimos una carta.	We write a letter.
+462	@verb	comprendre	entender	to understand	Je comprends la phrase.	Entiendo la frase.	I understand the sentence.
+463	@verb	apprendre	aprender	to learn	Il apprend à nager.	Él aprende a nadar.	He is learning to swim.
+464	@verb	savoir	saber	to know (a fact)	Je sais où il habite.	Sé dónde vive.	I know where he lives.
+465	@verb	connaître	conocer	to know (be familiar with)	Je connais cette ville.	Conozco esta ciudad.	I know this city.
+466	@verb	penser	pensar	to think	Je pense à ma famille.	Pienso en mi familia.	I am thinking about my family.
+467	@verb	croire	creer	to believe	Je crois ton histoire.	Creo tu historia.	I believe your story.
+468	@verb	vouloir	querer	to want	Je veux un café.	Quiero un café.	I want a coffee.
+469	@verb	pouvoir	poder	to be able to	Je peux venir demain.	Puedo venir mañana.	I can come tomorrow.
+470	@verb	devoir	deber	to have to	Je dois partir.	Debo irme.	I have to leave.
+471	@verb	aimer	gustar	to like	J'aime ce livre.	Me gusta este libro.	I like this book.
+472	@verb	préférer	preferir	to prefer	Je préfère le thé.	Prefiero el té.	I prefer tea.
+473	@verb	détester	odiar	to hate	Je déteste attendre.	Odio esperar.	I hate waiting.
+474	@verb	manger	comer	to eat	Nous mangeons une pomme.	Comemos una manzana.	We eat an apple.
+475	@verb	boire	beber	to drink	Je bois de l'eau.	Bebo agua.	I drink water.
+476	@verb	cuisiner	cocinar	to cook	Il cuisine le soir.	Él cocina por la noche.	He cooks in the evening.
+477	@verb	dormir	dormir	to sleep	Le bébé dort.	El bebé duerme.	The baby is sleeping.
+478	@verb	se réveiller	despertarse	to wake up	Je me réveille tôt.	Me despierto temprano.	I wake up early.
+479	@verb	se lever	levantarse	to get up	Je me lève à sept heures.	Me levanto a las siete.	I get up at seven.
+480	@verb	se laver	lavarse	to wash oneself	Je me lave les mains.	Me lavo las manos.	I wash my hands.
+481	@verb	s'habiller	vestirse	to get dressed	Elle s'habille vite.	Ella se viste rápido.	She gets dressed quickly.
+482	@verb	travailler	trabajar	to work	Nous travaillons ici.	Trabajamos aquí.	We work here.
+483	@verb	étudier	estudiar	to study	J'étudie le soir.	Estudio por la noche.	I study in the evening.
+484	@verb	jouer	jugar	to play	Les enfants jouent dehors.	Los niños juegan fuera.	The children play outside.
+485	@verb	marcher	caminar	to walk	Je marche dans le parc.	Camino por el parque.	I walk in the park.
+486	@verb	courir	correr	to run	Elle court tous les jours.	Ella corre todos los días.	She runs every day.
+487	@verb	nager	nadar	to swim	Nous nageons dans la mer.	Nadamos en el mar.	We swim in the sea.
+488	@verb	danser	bailar	to dance	Tu danses très bien.	Bailas muy bien.	You dance very well.
+489	@verb	chanter	cantar	to sing	Il chante une chanson.	Él canta una canción.	He sings a song.
+490	@verb	rire	reír	to laugh	Les enfants rient.	Los niños ríen.	The children laugh.
+491	@verb	pleurer	llorar	to cry	Le bébé pleure.	El bebé llora.	The baby is crying.
+492	@verb	sourire	sonreír	to smile	Elle sourit souvent.	Ella sonríe a menudo.	She often smiles.
+493	@verb	acheter	comprar	to buy	J'achète du pain.	Compro pan.	I buy bread.
+494	@verb	vendre	vender	to sell	Il vend sa voiture.	Él vende su coche.	He is selling his car.
+495	@verb	payer	pagar	to pay	Je paie le billet.	Pago el billete.	I pay for the ticket.
+496	@verb	coûter	costar	to cost	Ce livre coûte dix euros.	Este libro cuesta diez euros.	This book costs ten euros.
+497	@verb	ouvrir	abrir	to open	J'ouvre la fenêtre.	Abro la ventana.	I open the window.
+498	@verb	fermer	cerrar	to close	Elle ferme la porte.	Ella cierra la puerta.	She closes the door.
+499	@verb	commencer	empezar	to begin	Le cours commence à neuf heures.	La clase empieza a las nueve.	The lesson begins at nine.
+500	@verb	finir	terminar	to finish	Je finis mon travail.	Termino mi trabajo.	I finish my work.
+501	@verb	continuer	continuar	to continue	Nous continuons le voyage.	Continuamos el viaje.	We continue the trip.
+502	@verb	arrêter	parar	to stop	Il arrête la voiture.	Él para el coche.	He stops the car.
+503	@verb	attendre	esperar	to wait	J'attends le bus.	Espero el autobús.	I am waiting for the bus.
+504	@verb	rester	quedarse	to stay	Je reste à la maison.	Me quedo en casa.	I am staying at home.
+505	@verb	partir	marcharse	to leave	Nous partons demain.	Nos marchamos mañana.	We leave tomorrow.
+506	@verb	arriver	llegar	to arrive	Le train arrive bientôt.	El tren llega pronto.	The train arrives soon.
+507	@verb	entrer	entrar	to enter	Elle entre dans la cuisine.	Ella entra en la cocina.	She enters the kitchen.
+508	@verb	sortir	salir	to go out	Je sors avec mes amis.	Salgo con mis amigos.	I go out with my friends.
+509	@verb	monter	subir	to go up	Nous montons l'escalier.	Subimos la escalera.	We go up the stairs.
+510	@verb	descendre	bajar	to go down	Je descends du train.	Bajo del tren.	I get off the train.
+511	@verb	conduire	conducir	to drive	Elle conduit prudemment.	Ella conduce con cuidado.	She drives carefully.
+512	@verb	voyager	viajar	to travel	Nous voyageons en train.	Viajamos en tren.	We travel by train.
+513	@verb	porter	llevar	to carry / wear	Il porte un sac.	Él lleva una bolsa.	He carries a bag.
+514	@verb	apporter	traer	to bring	J'apporte le dessert.	Traigo el postre.	I bring the dessert.
+515	@verb	prendre	tomar	to take	Je prends le train.	Tomo el tren.	I take the train.
+516	@verb	donner	dar	to give	Elle donne un livre à son frère.	Ella da un libro a su hermano.	She gives her brother a book.
+517	@verb	recevoir	recibir	to receive	Je reçois une lettre.	Recibo una carta.	I receive a letter.
+518	@verb	envoyer	enviar	to send	Nous envoyons un message.	Enviamos un mensaje.	We send a message.
+519	@verb	mettre	poner	to put	Je mets le livre sur la table.	Pongo el libro en la mesa.	I put the book on the table.
+520	@verb	trouver	encontrar	to find	Je trouve mes clés.	Encuentro mis llaves.	I find my keys.
+521	@verb	chercher	buscar	to look for	Elle cherche son téléphone.	Ella busca su teléfono.	She is looking for her phone.
+522	@verb	perdre	perder	to lose	Je perds souvent mon stylo.	Pierdo mi bolígrafo a menudo.	I often lose my pen.
+523	@verb	gagner	ganar	to win / earn	Notre équipe gagne le match.	Nuestro equipo gana el partido.	Our team wins the match.
+524	@verb	aider	ayudar	to help	Il aide sa mère.	Él ayuda a su madre.	He helps his mother.
+525	@verb	utiliser	usar	to use	J'utilise un ordinateur.	Uso un ordenador.	I use a computer.
+526	@verb	essayer	intentar	to try	J'essaie de comprendre.	Intento entender.	I try to understand.
+527	@verb	choisir	elegir	to choose	Elle choisit une robe.	Ella elige un vestido.	She chooses a dress.
+528	@verb	décider	decidir	to decide	Nous décidons de rester.	Decidimos quedarnos.	We decide to stay.
+529	@verb	changer	cambiar	to change	Je change de place.	Cambio de sitio.	I change seats.
+530	@verb	expliquer	explicar	to explain	Il explique la règle.	Él explica la regla.	He explains the rule.
+531	@verb	montrer	mostrar	to show	Elle montre une photo.	Ella muestra una foto.	She shows a photo.
+532	@verb	oublier	olvidar	to forget	J'oublie son nom.	Olvido su nombre.	I forget his name.
+533	@verb	se souvenir	recordar	to remember	Je me souviens de cette journée.	Recuerdo ese día.	I remember that day.
+534	@verb	rencontrer	encontrarse con	to meet	Je rencontre un ami au parc.	Me encuentro con un amigo en el parque.	I meet a friend in the park.
+535	@verb	inviter	invitar	to invite	Nous invitons nos voisins.	Invitamos a nuestros vecinos.	We invite our neighbors.
+536	@verb	visiter	visitar	to visit	Elle visite le musée.	Ella visita el museo.	She visits the museum.
+537	@verb	habiter	vivir	to live (reside)	J'habite près de la gare.	Vivo cerca de la estación.	I live near the station.
+538	@verb	naître	nacer	to be born	Les bébés naissent à l'hôpital.	Los bebés nacen en el hospital.	Babies are born in the hospital.
+539	@verb	mourir	morir	to die	Les plantes meurent sans eau.	Las plantas mueren sin agua.	Plants die without water.
+540	@verb	grandir	crecer	to grow	Cet arbre grandit vite.	Este árbol crece rápido.	This tree grows quickly.
+541	@verb	tomber	caer	to fall	La neige tombe.	La nieve cae.	The snow is falling.
+542	@verb	pleuvoir	llover	to rain	Il pleut aujourd'hui.	Hoy llueve.	It is raining today.
+543	@verb	neiger	nevar	to snow	Il neige en hiver.	Nieva en invierno.	It snows in winter.
+544	@verb	couper	cortar	to cut	Je coupe le pain.	Corto el pan.	I cut the bread.
+545	@verb	laver	lavar	to wash	Elle lave la voiture.	Ella lava el coche.	She washes the car.
+546	@verb	nettoyer	limpiar	to clean	Nous nettoyons la cuisine.	Limpiamos la cocina.	We clean the kitchen.
+547	@verb	réparer	reparar	to repair	Il répare le vélo.	Él repara la bicicleta.	He repairs the bicycle.
+548	@verb	construire	construir	to build	Ils construisent une maison.	Construyen una casa.	They are building a house.
+549	@verb	dessiner	dibujar	to draw	Je dessine un chat.	Dibujo un gato.	I draw a cat.
+550	@verb	peindre	pintar	to paint	Elle peint un paysage.	Ella pinta un paisaje.	She paints a landscape.
+551	@verb	toucher	tocar	to touch	Ne touche pas le four !	¡No toques el horno!	Do not touch the oven!
+552	@verb	sentir	oler	to smell	Cette fleur sent bon.	Esta flor huele bien.	This flower smells good.
+553	@verb	rêver	soñar	to dream	Je rêve de voyager.	Sueño con viajar.	I dream of traveling.
+554	@verb	espérer	desear	to hope / wish	J'espère te revoir.	Deseo volver a verte.	I hope / wish to see you again.
+555	@verb	promettre	prometer	to promise	Je promets de venir.	Prometo venir.	I promise to come.
+556	@verb	permettre	permitir	to allow	Ce billet permet d'entrer.	Este billete permite entrar.	This ticket allows entry.
+557	@verb	accepter	aceptar	to accept	Elle accepte l'invitation.	Ella acepta la invitación.	She accepts the invitation.
+558	@verb	refuser	rechazar	to refuse	Il refuse de partir.	Él rechaza la invitación.	He refuses to leave. / He declines the invitation.
+559	@verb	suivre	seguir	to follow	Je suis le chemin.	Sigo el camino.	I follow the path.
+560	@verb	revenir	volver	to return	Je reviens demain.	Vuelvo mañana.	I will come back tomorrow.
+561	@verb	se reposer	descansar	to rest	Nous nous reposons après le travail.	Descansamos después del trabajo.	We rest after work.
+562	@verb	se promener	pasear	to take a walk	Je me promène dans le jardin.	Paseo por el jardín.	I take a walk in the garden.
+563	@verb	se rappeler	acordarse de	to recall	Je me rappelle son nom.	Me acuerdo de su nombre.	I remember his name.
+564	@verb	louer	alquilar	to rent	Nous louons un appartement.	Alquilamos un piso.	We rent an apartment.
+565	@verb	réserver	reservar	to reserve	Je réserve une table.	Reservo una mesa.	I reserve a table.
+566	@verb	emprunter	pedir prestado	to borrow	J'emprunte un livre à la bibliothèque.	Pido prestado un libro en la biblioteca.	I borrow a book from the library.
+567	@verb	prêter	prestar	to lend	Je prête mon vélo à un ami.	Presto mi bicicleta a un amigo.	I lend my bicycle to a friend.

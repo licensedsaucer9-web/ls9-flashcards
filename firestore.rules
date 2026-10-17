@@ -100,7 +100,7 @@ service cloud.firestore {
         && data.keys().hasOnly(['de', 'en', 'article', 'example_de', 'example_en', 'tags', 'created_at', 'updated_at', 'deletedAt', 'rank', 'tier'])
         && text(data.de, 200)
         && text(data.en, 200)
-        && data.article in ['der', 'die', 'das', 'none']
+        && data.article in ['der', 'die', 'das', 'le', 'la', 'l_m', 'l_f', 'el', 'el_f', 'los', 'las', 'les_m', 'les_f', 'none']
         && text(data.example_de, 1000)
         && text(data.example_en, 1000)
         && validTags(data.tags)

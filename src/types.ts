@@ -1,6 +1,6 @@
 import type { ReviewActivity } from './streak.ts'
 
-export type Article = 'der' | 'die' | 'das' | 'none'
+export type Article = 'der' | 'die' | 'das' | 'le' | 'la' | 'l_m' | 'l_f' | 'el' | 'el_f' | 'los' | 'las' | 'les_m' | 'les_f' | 'none'
 export type Grade = 'again' | 'wrong_gender' | 'hard' | 'good' | 'easy'
 export type Direction = 'de-en' | 'en-de'
 export type Tier = 1 | 2 | 3
@@ -45,6 +45,8 @@ export interface Card {
 
 /** Local deck metadata and study preferences; cards remain in their current store. */
 export interface LocalDeck extends PublicSettings {
+  /** Built-in catalog identity; local metadata only. */
+  starter?: 'fr' | 'es'
   id: string
   name: string
   targetLang: string
@@ -159,5 +161,5 @@ export type Snapshot = {
   settings_updated_at?: number
 }
 
-export const ARTICLES: Article[] = ['der', 'die', 'das', 'none']
+export const ARTICLES: Article[] = ['der', 'die', 'das', 'le', 'la', 'l_m', 'l_f', 'el', 'el_f', 'los', 'las', 'les_m', 'les_f', 'none']
 export const GRADES: Grade[] = ['again', 'wrong_gender', 'hard', 'good', 'easy']

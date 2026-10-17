@@ -324,6 +324,20 @@ only then close the milestone.
 
 ## After the rollout
 
+### French and Spanish starter implementation — #96
+
+Source adds optional 567-card French and Spanish starters using existing private
+extra-deck sync, with deterministic per-account deck IDs and language-specific
+articles. See [content, provenance and compatibility](starter-decks.md). This is
+implementation evidence, not a production publication or device acceptance receipt.
+Before production sync of the new article values, deploy the reviewed additive
+article whitelist separately through the operator rules procedure; Pages still
+does not deploy rules. Update the private backup/restore operator checkout to
+understand those article values. No rules deployment, production account change
+or real-data restore was performed for this implementation. The current operations
+record above remains the authority for actual deployed rules and restore evidence.
+
+
 The app now supports multiple decks on different subjects alongside the bundled
 German deck. Decks can create empty decks, switch, rename, and confirm deletion
 of extra local decks; preferences and cloud progress are scoped per deck.

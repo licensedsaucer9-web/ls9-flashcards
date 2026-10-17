@@ -850,7 +850,7 @@ try {
   await page.click('a[href="#/card/new"]')
   await page.waitForSelector('#form')
   assert.equal(await page.locator('[name="article"]').inputValue(), 'none', 'enabling Articles does not supply an article')
-  assert.deepEqual(await page.locator('[name="article"] option').evaluateAll(options => options.map(o => o.value)), ['der', 'die', 'das', 'none'])
+  assert.deepEqual(await page.locator('[name="article"] option').evaluateAll(options => options.map(o => o.value)), ['el', 'la', 'el_f', 'los', 'las', 'none'])
   await page.click('#back')
   await page.waitForSelector('#search')
   const newDeckCards = await page.evaluate(async () => (await (await import('/src/db.ts')).getAllCards()))

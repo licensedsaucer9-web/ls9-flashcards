@@ -69,7 +69,7 @@ export function validateCard(raw: unknown): asserts raw is CardContent {
   for (const [field, max] of [['de', 200], ['en', 200], ['example_de', 1000], ['example_en', 1000]] as const) {
     requireValue(typeof raw[field] === 'string' && (raw[field] as string).length <= max, `invalid ${field} ${raw.id}`)
   }
-  requireValue(['der', 'die', 'das', 'none'].includes(raw.article as string), `invalid article ${raw.id}`)
+  requireValue(['der', 'die', 'das', 'le', 'la', 'l_m', 'l_f', 'el', 'el_f', 'los', 'las', 'les_m', 'les_f', 'none'].includes(raw.article as string), `invalid article ${raw.id}`)
   requireValue(Array.isArray(raw.tags) && raw.tags.length <= 12 && raw.tags.every((tag) => typeof tag === 'string'), `invalid tags ${raw.id}`)
   requireValue(clock(raw.created_at) && clock(raw.updated_at), `invalid content clock ${raw.id}`)
   requireValue(raw.rank === undefined || (clock(raw.rank) && (raw.rank as number) <= 1000000), `invalid rank ${raw.id}`)

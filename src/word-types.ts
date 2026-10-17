@@ -1,3 +1,4 @@
+import { articleGender, articleLabel } from './articles.ts'
 import type { Article, Direction, Tier, WordType } from './types.ts'
 import { esc, germanHead } from './dom.ts'
 
@@ -238,13 +239,13 @@ export type ReviewFace = {
 }
 
 function genderToken(article: string): string {
-  return !article || article === 'none' ? 'none' : article
+  return articleGender(article)
 }
 
 function articleHtml(article: string): string {
   if (!article || article === 'none') return ''
   const gender = genderToken(article)
-  return `<span class="article ${gender}">${esc(article)}</span>`
+  return `<span class="article ${gender}">${esc(articleLabel(article))}</span>`
 }
 
 function kicker(parts: string[]): string {
