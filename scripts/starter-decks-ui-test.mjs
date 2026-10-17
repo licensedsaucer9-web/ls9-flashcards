@@ -128,6 +128,7 @@ try {
       await page.waitForSelector('#start')
       await tab('/decks')
     }
+    await tab('/')
     await page.locator('[data-word-type="noun"]').click()
     await page.waitForFunction(() => document.querySelector('[data-word-type="noun"]')?.classList.contains('is-on'))
     await tab('/deck')

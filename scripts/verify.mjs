@@ -31,11 +31,10 @@ try {
   await page.goto(BASE, { waitUntil: 'networkidle' })
   await dismissWelcome(page)
   // This smoke fixture exercises all seeded cards, including tier-3 imports.
-  await page.goto(BASE + '#/decks', { waitUntil: 'networkidle' })
-  await page.click('[data-tier="3"]')
-  await page.waitForSelector('[data-tier="3"].is-on')
   await page.goto(BASE + '#/', { waitUntil: 'networkidle' })
   await page.waitForSelector('[data-due-count]')
+  await page.click('[data-tier="3"]')
+  await page.waitForSelector('[data-tier="3"].is-on')
   const due0 = Number(await page.locator('[data-due-count]').innerText())
   assert(due0 >= 400, `seed due should be >= 400, got ${due0}`)
   console.log(`slice1: seeded ${due0} due cards`)
