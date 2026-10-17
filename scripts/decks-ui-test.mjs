@@ -414,8 +414,7 @@ try {
     assert.equal(await page.locator('#main .badge').textContent(), 'Active')
     assert.equal(await page.locator('#main .card-row [data-rename]').count(), 1)
     assert.equal(await page.locator('#main .card-row [data-delete-deck]').count(), 0)
-    assert.equal(await page.locator('[data-word-type]').count(), 4)
-    assert.equal(await page.locator('[data-tier]').count(), 3)
+    assert.equal(await page.locator('[data-word-type], [data-tier]').count(), 0, 'Decks has no tier or word-type controls')
     assert.deepEqual(await page.locator('#dir button').allTextContents(), ['German → English', 'English → German'])
     assert.equal(await page.locator('[data-session], #session-custom, #session-size').count(), 0, 'Decks has no session-size control')
   }
@@ -449,6 +448,7 @@ try {
   })
   const originalSettings = await settings()
   async function pickType(type, expected) {
+    await tab('Review', '#/', 'LS9 Flashcards')
     const previous = await settings()
     await page.locator(`[data-word-type="${type}"]`).click()
     await page.waitForFunction(async expected => {
@@ -463,7 +463,9 @@ try {
   }
   async function assertReviewQueue(typeLabel) {
     await tab('Review', '#/', 'LS9 Flashcards')
-    assert.equal(await page.locator('[data-word-type], [data-tier], [data-dir]').count(), 0, 'Review home has no tier, word-type or direction controls')
+    assert.equal(await page.locator('[data-word-type]').count(), 4, 'Review home has the word-type selector')
+    assert.equal(await page.locator('[data-tier]').count(), 3, 'Review home has the tier selector')
+    assert.equal(await page.locator('[data-dir], [data-feature]').count(), 0, 'Review home has no direction or deck feature controls')
     assert.equal(await page.locator('#session-custom').isVisible(), true)
     if (typeLabel) assert.match(await page.locator('.due-hero > .kicker').textContent(), new RegExp(typeLabel))
     const expected = await page.evaluate(async () => {
@@ -495,6 +497,7 @@ try {
     await page.waitForSelector('#start')
     return expected
   }
+  await tab('Review', '#/', 'LS9 Flashcards')
   assert.equal(await page.locator('[data-word-type="all"]').getAttribute('aria-pressed'), 'true')
   await pickType('noun', ['noun'])
   await page.reload()
@@ -507,7 +510,6 @@ try {
   assert.match(await page.locator('#main').textContent(), /Install/)
   assert.match(await page.locator('#main').textContent(), /SM-2 with Again/)
   const nounQueue = await assertReviewQueue('Nouns')
-  await tab('Decks', '#/decks', 'Decks')
   await pickType('verb', ['noun', 'verb'])
   await pickType('noun', ['verb'])
   await pickType('verb', [])
@@ -526,11 +528,13 @@ try {
     }, { selector, patch })
     assert.deepEqual(await settings(), { ...previous, ...patch }, 'only the selected preference changes')
   }
-  await tab('Decks', '#/decks', 'Decks')
+  await tab('Review', '#/', 'LS9 Flashcards')
   await pickPreference('[data-tier="1"]', { tier: 1 })
+  await tab('Decks', '#/decks', 'Decks')
   await pickPreference('[data-dir="de-en"]', { direction: 'de-en' })
   await page.reload()
   await page.waitForSelector('[data-dir="de-en"].is-on')
+  await tab('Review', '#/', 'LS9 Flashcards')
   assert.equal(await page.locator('[data-tier="1"].is-on').count(), 1, 'saved tier survives reload')
   const tierOneQueue = await assertReviewQueue()
   assert(tierOneQueue < allQueue, 'the saved tier narrows the next review')
@@ -545,13 +549,14 @@ try {
   assert.deepEqual(await page.evaluate(async () => (await import('/src/db.ts')).getSettings()), savedBeforeBrowse,
     'Cards tier/search filters do not write preferences, clocks or pending markers')
   assert.equal(await assertReviewQueue(), tierOneQueue, 'Cards browsing does not change the next review')
-  await tab('Decks', '#/decks', 'Decks')
+  await tab('Review', '#/', 'LS9 Flashcards')
   assert.equal(await page.locator('[data-tier="1"].is-on').count(), 1)
   await pickPreference('[data-tier="2"]', { tier: 2 })
   const tierTwoQueue = await assertReviewQueue()
   assert(tierTwoQueue > tierOneQueue && tierTwoQueue < allQueue, 'tier 2 is cumulative')
-  await tab('Decks', '#/decks', 'Decks')
+  await tab('Review', '#/', 'LS9 Flashcards')
   await pickPreference('[data-tier="3"]', { tier: 3 })
+  await tab('Decks', '#/decks', 'Decks')
   await pickPreference('[data-dir="en-de"]', { direction: 'en-de' })
   assert.equal(await assertReviewQueue(), allQueue)
   assert.deepEqual(await settings(), originalSettings, 'unrelated preferences survive tier and direction changes')
@@ -623,16 +628,14 @@ try {
     await db.putCards((await db.getAllCards()).map(card => ({ ...card, tags: ['other'] })))
   })
   const untypedFixture = await snapshot()
-  await tab('Decks', '#/decks', 'Decks')
   await pickType('noun', ['noun'])
   await tab('Review', '#/', 'LS9 Flashcards')
-  assert.equal(await page.locator('[data-word-type]').count(), 0)
+  assert.equal(await page.locator('[data-word-type]').count(), 4, 'the empty-match word-type selector stays on Review home')
   assert.match(await page.locator('.due-hero > .kicker').textContent(), /Nouns/)
   assert.equal(await page.locator('#start').isDisabled(), true)
   await page.locator('#show-all-types').click()
   await page.waitForFunction(() => document.querySelector('#start')?.disabled === false && !document.querySelector('#show-all-types'))
   assert.deepEqual(await settings(), originalSettings, 'empty-match All button clears only wordTypes')
-  await tab('Decks', '#/decks', 'Decks')
   assert.equal(await page.locator('[data-word-type="all"]').getAttribute('aria-pressed'), 'true')
   assert.deepEqual(await snapshot(), untypedFixture, 'empty-match recovery preserves cards, schedules and streaks')
   // Study preferences belong to the selected deck, including the Review size control.
@@ -742,15 +745,15 @@ try {
   // Capability switches hide controls without discarding filters or card metadata.
   await tab('Decks', '#/decks', 'Decks')
   assert.equal(await page.locator('[data-feature]:checked').count(), 3, 'original German deck enables every extra')
+  await tab('Review', '#/', 'LS9 Flashcards')
   await pickPreference('[data-tier="1"]', { tier: 1 })
   await pickType('noun', ['noun'])
+  await tab('Decks', '#/decks', 'Decks')
   async function feature(key, enabled) {
     await page.locator(`[data-feature="${key}"]`).setChecked(enabled)
     await page.waitForFunction(async ({ key, enabled }) => {
       const deck = await (await import('/src/db.ts')).getActiveDeck()
       return deck[key] === enabled && document.querySelector(`[data-feature="${key}"]`)?.checked === enabled
-        && (key !== 'tiers' || !!document.querySelector('[data-tier]') === enabled)
-        && (key !== 'supportsWordTypes' || !!document.querySelector('[data-word-type]') === enabled)
     }, { key, enabled })
   }
   for (const key of ['articles', 'supportsWordTypes', 'tiers']) await feature(key, false)
@@ -761,6 +764,7 @@ try {
   assert.equal(disabledSettings.tier, 1)
   assert.deepEqual(disabledSettings.wordTypes, ['noun'], 'hidden filter selection is retained')
   await tab('Review', '#/', 'LS9 Flashcards')
+  assert.equal(await page.locator('[data-tier], [data-word-type]').count(), 0, 'disabled capabilities hide the Review selectors')
   const totalDue = await page.evaluate(async () => (await (await import('/src/db.ts')).getAllCards()).filter(c => c.srs.due <= Date.now()).length)
   assert.equal(Number(await page.locator('[data-due-count]').textContent()), totalDue, 'disabled filters include every due card')
   await page.click('[data-session="0"]')
@@ -819,7 +823,8 @@ try {
   assert.deepEqual(savedAfterMerge.srs, mergedCard.srs, 'editing preserves foreground progress')
   await tab('Decks', '#/decks', 'Decks')
   for (const key of ['articles', 'supportsWordTypes', 'tiers']) await feature(key, true)
-  assert.equal(await page.locator('[data-word-type]').count(), 4, 'enabling Word types restores chips')
+  await tab('Review', '#/', 'LS9 Flashcards')
+  assert.equal(await page.locator('[data-word-type]').count(), 4, 'enabling Word types restores chips on Review')
   await pickType('all', [])
   await pickPreference('[data-tier="3"]', { tier: 3 })
   // A noun still offers Gender, and none never does.
@@ -967,7 +972,7 @@ try {
   assert.deepEqual(guards, { original: false, blank: false, tooLong: false, last: false, count: 1 })
   assert.deepEqual(errors, [], 'no browser errors')
   assert.deepEqual(externalRequests, [], 'no external service access')
-  console.log('decks-ui: v2/v3 card and tombstone upgrades, deck-isolated reads/writes/counts/sync, original-only seed insertion, four ordered tabs, native touch swipes, boundaries, history, vertical scrolling, hidden-screen and mouse guards, distinct routes, deck count, Decks-only saved tier/direction/word-type controls, unsaved Cards filters, Review-only session size, Settings content, persisted review filters, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')
+  console.log('decks-ui: v2/v3 card and tombstone upgrades, deck-isolated reads/writes/counts/sync, original-only seed insertion, four ordered tabs, native touch swipes, boundaries, history, vertical scrolling, hidden-screen and mouse guards, distinct routes, deck count, Review-home saved tier/word-type controls and Decks-only direction control, unsaved Cards filters, Review-only session size, Settings content, persisted review filters, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()
