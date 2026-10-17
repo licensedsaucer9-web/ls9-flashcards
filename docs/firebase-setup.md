@@ -117,7 +117,9 @@ After #37 and explicit authorization, publication must use the exact tested
 `dist-firebase` bytes, with both existing master-only/non-PR conditions restored
 together. Keep the prepared `auth-spike/` and `auth-spike-prod/` exclusions in
 root cleanup while recovery/compatibility routes are needed. The separate old
-URL also remains until its contexts are recovered. Pages does not deploy rules;
+Pages URL was retired by owner decision on 2026-10-17; its repository is archived
+and its application/redirect replaced by a 404-only deployment. The unpublished bridge build/test remains historical
+tooling, not an active recovery route. See the [retirement record](rename.md#old-site-retirement-2026-10-17). Pages does not deploy rules;
 a candidate build/merge does not authorize any production change.
 
 After the candidate is actually served, keep the matching local artifact and
@@ -250,8 +252,9 @@ reviewed dry run still describes the target. An unavailable server comparison
 or checksum blocks reuse. A difference invalidates the reviewed dry run:
 create a new export, baseline, dry run, and preflight, and review that
 evidence before an authorized apply. This command leaves legacy writes running.
-The recorded compatibility-site rollback revision is
-`1dbc26214bb3bfe1e132edc94688bd3137c1e996`. After Firebase study exists, roll
+The historical compatibility-site rollback revision is
+`1dbc26214bb3bfe1e132edc94688bd3137c1e996`. Its hosting was retired on 2026-10-17;
+this is not a live rollback route. After Firebase study exists, roll
 back with a Firebase-compatible client and keep that data. The production
 backup command is the one in the previous section; preflight leaves it
 unrun.

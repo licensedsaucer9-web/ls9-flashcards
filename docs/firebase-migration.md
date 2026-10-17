@@ -177,6 +177,14 @@ verification and collection of every device's local work are separate steps.
 
 ## 4. Recover each device's unsynced local profile
 
+**Historical procedure:** legacy device recovery was waived for the 2026-10-07
+release. On 2026-10-17 the owner retired the old Pages URL and archived its
+repository. The old-scope bridge below is unpublished and has no live hosting
+route; using it would require separate authorization to restore that hosting
+and review the artifact. References to retained compatibility clients and
+pending release gates below describe the original rehearsal plan, not current
+requirements. See the [retirement record](rename.md#old-site-retirement-2026-10-17).
+
 Use a Firebase recovery client **on the same browser origin and storage context
 as the old app**, with the mapped account preassigned and restrictive rules
 deployed before access. A localhost preview cannot read an iPhone's IndexedDB.

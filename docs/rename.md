@@ -10,7 +10,44 @@ and public URL rename before continuing development on 2026-10-04.
 | Built site (public) | [ls9-flashcards-site](https://github.com/licensedsaucer9-web/ls9-flashcards-site) |
 | Public app | <https://licensedsaucer9-web.github.io/ls9-flashcards-site/> |
 | Test rehearsal | <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/rehearsal/> |
-| Old-installation compatibility | <https://licensedsaucer9-web.github.io/german-flashcards-site/> |
+| Retired old-installation URL (404-only since 2026-10-17) | `https://licensedsaucer9-web.github.io/german-flashcards-site/` |
+
+## Old-site retirement, 2026-10-17
+
+Joakim explicitly requested retirement of `german-flashcards-site`, confirming
+that the two known users do not need the old redirect. The published app and
+redirect have been replaced by a minimal 404-only deployment, and the repository
+is archived with its history/assets retained; it was not deleted. This is the
+owner's retirement decision, not a claim that an
+agent inspected devices, verified unsynced records, or recovered legacy progress.
+Legacy studied-data import and device recovery were waived on 2026-10-07.
+
+The old root was a redirect and its service worker redirected old clients and
+unregistered itself. Historical assets/previews remained in Git. The current
+source workflow publishes only to `ls9-flashcards-site`, so disabling the old
+app does not remove a deployment dependency. Known references to the old path
+are the historical migration/preflight runbooks and unpublished recovery-bridge
+build/tests; those do not require live hosting. The two known users do not need
+continued forwarding of old shared links. No tracking or analytics was added.
+
+The retirement record is
+[german-flashcards-site#1](https://github.com/licensedsaucer9-web/german-flashcards-site/issues/1).
+The pre-retirement `gh-pages` revision is
+`6bfcdecc8dbf506ac22e155adc5c855ea170b670`. Re-enabling the old Pages path or
+publishing its recovery bridge requires a new authorized operation. Current app
+hosting, Firebase data, the archived legacy data repository, and browser storage
+are retained. An old cached offline installation is not remotely erased or
+upgraded by removing hosting; current icons/bookmarks must use the current URL.
+
+GitHub rejected the Pages-disable API request with HTTP 422, "Deactivating
+GitHub pages for this repository is not allowed." Pages remains configured,
+publishing only `gh-pages:/docs`, which contains `.nojekyll` and `404.html`.
+The original root, worker, assets and test previews remain in Git, outside the
+publishing directory. This removes the hosted app/redirect without deleting
+history or falsely claiming that the Pages configuration was disabled.
+
+The sections below record the historical 2026-10-04 rename and publication,
+including compatibility behavior that no longer represents live hosting.
 
 The package is `ls9-flashcards`. App headings, HTML/Apple metadata, manifests,
 icons, and documentation use LS9 branding. The short installed label is
