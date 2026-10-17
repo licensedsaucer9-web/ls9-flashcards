@@ -52,6 +52,23 @@ for (const lang of ['fr', 'es']) {
   assert.notEqual(await starterDeckId('account-a', lang), await starterDeckId('account-b', lang))
   assert.match(await starterDeckId('account-a', lang), /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
 }
+// Check the actual bundled card and generator input, not only a synthetic article token.
+const homme = starterCards('fr').find(c => c.id === 'seed-fr-001')
+assert.equal(homme.de, 'homme')
+assert.equal(homme.article, 'l_m', 'silent-h homme must retain masculine elision')
+assert.equal(homme.example_de, "Nous parlons de l'homme.")
+const hommeSource = readFileSync('src/decks/vocabulary.tsv', 'utf8').split('\n').find(row => row.startsWith('001\t')).split('\t')
+assert.deepEqual(hommeSource.slice(1, 3), ['l_m', 'homme'])
+for (const direction of ['de-en', 'en-de']) {
+  const faces = reviewFaces(homme, direction, { targetLang: 'French', baseLang: 'English' })
+  const target = direction === 'de-en' ? faces.front : faces.back
+  assert.equal(target.wordText, 'l’homme')
+  assert.match(target.kickerHtml, /masculine/)
+}
+const hommeCsv = importCsv(`front,back,article,example_front\n${homme.de},${homme.en},${homme.article},${homme.example_de}`, [])
+assert.deepEqual(hommeCsv.errors, [])
+assert.equal(hommeCsv.imported[0].article, 'l_m')
+assert.equal(hommeCsv.imported[0].example_de, "Nous parlons de l'homme.")
 assert.notEqual(await starterDeckId('a','fr'), await starterDeckId('a','es'))
 assert.equal(germanHead('l_f','école'), 'l’école')
 assert.equal(germanHead('l_m','homme'), 'l’homme')

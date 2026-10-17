@@ -6,8 +6,8 @@
       "id": "seed-fr-001",
       "de": "homme",
       "en": "man",
-      "article": "le",
-      "example_de": "Nous parlons du homme.",
+      "article": "l_m",
+      "example_de": "Nous parlons de l'homme.",
       "example_en": "We are talking about the man.",
       "tags": [
         "a1",

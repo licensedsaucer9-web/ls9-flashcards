@@ -42,6 +42,37 @@ try {
     assert.equal(initial.deck.targetLang, name)
     assert.equal(initial.cards.length, 567)
     assert(initial.cards.every(c => c.deckId === initial.deck.id))
+    if (lang === 'fr') {
+      // Regression: use the real seed card whose silent h previously rendered as "le homme".
+      await page.evaluate(async () => {
+        const db = await import('/src/db.ts')
+        await db.putSettings({ tier: 3, sessionSize: 1 })
+        await db.putCards((await db.getAllCards()).map(c => ({ ...c, srs: { ...c.srs, due: c.de === 'homme' ? 0 : Date.now() + 86400000 } })))
+      })
+      for (const dir of ['de-en', 'en-de']) {
+        await tab('/decks')
+        await page.locator(`[data-dir="${dir}"]`).click()
+        await page.waitForFunction(dir => document.querySelector(`[data-dir="${dir}"]`)?.classList.contains('is-on'), dir)
+        await tab('/')
+        await page.click('#start')
+        await page.waitForSelector('#card')
+        const face = dir === 'de-en' ? '.front' : '.back'
+        assert.equal(await page.locator(`${face} .word`).textContent(), 'l’homme')
+        assert.match(await page.locator(`${face} .article`).textContent(), /masculine/)
+        await page.click('#card')
+        await page.locator('[data-grade="good"]').waitFor({ state: 'visible' })
+        assert.equal(await page.locator('.example strong').textContent(), "Nous parlons de l'homme.")
+        await page.screenshot({ path: join(tmpdir(), `issue96-homme-${dir}.png`) })
+        await page.click('#back')
+        await page.waitForSelector('#start')
+      }
+      await tab('/deck')
+      await page.fill('#search', 'homme')
+      await page.locator('.card-list .card-row').filter({ hasText: 'homme' }).first().click()
+      await page.waitForSelector('#form')
+      assert.equal(await page.locator('[name="article"]').inputValue(), 'l_m')
+      assert.equal(await page.locator('[name="example_de"]').inputValue(), "Nous parlons de l'homme.")
+    }
     // Isolate one noun in the queue, exercising real grading with an elided/feminine article.
     await page.evaluate(async word => {
       const db = await import('/src/db.ts')
