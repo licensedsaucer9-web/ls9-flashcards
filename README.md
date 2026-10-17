@@ -151,10 +151,14 @@ publication uses that same `dist-firebase` build. See the
 
 ## Upgrade an older iPhone Home Screen installation
 
-The current app is the Firebase client at the new public URL. An old Home Screen icon still opens the compatibility address until that icon is deleted and added again from the new URL. Studied progress from the old client is not imported.
+The current app is the Firebase client at the new public URL. The old
+`german-flashcards-site` Pages URL was retired on 2026-10-17: hosting is disabled
+and its repository is archived. It no longer supplies a supported redirect.
+Use bookmarks and Home Screen icons created from the current URL. Studied
+progress from the old client is not imported. See the [retirement record](docs/rename.md#old-site-retirement-2026-10-17).
 
 1. Open the new public URL in Safari and confirm the Firebase build under Settings → Install. Choose **Continue with Google** or **Study on this device**. A new account starts with an unstudied personal deck; no legacy schedule is imported.
-2. Add the new URL to the Home Screen. The old icon uses a different origin and retains separate local storage; opening it does not upgrade it to the new Firebase client. Keep any old installation/data you still want to preserve until you deliberately retire it.
+2. Add the new URL to the Home Screen. An old icon targets the retired scope and can retain separate installed-app storage or a cached offline client; opening it does not upgrade it to the new Firebase client. Keep any old installation/data you still want to preserve until you deliberately retire it.
 3. Check the current installation's offline save and second-device acknowledgement using the backup check below.
 
 Legacy device recovery and studied-data import were waived for the 2026-10-07 release. The migration runbook and unpublished same-context bridge are retained for explicit future recovery work; they are not mandatory upgrade steps. Rollback after production Firebase study must use a Firebase-compatible client and preserve its data.
