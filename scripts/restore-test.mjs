@@ -1,3 +1,5 @@
+import { starterCards, starterDeckId } from '../src/starter-decks.ts'
+import { cardToDoc, progressToDoc } from '../src/firestore-docs.ts'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -99,6 +101,24 @@ try {
   assert.equal(multiPlan.counts.decks, 2)
   for (const item of multiPlan.items) assert.deepEqual(multiTarget.records.get(item.path), item.data)
   assert.equal((await runRestore(multiPlan, multiTarget, { dryRun: false, projectId })).state, 'already restored')
+  // Actual language-deck documents pass the supported v2 exporter and guarded restore.
+  const languageSource = copyStore(multiTarget)
+  for (const lang of ['fr', 'es']) {
+    const deckId = await starterDeckId('uid-alice', lang)
+    const cards = starterCards(lang)
+    languageSource.records.set(`decks/${deckId}`, { ownerUid: 'uid-alice', memberUids: ['uid-alice'] })
+    languageSource.records.set(`users/uid-alice/decks/${deckId}/settings/current`, { direction: 'en-de', sessionSize: 7, tier: 2, wordTypes: ['noun'], settingsUpdatedAt: 17 })
+    for (const card of cards) languageSource.records.set(`decks/${deckId}/cards/${card.id}`, cardToDoc(card, card.id === cards[1].id ? 123 : 0))
+    languageSource.records.set(`users/uid-alice/decks/${deckId}/progress/${cards[0].id}`, progressToDoc({ ...cards[0].srs, reps: 2, interval: 3, due: 900, updated_at: 100 }))
+  }
+  const languageDump = join(directory, 'language-backup.json')
+  await exportFirestore(languageSource, languageDump)
+  const languagePlan = readFirestoreBackup(languageDump)
+  const languageTarget = memoryStore()
+  assert.equal((await runRestore(languagePlan, languageTarget, { dryRun: false, projectId })).state, 'restored and verified')
+  assert.equal(languagePlan.counts.decks, 4)
+  assert.equal(saved(languageTarget), saved(languageSource), 'exact starter content, Unicode, schedules, settings, tombstones and ownership restored')
+  assert.equal((await runRestore(languagePlan, languageTarget, { dryRun: false, projectId })).state, 'already restored')
   const invalidOwner = structuredClone(multiDump)
   invalidOwner.decks[extraId].deck.ownerUid = 'uid-bob'
   assert.throws(() => prepareRestore(resign(invalidOwner)), /invalid user deck/)

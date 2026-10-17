@@ -161,7 +161,7 @@ export function importCsv(text: string, existing: Card[], now = Date.now(), deck
     }
     const article = parseArticle(articleRaw)
     if (article === null) {
-      errors.push(`Line ${line}: article must be der, die, das, or none`)
+      errors.push(`Line ${line}: article must be a supported article token or none`)
       continue
     }
     let typeCell: string | null = null

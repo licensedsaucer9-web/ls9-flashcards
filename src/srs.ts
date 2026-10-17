@@ -23,7 +23,7 @@ export function review(srs: Srs, grade: Grade, now = Date.now()): Srs {
     }
   }
 
-  // Knew the word, missed der/die/das. Requeue now; smaller ease hit than Again.
+  // Knew the word, missed grammatical gender. Requeue now; smaller ease hit than Again.
   if (grade === 'wrong_gender') {
     return {
       ease: Math.max(MIN_EASE, ease - 0.1),

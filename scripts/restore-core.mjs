@@ -106,7 +106,7 @@ function cardDoc(deckId, id, value) {
   if (!text(value.de, 200) || !text(value.en, 200) || !text(value.example_de, 1000) || !text(value.example_en, 1000)) {
     fail(`invalid card ${deckId}/${id}`)
   }
-  if (!['der', 'die', 'das', 'none'].includes(value.article)) fail(`invalid card ${deckId}/${id}`)
+  if (!['der', 'die', 'das', 'le', 'la', 'l_m', 'l_f', 'el', 'el_f', 'los', 'las', 'les_m', 'les_f', 'none'].includes(value.article)) fail(`invalid card ${deckId}/${id}`)
   if (!Array.isArray(value.tags) || value.tags.length > 12 || value.tags.some((tag) => typeof tag !== 'string')) fail(`invalid card ${deckId}/${id}`)
   if (!clock(value.created_at) || !clock(value.updated_at) || !clock(value.deletedAt)) fail(`invalid card ${deckId}/${id}`)
   if (Object.hasOwn(value, 'rank') && !clock(value.rank, 1000000)) fail(`invalid card ${deckId}/${id}`)

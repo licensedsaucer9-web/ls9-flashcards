@@ -1,3 +1,4 @@
+import { articleText } from './articles.ts'
 export function esc(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -35,5 +36,5 @@ export function formatDue(ts: number, now = Date.now()): string {
 
 export function germanHead(article: string, de: string): string {
   if (article === 'none' || !article) return de
-  return `${article} ${de}`
+  return `${articleText(article)}${article === 'l_m' || article === 'l_f' ? '' : ' '}${de}`
 }

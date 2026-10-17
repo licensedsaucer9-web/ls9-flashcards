@@ -1,7 +1,8 @@
 import './style.css'
 import { registerSW } from 'virtual:pwa-register'
 import type { Article, Card, Direction, Grade, LocalDeck, PublicSettings, Tier, WordType } from './types.ts'
-import { ARTICLES } from './types.ts'
+import { articleGender, articleLabel, articlesFor } from './articles.ts'
+import { STARTERS, type StarterLanguage } from './starter-decks.ts'
 import { deckSyncs } from './record-sync.ts'
 import {
   accountBadge,
@@ -25,6 +26,7 @@ import {
   getDeckCardCounts,
   getDecks,
   createLocalDeck,
+  addStarterDeck,
   renameDeck,
   deleteLocalDeck,
   putDeckFeatures,
@@ -253,7 +255,7 @@ function setTabbar(active: 'home' | 'deck' | 'decks' | 'settings' | 'none') {
 }
 
 function genderClass(article: Article): string {
-  return article === 'none' ? 'none' : article
+  return articleGender(article)
 }
 
 function iconReview() {
@@ -619,7 +621,7 @@ async function renderDecks() {
               <div class="de">${esc(deck.name)}</div>
               <div class="chips">
                 <button type="button" class="chip" data-rename="${esc(deck.id)}" aria-label="Rename ${esc(deck.name)}">Rename</button>
-                ${deck.origin === 'local' && decks.length > 1 ? `<button type="button" class="chip" data-delete-deck="${esc(deck.id)}" aria-label="Delete ${esc(deck.name)}">Delete</button>` : ''}
+                ${deck.origin === 'local' && !deck.starter && decks.length > 1 ? `<button type="button" class="chip" data-delete-deck="${esc(deck.id)}" aria-label="Delete ${esc(deck.name)}">Delete</button>` : ''}
               </div>
               <div class="en">${deck.origin === 'original' ? '' : `${esc(deck.targetLang)} · `}${n} ${n === 1 ? 'card' : 'cards'}</div>
             </div>
@@ -627,11 +629,16 @@ async function renderDecks() {
           </li>`
         }).join('')}
       </ul>
+      <div class="setting" aria-label="Starter decks">
+        <p class="kicker" style="margin:0">Starter decks</p>
+        <p class="note">Beginner vocabulary with examples, articles and frequency tiers. Adding a language keeps your other decks and progress.</p>
+        <div class="chips">${STARTERS.map(starter => `<button type="button" class="chip" data-starter="${starter.key}">${decks.some(d => d.starter === starter.key) ? 'Select' : 'Add'} ${starter.name} · ${starter.count} cards</button>`).join('')}</div>
+      </div>
       <form class="setting" id="new-deck">
         <p class="kicker" style="margin:0">New deck</p>
         <input name="name" type="text" placeholder="Deck name" required maxlength="60" autocomplete="off" />
         <input name="targetLang" type="text" placeholder="Target language" required maxlength="40" autocomplete="off" />
-        <p class="note">English is the base language. The new deck starts empty and stays on this device.</p>
+        <p class="note">English is the base language. The new deck starts empty. Its name and selection stay on this device; signed-in cards and study progress sync privately.</p>
         <button type="submit" class="chip">Create and switch</button>
       </form>
       <div class="setting" role="group" aria-label="Deck extras">
@@ -690,6 +697,19 @@ async function renderDecks() {
     input.addEventListener('change', async () => {
       await putDeckFeatures({ [input.dataset.feature!]: input.checked })
       scheduleRender()
+    })
+  })
+  main.querySelectorAll<HTMLButtonElement>('[data-starter]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!studyLockCurrent(lock)) return
+      btn.disabled = true
+      try {
+        const deck = await addStarterDeck(btn.dataset.starter as StarterLanguage)
+        if (!deck) return
+        deckSelectionChanged(deckSyncs(deck))
+        toast(`Switched to ${deck.name}`)
+        go('/')
+      } finally { btn.disabled = false }
     })
   })
   $('#new-deck').addEventListener('submit', async (e) => {
@@ -815,9 +835,11 @@ async function renderDeck() {
   paint()
 }
 
-function articleOptions(selected: Article): string {
-  return ARTICLES.map(
-    (a) => `<option value="${a}" ${a === selected ? 'selected' : ''}>${a}</option>`,
+function articleOptions(selected: Article, language: string): string {
+  const choices = articlesFor(language)
+  if (!choices.includes(selected)) choices.push(selected)
+  return choices.map(
+    (a) => `<option value="${a}" ${a === selected ? 'selected' : ''}>${esc(articleLabel(a))}</option>`,
   ).join('')
 }
 
@@ -866,7 +888,7 @@ async function renderEdit(id: string | null) {
           <input name="en" type="text" required value="${esc(c?.en ?? '')}" autocomplete="off" />
         </label>
         ${activeDeck.articles ? `<label>Article
-          <select name="article">${articleOptions(c?.article ?? 'none')}</select>
+          <select name="article">${articleOptions(c?.article ?? 'none', targetLang)}</select>
         </label>` : ''}
         ${activeDeck.supportsWordTypes ? `<label>Word type
           <select name="wordType">${wordTypeOptions(typeChoice)}</select>
@@ -981,7 +1003,7 @@ async function renderImport() {
         <h1>CSV import</h1>
         <span></span>
       </header>
-      <p class="note">Import into ${esc(activeDeck.name)}. Columns: <code>front,back</code> (${esc(activeDeck.targetLang)}, ${esc(activeDeck.baseLang)}) or <code>de,en</code>. Optional columns: <code>article,example_front,example_back</code> (also <code>example_de,example_en</code>). An optional <code>type</code> column can be noun, verb, adjective, or other. Article is der, die, das, or none. A noun is assumed when the article is set and type is left blank. Duplicates of an existing front+back pair in the active deck are skipped.</p>
+      <p class="note">Import into ${esc(activeDeck.name)}. Columns: <code>front,back</code> (${esc(activeDeck.targetLang)}, ${esc(activeDeck.baseLang)}) or <code>de,en</code>. Optional columns: <code>article,example_front,example_back</code> (also <code>example_de,example_en</code>). An optional <code>type</code> column can be noun, verb, adjective, or other. Article tokens for this language: ${articlesFor(activeDeck.targetLang).map(a => esc(a)).join(', ')}. Elided French tokens l_m/l_f retain gender; el_f is feminine Spanish el before stressed a. A noun is assumed when the article is set and type is left blank. Duplicates of an existing front+back pair in the active deck are skipped.</p>
       <div class="drop" id="drop">
         <span>Drop a .csv file here</span>
         <label class="file-btn">Choose file
@@ -1057,6 +1079,10 @@ async function renderCloudSettings() {
       <header class="topbar"><h1>Settings</h1><span class="badge">${esc(accountBadge())}</span></header>
       ${accountPanelHtml()}
       <div class="setting">
+        <p class="kicker" style="margin:0">Starter content</p>
+        <p class="note">French/Spanish vocabulary and examples © 2026 LS9 Flashcards. Frequency ranks adapted from <a href="https://github.com/hermitdave/FrequencyWords" target="_blank" rel="noopener noreferrer">Hermit Dave’s FrequencyWords</a>, OpenSubtitles 2018 via OPUS. Curated content and derived rankings are licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>.</p>
+      </div>
+      <div class="setting">
         <p class="kicker" style="margin:0">Install</p>
         <p class="note" id="app-version" data-version="${esc(buildInfo.version)}" data-source="${esc(buildInfo.sourceCommit)}">Version ${esc(buildInfo.version)} · ${esc(buildInfo.sourceCommit.slice(0, 7))}${buildInfo.sourceDirty ? ' (local changes)' : ''}</p>
         <p class="note">PWA: Chrome/Edge install, iPhone Safari share → Add to Home Screen. The app itself must be served over HTTPS for iPhone. Progress stays in this browser when you are signed out, and with the account when you are signed in.</p>
@@ -1064,7 +1090,7 @@ async function renderCloudSettings() {
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">SRS</p>
-        <p class="note">SM-2 with Again / Gender / Hard / Good / Easy. Gender is for nouns: you knew the word but missed der, die, or das. It requeues the card now with a smaller ease penalty than Again. Verbs and adjectives hide that button.</p>
+        <p class="note">SM-2 with Again / Gender / Hard / Good / Easy. Gender is for nouns: you knew the word but missed its grammatical gender. It requeues the card now with a smaller ease penalty than Again. Cards without an article hide that button.</p>
       </div>
     </section>
   `

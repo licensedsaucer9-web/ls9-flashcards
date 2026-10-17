@@ -38,6 +38,12 @@ jobs:
         run: npm run test:rules
       - name: Build staged Firebase client
         run: npm run release:build
+      - name: Check language starters and offline reopen
+        run: npm run test:starter-ui
+        env:
+          STARTER_ARTIFACT_DIR: dist-firebase
+          STARTER_APP_BASE: /ls9-flashcards-site/
+          BASE: /ls9-flashcards-site/
       - name: Check staged Firebase files
         run: node scripts/check-deploy-artifact.mjs
         env:

@@ -1,3 +1,4 @@
+import { STARTERS, starterCards, starterDeckId, type StarterLanguage } from './starter-decks.ts'
 import type { Card, CardContent, DeckFile, Grade, LocalDeck, PublicSettings, Settings, Srs, Tier, UserFile, WordType } from './types.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
 import {
@@ -305,6 +306,49 @@ export async function createLocalDeck(name: string, targetLang: string): Promise
   } finally { db.close() }
 }
 
+/** Explicit catalog addition: one atomic insert, preserving edits, schedules and tombstones.
+ * Existing built-ins are never overwritten; new seed IDs can be appended on repeat addition.
+ */
+export async function addStarterDeck(language: StarterLanguage): Promise<LocalDeck | null> {
+  const { lock, name } = namesFor()
+  const id = await starterDeckId(lock.uid ?? name, language)
+  if (!studyLockCurrent(lock)) return null
+  const db = await openDb(name)
+  try {
+    const tx = db.transaction(['decks', 'cards', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const [stored, existing, cards] = await Promise.all([
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
+      value(tx.objectStore('decks').get(id)) as Promise<LocalDeck | undefined>,
+      value(tx.objectStore('cards').getAll()) as Promise<Card[]>,
+    ])
+    if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return null }
+    const settings = normalizeSettings(stored)
+    const deck: LocalDeck = existing ?? {
+      id, starter: language, name: STARTERS.find(s => s.key === language)!.name,
+      targetLang: language === 'fr' ? 'French' : 'Spanish', baseLang: 'English',
+      articles: true, supportsWordTypes: true, tiers: true, origin: 'local',
+      direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [],
+    }
+    const ids = new Set(cards.map(card => card.id))
+    const rev = settings.localRevision + 1
+    let added = false
+    for (const card of starterCards(language)) {
+      if (ids.has(card.id) || settings.deletedIds[card.id]) continue
+      tx.objectStore('cards').add({ ...card, deckId: id })
+      settings.pending.cards[card.id] = { revision: rev, acked: 0, deckId: id }
+      added = true
+    }
+    if (added) settings.localRevision = rev
+    tx.objectStore('decks').put(deck)
+    tx.objectStore('settings').put({ ...settings, activeDeckId: id })
+    await done
+    if (!studyLockCurrent(lock)) return null
+    bumpStudyGeneration()
+    return deck
+  } finally { db.close() }
+}
+
 /** Rename metadata on this device without changing cards or cloud settings. */
 export async function renameDeck(deckId: string, name: string): Promise<boolean> {
   name = name.trim()
@@ -337,7 +381,7 @@ export async function deleteLocalDeck(deckId: string): Promise<boolean> {
       value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
     ])
     const deck = decks.find(deck => deck.id === deckId)
-    if (!studyLockCurrent(lock) || deck?.origin !== 'local' || decks.length <= 1) {
+    if (!studyLockCurrent(lock) || deck?.origin !== 'local' || deck.starter || decks.length <= 1) {
       await done
       return false
     }

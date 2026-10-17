@@ -344,6 +344,12 @@ try {
     'too many tags',
   )
 
+  for (const article of ['le', 'la', 'l_m', 'l_f', 'el', 'el_f', 'los', 'las', 'les_m', 'les_f']) {
+    const path = ['decks', 'legacy', 'cards', `seed-language-${article}`]
+    await assertSucceeds(setDoc(doc(db(ALICE), ...path), card({ article })))
+    await denied(getDoc(doc(db(CARA), ...path)), 'language articles retain membership privacy')
+  }
+  await denied(setDoc(doc(db(ALICE), 'decks', 'legacy', 'cards', 'bad-article'), card({ article: 'invalid' })), 'unknown article')
   console.log('firestore rules ok')
 } finally {
   await env.cleanup()
