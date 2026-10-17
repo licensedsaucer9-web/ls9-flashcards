@@ -118,7 +118,7 @@ After #37 and explicit authorization, publication must use the exact tested
 together. Keep the prepared `auth-spike/` and `auth-spike-prod/` exclusions in
 root cleanup while recovery/compatibility routes are needed. The separate old
 Pages URL was retired by owner decision on 2026-10-17; its repository is archived
-and hosting is disabled. The unpublished bridge build/test remains historical
+and its application/redirect replaced by a 404-only deployment. The unpublished bridge build/test remains historical
 tooling, not an active recovery route. See the [retirement record](rename.md#old-site-retirement-2026-10-17). Pages does not deploy rules;
 a candidate build/merge does not authorize any production change.
 

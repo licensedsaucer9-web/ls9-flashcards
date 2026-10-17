@@ -51,8 +51,8 @@ remaining sequence and completion gates.
 
 On 2026-10-17 Joakim authorized retirement of the old
 `german-flashcards-site` redirect because the two known users do not need it.
-Pages hosting is disabled and that repository is archived with its history
-retained. The current app remains at `ls9-flashcards-site`. Historical bridge
+The published redirect/app was replaced by a 404-only deployment and that
+repository is archived with its history retained. The current app remains at `ls9-flashcards-site`. Historical bridge
 build/tests remain available locally; they are not an active hosted recovery
 route. This records an owner decision rather than device inspection or proof
 of legacy progress recovery. See the [retirement record](rename.md#old-site-retirement-2026-10-17).

@@ -152,8 +152,9 @@ publication uses that same `dist-firebase` build. See the
 ## Upgrade an older iPhone Home Screen installation
 
 The current app is the Firebase client at the new public URL. The old
-`german-flashcards-site` Pages URL was retired on 2026-10-17: hosting is disabled
-and its repository is archived. It no longer supplies a supported redirect.
+`german-flashcards-site` Pages URL was retired on 2026-10-17: its published app
+and redirect were replaced by a 404-only deployment and its repository is
+archived. It no longer supplies a supported redirect.
 Use bookmarks and Home Screen icons created from the current URL. Studied
 progress from the old client is not imported. See the [retirement record](docs/rename.md#old-site-retirement-2026-10-17).
 
