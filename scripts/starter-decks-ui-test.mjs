@@ -73,6 +73,32 @@ try {
       assert.equal(await page.locator('[name="article"]').inputValue(), 'l_m')
       assert.equal(await page.locator('[name="example_de"]').inputValue(), "Nous parlons de l'homme.")
     }
+    if (lang === 'es') {
+      // Check the shipped state examples on real review cards in both directions.
+      for (const word of ['triste', 'cansado', 'enfermo', 'libre', 'nervioso']) {
+        await page.evaluate(async word => {
+          const db = await import('/src/db.ts')
+          await db.putSettings({ tier: 3, sessionSize: 1 })
+          await db.putCards((await db.getAllCards()).map(c => ({ ...c, srs: { ...c.srs, due: c.de === word ? 0 : Date.now() + 86400000 } })))
+        }, word)
+        for (const dir of ['de-en', 'en-de']) {
+          await tab('/decks')
+          await page.locator(`[data-dir="${dir}"]`).click()
+          await page.waitForFunction(dir => document.querySelector(`[data-dir="${dir}"]`)?.classList.contains('is-on'), dir)
+          await tab('/')
+          await page.click('#start')
+          await page.waitForSelector('#card')
+          const face = dir === 'de-en' ? '.front' : '.back'
+          assert.equal(await page.locator(`${face} .word`).textContent(), word)
+          await page.click('#card')
+          await page.locator('[data-grade="good"]').waitFor({ state: 'visible' })
+          assert.equal(await page.locator('.example strong').textContent(), `Está ${word}.`)
+          await page.screenshot({ path: join(tmpdir(), `issue96-es-${word}-${dir}.png`) })
+          await page.click('#back')
+          await page.waitForSelector('#start')
+        }
+      }
+    }
     // Isolate one noun in the queue, exercising real grading with an elided/feminine article.
     await page.evaluate(async word => {
       const db = await import('/src/db.ts')

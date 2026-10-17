@@ -52,6 +52,21 @@ for (const lang of ['fr', 'es']) {
   assert.notEqual(await starterDeckId('account-a', lang), await starterDeckId('account-b', lang))
   assert.match(await starterDeckId('account-a', lang), /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
 }
+// State adjectives need estar in Spanish; the French twins continue to use être.
+for (const [key, spanish, french, english] of [
+  ['420', 'triste', 'triste', 'sad'],
+  ['421', 'cansado', 'fatigué', 'tired'],
+  ['422', 'enfermo', 'malade', 'ill'],
+  ['425', 'libre', 'libre', 'free'],
+  ['430', 'nervioso', 'nerveux', 'nervous'],
+]) {
+  const es = starterCards('es').find(c => c.id === `seed-es-${key}`)
+  const fr = starterCards('fr').find(c => c.id === `seed-fr-${key}`)
+  assert.equal(es.example_de, `Está ${spanish}.`, `${spanish} describes a state in this example`)
+  assert.equal(fr.example_de, `Il est ${french}.`)
+  assert.equal(es.example_en, `He is ${english}.`)
+  assert.equal(fr.example_en, `He is ${english}.`)
+}
 // Check the actual bundled card and generator input, not only a synthetic article token.
 const homme = starterCards('fr').find(c => c.id === 'seed-fr-001')
 assert.equal(homme.de, 'homme')

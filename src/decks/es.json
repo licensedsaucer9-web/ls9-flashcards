@@ -6292,7 +6292,7 @@
       "de": "triste",
       "en": "sad",
       "article": "none",
-      "example_de": "Él es triste.",
+      "example_de": "Está triste.",
       "example_en": "He is sad.",
       "tags": [
         "a1",
@@ -6307,7 +6307,7 @@
       "de": "cansado",
       "en": "tired",
       "article": "none",
-      "example_de": "Él es cansado.",
+      "example_de": "Está cansado.",
       "example_en": "He is tired.",
       "tags": [
         "a1",
@@ -6322,7 +6322,7 @@
       "de": "enfermo",
       "en": "ill",
       "article": "none",
-      "example_de": "Él es enfermo.",
+      "example_de": "Está enfermo.",
       "example_en": "He is ill.",
       "tags": [
         "a1",
@@ -6367,7 +6367,7 @@
       "de": "libre",
       "en": "free (available)",
       "article": "none",
-      "example_de": "Él es libre.",
+      "example_de": "Está libre.",
       "example_en": "He is free.",
       "tags": [
         "a1",
@@ -6442,7 +6442,7 @@
       "de": "nervioso",
       "en": "nervous",
       "article": "none",
-      "example_de": "Él es nervioso.",
+      "example_de": "Está nervioso.",
       "example_en": "He is nervous.",
       "tags": [
         "a1",

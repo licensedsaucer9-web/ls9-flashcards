@@ -27,7 +27,7 @@ for (const [index, lang] of ['fr', 'es'].entries()) {
       type = 'adj'; article = 'none'; de = row[index + 1]; en = row[3]
       // The pronoun refers to a masculine person or object; citation forms stay masculine singular.
       example_de = index === 0 ? `Il est ${de}.` : `${personal.has(row[1]) ? 'Él es' : 'Es'} ${de}.`
-      if (index === 1 && new Set('plein vide propre sale chaud froid tiède sec mouillé ouvert fermé prêt occupé seul content fâché proche'.split(' ')).has(row[1])) example_de = `Está ${de}.`
+      if (index === 1 && new Set('plein vide propre sale chaud froid tiède sec mouillé ouvert fermé prêt occupé seul content fâché proche triste fatigué malade libre nerveux'.split(' ')).has(row[1])) example_de = `Está ${de}.`
       example_en = `${personal.has(row[1]) ? 'He' : 'It'} is ${en.split(' / ')[0].replace(/ \(.+\)/, '')}.`
     } else {
       type = 'noun'; article = row[index * 2]; de = row[index * 2 + 1]; en = row[4]
