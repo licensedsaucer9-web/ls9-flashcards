@@ -4,9 +4,11 @@ The real import into `flashcards-ls9-auth-test` completed on 2026-10-04, with
 exact server readback and an unchanged repeat that made zero writes. All #24
 acceptance checks passed. The separate
 [second-device verification (#25)](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235)
-also passed later on 2026-10-04. Production/device recovery and public cutover
-remain in the [rollout plan](firebase-rollout-plan.md). This document retains
-the saved #24 import evidence; reviewing it does not require another import.
+also passed later on 2026-10-04. This document retains the October 4 import
+evidence and its then-held publication state. Production Firebase went live
+on October 7 with legacy import/device recovery waived; current operations are
+in the [rollout plan](firebase-rollout-plan.md). Reviewing this historical record
+does not require another import.
 
 ## Reviewed inputs and revisions
 

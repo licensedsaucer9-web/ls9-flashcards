@@ -54,7 +54,14 @@ icons, and documentation use LS9 branding. The short installed label is
 **LS9 Cards**; the separate test preview uses **LS9 Test**. QR codes point to
 the new public and rehearsal URLs.
 
-## Existing installations
+## Historical rename behavior — 2026-10-04
+
+The following existing-installation and release-boundary details describe the
+October 4 branding release. Firebase went live October 7, and the old URL was
+retired October 17 as recorded above; held-publication and compatibility-client
+statements below are historical, not current operating instructions.
+
+### Existing installations
 
 IndexedDB/localStorage prefixes, Firebase project IDs, emulator IDs, card/deck
 IDs, and `GERMAN_FLASHCARDS_PRIVATE_DIR` retain their original values. Existing
@@ -73,7 +80,7 @@ deleting/copying local storage. Keep older Safari/Home Screen installations
 until their device-only work is recovered and acknowledged. Do not infer that
 a new Home Screen icon shares every old installation's storage.
 
-## Release boundary
+### Release boundary
 
 This is a branding/URL release of the existing GitHub-sync client, based on
 source commit `1a833b7260166429171f965ed798f79a6fc14626`, with its rename changes

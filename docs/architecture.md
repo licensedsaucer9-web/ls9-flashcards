@@ -1,6 +1,7 @@
 # Architecture and data guarantees
 
-This describes the implementation as of 2026-10-11 (including the unreleased #58 implementation).
+This describes the implementation as of 2026-10-17, including published streaks,
+multiple decks, per-deck preferences/progress, and swipe tab navigation.
 For what is deployed and what remains, use the
 [rollout plan](firebase-rollout-plan.md).
 
@@ -68,7 +69,8 @@ source shows **Signed in to Google** and **Sign out of Google** in that state.
 
 Ordinary builds remove the obsolete `german-flashcards.github` and
 `german-flashcards.github.shas` keys on launch. The source has no active
-GitHub data transport; the previous published build still has its old writer.
+GitHub data transport, and the published Firebase app has no GitHub writer.
+The archived legacy repository is a frozen pre-Firebase recovery snapshot.
 
 ## Firestore layout
 
@@ -98,9 +100,9 @@ the client creates its private deck document if absent and syncs its cards and
 tombstones. The original German deck keeps the account's assigned path. Extra
 deck schedules and preferences use the owner-only nested paths above. Names and
 selection stay local; another client
-needs that deck's ID in its local deck list to select it. Production card sync
-requires a separate manual deployment of the additive rules; this change does
-not deploy them.
+needs that deck's ID in its local deck list to select it. The additive production
+rules were deployed separately and verified on 2026-10-16; Pages never deploys
+rules. See the [operating record](firebase-rollout-plan.md#current-operations--2026-10-17).
 
 `firestore.rules` denies unauthenticated access and validates client shapes,
 ownership, membership, and immutable account assignment. Rules do not govern
@@ -146,8 +148,8 @@ deck's preferences and schedules. Each pass pulls only the active deck plus
 account activity, and uploads that deck's pending records. Unstudied extra cards
 do not create empty progress documents. Account activity remains shared across
 decks; pending work in an inactive deck prevents account-wide acknowledgement.
-The additive progress/settings rules require separate operator deployment; this
-implementation does not deploy rules or publish.
+The additive progress/settings rules are included in the separately verified
+2026-10-16 production rules. Source or client publication alone never deploys rules.
 
 Deck names can be renamed locally, including the original deck. Deleting a local
 deck requires confirmation showing its name and card count, and atomically removes
@@ -218,11 +220,12 @@ first Easy = 4 days. Again and Gender requeue immediately, with a smaller ease
 penalty for Gender. The account stores the latest SRS state per card, with
 no interval multiplier, detailed review history, or FSRS.
 
-Decks saves the account-wide tier, direction, and word-type preferences.
+Decks saves the active deck's tier, direction, and word-type preferences.
 Review alone sets session size. Cards starts its browse tier filter at the saved
 tier, but browsing does not write preferences. Settings retains account, install,
 and SRS information. These control locations do not change storage or deck
-assignment.
+assignment. Extra decks keep their own preferences and schedules; streak
+activity remains account-wide.
 
 A review session starts from a captured queue within the selected cumulative
 tier and word-type filter. It uses only due cards when any match. When none
@@ -287,9 +290,11 @@ and repeat-import behavior.
 `npm run migrate -- backup` writes a private Firestore dump with a checksum.
 Version 2 includes extra deck ownership/cards and nested per-deck settings and
 progress, alongside the original German paths, activity and tombstones. The
-restore accepts version-1 dumps too. Daily extra-deck coverage requires releasing
-this backup code and updating the operator runner; source changes alone do not
-establish that it has run.
+restore accepts version-1 dumps too. The operator checkout was updated to this
+code on 2026-10-17, after that day's successful scheduled backup. Verify a new
+version-2 dump and isolated extra-deck restore before calling that coverage
+qualified. The off-machine copy job succeeded that morning; job success and
+restore qualification are separate evidence.
 `npm run migrate -- restore` puts that dump back only onto an isolated
 target, and only where the target is empty or already identical. It does not
 restore Google Auth identities, IndexedDB, rules, or hosting. The frozen
@@ -306,14 +311,13 @@ selection no longer matches, the transaction aborts rather than applying cloud
 cards or settings to a local deck. Snapshots already captured for the original
 deck remain scoped to that deck; a later selection cannot change their contents.
 
-Selecting either deck schedules its pending sync. Extra decks upload content
-and deletion records only; their local schedules and preferences do not keep
-the cloud queue pending. Card marks and queued acknowledgements carry the deck
+Selecting either deck schedules its pending sync, including extra-deck content,
+deletions, progress, and preferences. Card marks and queued acknowledgements carry the deck
 ID, and an acknowledgement naming a different deck is refused. A rejected
 extra-deck write remains pending there; returning to German still syncs its
 independent queue. Account-wide revision acknowledgement checks every deck’s
 cloud-eligible pending records atomically, so a clean selected deck cannot hide
 unsynced work elsewhere from the status badge or sign-out warning. Extra-deck
-schedules remain local and do not block that acknowledgement. The two-tab browser regression uses synthetic data and a
+progress and settings participate in that acknowledgement. The two-tab browser regression uses synthetic data and a
 stubbed cloud transport to exercise the real cloud orchestration and IndexedDB;
 it does not require an account or contact Firebase.

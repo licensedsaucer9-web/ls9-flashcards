@@ -1,24 +1,27 @@
 # Legacy migration and device recovery runbook
 
 The test snapshot import (#24) and real second-device rehearsal (#25) passed
-on 2026-10-04. Production import, collection of device-only legacy work, and
-public cutover remain in the [single rollout plan](firebase-rollout-plan.md).
+on 2026-10-04. Production Firebase was published on 2026-10-07 with legacy
+studied-data import and old-device recovery waived by the owner. The old Pages
+URL was retired on 2026-10-17. The procedures below are retained for explicitly
+authorized future recovery and isolated rehearsals, not pending release steps.
+See current operations in the [single rollout plan](firebase-rollout-plan.md).
 Use [the saved import record](issue-24-status.md) and
 [the final second-device result](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235)
 when reviewing completed work; do not rerun `--apply` just to inspect evidence.
 
 These are local operator commands, never a Cloud Function or production CI
 step. Rehearse live operations only against `flashcards-ls9-auth-test`.
-Production commands require their separate authorized milestone. Pages builds
-`dist-firebase` but both publication steps remain disabled. Firestore backup
+Production commands require authorization for the concrete operation. Pages
+publishes `dist-firebase` after CI on master; pull requests do not publish.
+Firestore backup
 and the guarded dump restore, including what a dump does not recover, are in
 [Firebase setup](firebase-setup.md). Restore refuses the production project
 and the real-data rehearsal project.
 
-Before production Firebase study exists, rollback keeps or restores the
-previously published artifact. Current `master` has no GitHub writer. After
-production Firebase progress exists, use a Firebase-compatible client while
-retaining that data.
+Production Firebase progress now exists, so rollback uses a Firebase-compatible
+client while retaining that data. Current source and the public app have no
+GitHub writer. Historical pre-Firebase rollback procedures are not a live route.
 
 ## 1. Prepare private inputs
 
@@ -237,11 +240,11 @@ available, and no actual legacy database was read. The published aggregate is
 2 installation classes, 1 existing-client route, 1 bridge route, 2 unreachable,
 0 proven reads, and 2 blockers. Those rows come from
 `unreachedInstallationClasses()` and keep the two public URL classes visible.
-They are a class count, not a census of active installations. #34 stays open.
-#36 stays blocked on #34 until a private inventory and a saved same-context
-read exist for every active installation. Add each real install in private
-storage and publish a new count only. A class or device without a saved
-same-context read remains a blocker.
+They are a class count, not a census of active installations. These were the
+original #34/#36 blockers; both issues were subsequently closed as not planned
+after the 2026-10-07 waiver. Do not reopen or repeat that work based on this
+historical count. Any newly authorized recovery still needs a private inventory
+and saved same-context read for the installation being recovered.
 
 Sign in as the already mapped account. Shared legacy accounts do not run the
 generic first-login guest copy. In Settings:
@@ -266,7 +269,7 @@ Firestore acknowledgements, including rows from before per-record tracking.
 Repeating a copy preserves acknowledged markers and newer account data. Account
 changes before the write refuse the copy.
 
-## 5. Record results and apply the release gate
+## 5. Record results and preserve the historical release evidence
 
 The test rehearsal is complete: #22 prepared the immutable source/baseline,
 #24 verified the real import, and #25 verified fresh Google restoration on
@@ -274,19 +277,19 @@ iPhone Home Screen and Mac Safari clients. Ten newer reviews and a newer
 settings record survived a repeat import with zero writes and client reopening.
 Mac browser/OS versions were not recorded.
 
-For production, use a separately confirmed production mapping and credential,
+For a newly authorized production recovery, use a separately confirmed mapping and credential,
 a fresh final GitHub snapshot, exact server readback, and recovery of every
 active device's local work. Record source/build, date, device/browser, comparison
 method, aggregate result, and unresolved items. Keep exact values and operator
 files private. A server `migrationStatus: complete` marker does not verify
 device recovery or authorize publication.
 
-The [rollout plan](firebase-rollout-plan.md) owns the production checklist.
-Keep both publish steps held until the production recovery gate and publication
-authorization are recorded. Publish the tested `dist-firebase`, never a local-only
-`dist/`. Revoke the legacy write token only after all active devices are on the
-Firebase build and their pending work is acknowledged; then retain the data
-repository as a frozen recovery snapshot.
+The [rollout plan](firebase-rollout-plan.md) records the 2026-10-07 publication
+and waiver, current operations, and remaining checks. Both publish steps now
+use matching master-only/non-PR guards and publish tested `dist-firebase`, never
+local-only `dist/`. The data repository is archived as a frozen legacy snapshot;
+neither the current public client nor this documentation writes to it. Do not
+infer legacy-token revocation or device recovery from publication alone.
 
 ## Automated checks
 

@@ -22,8 +22,10 @@ Web configuration is public. Admin SDK service-account JSON is private.
 Both projects were created on 2026-09-29. Spark/free-tier status and disabled
 billing were confirmed then; that dated check is not a fresh billing audit.
 The test database now contains the verified legacy import and newer rehearsal
-reviews. Production import and rules deployment remain separate rollout work;
-do not assume production is empty without inspecting it.
+reviews. Production has been serving Firebase study since 2026-10-07; legacy
+studied-data import was waived. The latest recorded production rules deployment
+was verified on 2026-10-16. See the [operating record](firebase-rollout-plan.md#current-operations--2026-10-17);
+do not assume either database is empty.
 
 Test and production UIDs were confirmed separately in
 [issue #10](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/10).
@@ -61,9 +63,10 @@ basic sign-in scopes. See [Google sign-in setup](https://firebase.google.com/doc
 
 ## Prepare and verify a release candidate
 
-This is coding preparation for #38. Production data/device recovery (#37)
-and publication of a concrete tested candidate need their recorded gates and
-separate authorization. Both Pages publish steps stay disabled. These commands
+The #38 release tooling now builds the published Firebase client. Production
+study is live, and legacy import/device recovery (#37) was waived on 2026-10-07.
+Both Pages publish steps use matching master-only/non-PR guards: pushes to
+master publish after CI; pull requests do not publish. These local commands
 build or read public artifacts; they do not deploy rules, import data, sign into
 Google or publish.
 
@@ -83,9 +86,9 @@ The builder pins actual Git HEAD, requires no source changes before/after
 the build, selects the production public web config and `/ls9-flashcards-site/`,
 and clears preview/bridge/emulator overrides. It refuses test/device/bridge
 artifacts, an unversioned package, wrong project/base, or dirty source as
-candidates. Both publication conditions must remain held or use the same exact
-master-only/non-PR guard after a later authorized change. Ordinary development
-builds still work and mark local changes. The package version is `1.2.0`.
+candidates. Both publication conditions must keep the same exact
+master-only/non-PR guard. Ordinary development
+builds still work and mark local changes. The package version is `1.3.0`.
 
 `dist-firebase/release.json` identifies version, full source commit, backend,
 project, base, mode, emulator flag and public-site repository. The same values
@@ -113,14 +116,13 @@ operational gate will take longer. Preserve its inventory fingerprint and CI
 run/check results. A rebuilt PR or master commit is a different candidate and
 needs its own checks; do not mix files from different builds.
 
-After #37 and explicit authorization, publication must use the exact tested
-`dist-firebase` bytes, with both existing master-only/non-PR conditions restored
-together. Keep the prepared `auth-spike/` and `auth-spike-prod/` exclusions in
-root cleanup while recovery/compatibility routes are needed. The separate old
+Publication uses the exact tested `dist-firebase` bytes with both existing
+master-only/non-PR conditions kept together. The workflow retains `auth-spike/`
+and `auth-spike-prod/` during root cleanup for the historical previews. The separate old
 Pages URL was retired by owner decision on 2026-10-17; its repository is archived
 and its application/redirect replaced by a 404-only deployment. The unpublished bridge build/test remains historical
 tooling, not an active recovery route. See the [retirement record](rename.md#old-site-retirement-2026-10-17). Pages does not deploy rules;
-a candidate build/merge does not authorize any production change.
+a local candidate build does not itself publish, deploy rules or migrate data.
 
 After the candidate is actually served, keep the matching local artifact and
 record the public `gh-pages` commit. The read-only check is:
@@ -141,7 +143,7 @@ Then verify running Settings version/source on desktop, Safari and each Home
 Screen installation after its worker update and after reopening offline.
 Record date, device/browser/OS, URL, source/site revisions and update outcome.
 A successful HTTP comparison does not prove every installed client updated;
-#38 stays open until those results exist, and production usability is #39.
+the historical #38/#39 results do not establish that every later client updated.
 Retain a known-good artifact. After Firebase study exists, rollback uses a
 compatible Firebase client and retains its data, rather than restoring the
 legacy writer over it.
@@ -151,13 +153,17 @@ legacy writer over it.
 `firestore.rules` is the source of the restrictive client rules. CI tests
 rules but does not deploy them. Test deployment and read-only preflight commands
 are in [the rehearsal runbook](firebase-rehearsal.md). Production deployment
-belongs to its authorized rollout milestone.
+is an operator action separate from Pages. The last recorded production
+deployment was verified on 2026-10-16 with SHA-256
+`863c8e03c918d81a67e88f166ca109bfe93c45c48f22b5ecf6dbfc9a3a1086f1`;
+see the [operating record](firebase-rollout-plan.md#current-operations--2026-10-17).
 
 Set `GERMAN_FLASHCARDS_PRIVATE_DIR` to a durable directory outside every Git
 repository, with mode 700. Keep credentials, mappings, snapshots, baselines,
 and reports there with mode 600. The default is
-`~/.config/german-flashcards`, but this machine's tracked home makes that
-location unsuitable. The tool refuses ignored files and symlinks inside Git
+`~/.config/german-flashcards`. The original rehearsal host tracked home in Git,
+making that default unsuitable there; inspect the current Git boundaries before
+choosing it. The tool refuses ignored files and symlinks inside Git
 too. Credential filenames resolve only within the operator directory, and
 their project must match the requested project.
 
@@ -198,22 +204,25 @@ Firebase CLI, writes the same private dump, and records aggregate counts,
 checksum, and elapsed time in `backup-status.json`. The user timer
 `firestore-backup.timer` runs that command at 08:30 and keeps 14 dumps.
 Stdout is the status object. A failed run writes `ok: false` and a non-zero
-exit. These files stay on the primary machine.
+exit. A separate `firestore-drive-copy.timer` runs an rclone copy of dumps and
+`backup-status.json` to the configured off-machine backup destination at 08:45.
+The local backup and copy jobs both succeeded on 2026-10-17. Their private
+configuration stays on the host; a successful copy job is not a restore drill.
 
-For the `1.3.0` streak release, the runner must use code that exports the new
-`activity` collection and reports its aggregate count. Older backups without
-activity remain readable. Complete the [#58 release steps](firebase-rollout-plan.md#forgiving-streaks--58)
-before publishing the client.
+The 2026-10-17 scheduled backup reported the `activity` collection's aggregate
+count. Older backups without activity remain readable. Keep operational and
+device evidence separate in the [#58 release checklist](firebase-rollout-plan.md#forgiving-streaks--58).
 
 The #74 source writes version-2 dumps, including extra deck ownership/cards,
 per-deck settings/progress, and tombstones alongside the unchanged German paths
 and account-wide activity. Version-1 dumps still restore the original deck.
 Extra-deck nested parent documents need not exist. Aggregate settings/progress
-counts include every deck. Until this code is released and the daily runner is
-updated to it, extra decks remain on devices and in Firestore only; the old
-runner does not back them up. Keep runner activation and a successful private
-dump/isolated restore as separate operational evidence. No off-machine backup
-is established by this change.
+counts include every deck. The daily runner's source checkout was updated to
+this code on 2026-10-17, after that morning's backup/copy. No new live dump was
+triggered by the update. Record a subsequent version-2 dump and isolated restore
+of extra-deck settings/progress/tombstones before declaring that coverage
+qualified. The configured off-machine copy and its successful job are separate
+from that restore evidence.
 
 This `kind: firestore` dump differs from the GitHub snapshot accepted by
 `migrate import`. Restoring it does not recreate Google Auth identities,

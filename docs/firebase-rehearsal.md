@@ -1,6 +1,8 @@
 # Isolated test-project rehearsal runbook
 
-Use only `flashcards-ls9-auth-test`. The production publish steps stay held.
+Use only `flashcards-ls9-auth-test` for live rehearsals. Production Firebase is
+published from master after CI; pull requests do not publish. This runbook's
+test commands neither publish production nor authorize live production writes.
 The full-app rehearsal URL is:
 
 <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/rehearsal/>
@@ -22,8 +24,10 @@ The [rollout plan](firebase-rollout-plan.md) owns remaining production work.
 ## Private credential and account inspection
 
 Use the private operator directory selected in #22; set
-`GERMAN_FLASHCARDS_PRIVATE_DIR` to it in the operator shell. Home is tracked
-by Git on this machine, so the default `~/.config` location is refused.
+`GERMAN_FLASHCARDS_PRIVATE_DIR` to it in the operator shell. The original
+rehearsal host tracked home with Git, so its default `~/.config` location was
+refused. Check the current directory's Git boundaries: operator inputs must
+remain outside every Git repository, even if ignored.
 Keep `service-account-auth-test.json` there with mode 600 and its parent
 directory with mode 700. The credential is for the test project's existing
 Firebase Admin SDK service account, never production. Firebase/Google Cloud

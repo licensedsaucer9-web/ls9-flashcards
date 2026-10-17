@@ -1,11 +1,13 @@
-# Prod v1 release plan
+# Release and operations plan
 
-Updated 2026-10-14. The historical production preparation used master `63b1ee0`.
+Updated 2026-10-17. The historical production preparation used master `63b1ee0`.
 This remains the repository's operational plan. Firebase production publication
 is complete; studied-data import and legacy device recovery were waived on
-2026-10-07. The public artifact reports `1.3.0`. Off-machine backup and explicit
-installed-device/recovery evidence must remain separate from code or publication
-completion. The milestone procedures below retain their original gate definitions.
+2026-10-07. The public artifact reports `1.3.0`, including multiple decks.
+The operating record below separates verified host state from pending
+installed-device/recovery evidence. The original Prod v1 scope and delivery
+procedures are retained as history, including gates later waived by the owner;
+they are not a new implementation queue or a requirement to repeat live imports.
 
 ## Completed work
 
@@ -18,7 +20,7 @@ completion. The milestone procedures below retain their original gate definition
 | Live import (#24) | 514 cards, 514 progress records, one settings record, zero tombstones; exact server readback and unchanged repeat with zero writes. |
 | Real second-device rehearsal (#25) | Google restoration on fresh iPhone Home Screen and Mac Safari clients; matching settings/due counts; 10 newer reviews and one settings change survived repeat import and client reopening. |
 | Guarded account UI (#28–#29) | Sign-out and authenticated welcome state merged and covered by synthetic browser checks. Published in the test preview during the rename; no new physical-device verification was performed. |
-| Project rename (2026-10-04) | LS9 Flashcards is the accepted product name. App/package/icons, GitHub repository names, and the public URL are renamed; the old Pages URL remains a compatibility snapshot; legacy device recovery was later waived. See [the rename record](rename.md). |
+| Project rename (2026-10-04) | LS9 Flashcards is the accepted product name. App/package/icons, GitHub repository names, and the public URL are renamed. The former compatibility URL was retired on 2026-10-17; legacy device recovery was waived. See [the rename record](rename.md). |
 
 Evidence: [snapshot/baseline](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/22#issuecomment-5972398972),
 [test environment](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/23#issuecomment-5977823891),
@@ -57,13 +59,47 @@ build/tests remain available locally; they are not an active hosted recovery
 route. This records an owner decision rather than device inspection or proof
 of legacy progress recovery. See the [retirement record](rename.md#old-site-retirement-2026-10-17).
 
-## Prod v1 scope and completion
+## Current operations — 2026-10-17
+
+- **Published client:** public `release.json` was verified at version `1.3.0`,
+  source `0aaf08b78b33e1604c250e3cf751553b0e3c18bf`, production Firebase.
+  This includes streaks, multiple decks, per-deck preferences/progress and swipe
+  navigation. Names, deck selection, optional-feature switches and local deck
+  deletion remain device-local; another device needs an extra deck's ID locally.
+- **Rules:** the production `cloud.firestore` release was updated on
+  2026-10-16 at 05:06 UTC. Readback matched the source rules SHA-256
+  `863c8e03c918d81a67e88f166ca109bfe93c45c48f22b5ecf6dbfc9a3a1086f1`,
+  including activity and extra-deck access. This was a rules-only deployment.
+- **Backup/copy:** the 08:30 Europe/Oslo `firestore-backup` job succeeded on
+  2026-10-17 and reported activity coverage. The 08:45 `firestore-drive-copy`
+  rclone job also succeeded. Daily local retention is 14 dumps. This records
+  a configured off-machine copy and successful job, not a new remote-file audit
+  or restore qualification.
+- **Runner update:** the daily backup's source checkout was synchronized to
+  current master later on 2026-10-17, including version-2 extra-deck exports.
+  No live backup was triggered during that update. Record a subsequent
+  successful version-2 dump and isolated restore covering extra-deck settings,
+  progress and tombstones before declaring that coverage qualified.
+- **Remaining acceptance:** current installed-device updates, two-device
+  offline activity reconciliation and the version-2 restore check need their
+  own recorded evidence. Earlier production login/isolation/offline-study and
+  an isolated production-dump restore remain historical results; publication
+  and successful timers do not supply these newer checks.
+
+The private host receipts remain outside Git under
+`~/.local/state/flashcards-rules-review-20261016/` and
+`~/.local/state/repo-audit-20261017/`. Keep credentials and record-level exports
+private; the summaries above contain only revisions, checksums and job outcomes.
+
+## Historical Prod v1 scope and completion
 
 Joakim confirmed on 2026-10-04: **ship the current single-deck app reliably**.
 The milestone is [Prod v1](https://github.com/licensedsaucer9-web/ls9-flashcards/milestone/2); the tracking issue is
 [#33](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/33). Target release
-identity: `v1.0.0`. Completion follows the gates below. This section plans work; it does not authorize
-production operations or start an implementation queue.
+identity: `v1.0.0`. The following paragraphs retain the original scope and gates.
+The 2026-10-07 owner decision above waived studied-data import/device recovery;
+current state and remaining evidence are in the operating record, not inferred
+from this historical checklist.
 
 Included: the existing German seed/tier system and SM-2-style scheduling,
 editing/CSV import, device-only study, Google login/account controls,
@@ -84,7 +120,7 @@ the tested final source/artifact is recorded and released as `v1.0.0`.
 Closed implementation tickets, Admin completion markers and CI success alone
 do not establish those operational results.
 
-## Delivery order
+## Historical delivery order
 
 | Issue | Deliverable | Depends on |
 | --- | --- | --- |
@@ -276,8 +312,9 @@ Version `1.0.0` is the published Firebase client. Joakim's production login,
 isolation, and offline readback are recorded on #39. The legacy data repo is
 the frozen pre-Firebase snapshot. `firestore-backup.timer` writes a private
 daily dump on this machine, keeps 14 copies, and records aggregate
-success or failure. An off-machine copy of that directory is still required
-before this gate can call the cadence durable. Isolated restore drills use
+success or failure. Daily off-machine copying is now configured, with a successful
+2026-10-17 job; see the current operating record for the remaining version-2
+dump/restore check. Isolated restore drills use
 the emulator and the guarded restore, never production or the auth-test project.
 
 **Complete when:** production data/device/publication/QA, token retirement,
@@ -287,16 +324,19 @@ only then close the milestone.
 
 ## After the rollout
 
-The product direction is multiple decks on different subjects, beyond the
-bundled German vocabulary. Current accounts use one assigned deck and there
-is no deck picker. Define deck selection, ownership/sharing, seed handling,
-per-deck settings/progress, and migration before implementing that expansion.
+The app now supports multiple decks on different subjects alongside the bundled
+German deck. Decks can create empty decks, switch, rename, and confirm deletion
+of extra local decks; preferences and cloud progress are scoped per deck.
+The original deck is protected. Names, selection, feature switches and local
+deletion stay device-local, and extra-deck discovery on another client needs
+its ID in that client's local list. Broader sharing and automatic cross-device
+deck-list management remain future work. See [architecture](architecture.md).
 
 **LS9 Flashcards** is now the product name. The user chose to complete the
 rename before the remaining Firebase rollout. IndexedDB names/storage prefixes,
 Firebase project IDs, card IDs, and the private operator-directory variable
-retain their original values for compatibility. The old public URL stays
-available as a compatibility snapshot. Legacy studied-data import and recovery
+retain their original values for compatibility. The old public URL was retired
+on 2026-10-17 and now has only a 404 deployment. Legacy studied-data import and recovery
 of old storage contexts were waived on 2026-10-07; retention is a separate
 owner decision, not an outstanding recovery gate. See [the rename record](rename.md).
 
@@ -320,7 +360,10 @@ The `1.3.0` source implements the 10-review target, carrying partial repair,
 passive fire/moon/skull counter, and immutable per-account activity. The public
 site now reports `1.3.0`; the master workflow publishes after CI. Publication
 alone does not prove the operational steps below. Retain or record their
-evidence rather than treating a merged feature PR as device/recovery acceptance:
+evidence rather than treating a merged feature PR as device/recovery acceptance.
+The 2026-10-16 rules deployment and 2026-10-17 scheduled backup/copy results are
+recorded above. Items below describe verification categories; they do not mean
+those completed operations must be repeated:
 
 1. Review the passing unit/browser/emulator checks, including activity ownership,
    concurrent writes, idempotent retry, offline replay and backup/restore.
@@ -345,6 +388,6 @@ Review fixes for #59 tighten activity time zones to `UTC` or slash-separated
 Area/Location forms (including `Etc` zones); rules cannot validate the full IANA
 registry. Activity updates remain forbidden, while owners may delete events for
 cleanup. Pulls skip invalid events with aggregate warnings, and restore reports
-count skipped activity rows while retaining all other validated data. Deploy
-these reviewed rules separately before publication; no rules deployment is part
-of this review fix.
+count skipped activity rows while retaining all other validated data. These
+reviewed rules are included in the separately verified 2026-10-16 production
+deployment; future changes still need their own operator deployment and receipt.

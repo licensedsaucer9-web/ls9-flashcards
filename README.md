@@ -2,20 +2,23 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-A local-first flashcard PWA (Vite + TypeScript), currently bundled with a German vocabulary deck. It supports frequency tiers, SM-2-style review, card editing, CSV import, and offline study. The longer-term goal is multiple decks on different subjects; the current app assigns one deck per account and has no deck picker.
+A local-first flashcard PWA (Vite + TypeScript), bundled with a German vocabulary deck. It supports multiple decks, SM-2-style review, card editing, CSV import, and offline study. Decks lets you create empty decks, switch between them, and save study preferences per deck. Articles, word types, and tiers can be enabled for each subject.
 
-**Release state, 2026-10-14:** The public site’s `release.json` reports `1.3.0` with the Firebase production backend. This source includes forgiving streaks (#58) and saved tier/direction controls on Decks (#62). Version `1.2.0` added the word-type filter (#49), and `1.1.0` added word-type badges (#50); `1.0.0` shipped on 2026-10-07. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) is the only active plan.
+**Release state, 2026-10-17:** The public site’s `release.json` reports `1.3.0` with the Firebase production backend; its source was verified at `0aaf08b78b33e1604c250e3cf751553b0e3c18bf`. This includes forgiving streaks, multi-deck creation/selection, per-deck preferences and cloud progress, and swipe tab navigation. Deck names, selection, optional-feature switches, and local deck deletion remain device-local; another device needs an extra deck's ID in its local list to select it. Version `1.2.0` added the word-type filter, and `1.1.0` added word-type badges; `1.0.0` shipped on 2026-10-07. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified the original production login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) records current operations and remaining evidence.
 
-**Release evidence:** Publication does not establish installed-device acceptance,
-two-device activity reconciliation, rules-deployment evidence, or an off-machine
-backup. Keep those results separate in the [streak release checklist](docs/firebase-rollout-plan.md#forgiving-streaks--58).
+**Release evidence:** Additive production rules were verified on 2026-10-16.
+The daily backup and off-machine copy jobs succeeded on 2026-10-17, and the
+backup runner was updated to current master afterward. A successful version-2
+dump/restore and installed-device/two-device feature acceptance remain separate
+checks. See the [current operating record](docs/firebase-rollout-plan.md#current-operations--2026-10-17)
+and [streak release checklist](docs/firebase-rollout-plan.md#forgiving-streaks--58).
 
-**Prod v1 scope:** ship the current single-deck app with reliable Google sync,
+**Historical Prod v1 scope (2026-10-04):** ship the single-deck app with reliable Google sync,
 offline study, safe device migration and tested recovery. The
 [tracking issue #33](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/33)
 and [Prod v1 milestone](https://github.com/licensedsaucer9-web/ls9-flashcards/milestone/2)
-link the seven delivery gates. Multi-deck support and scheduler changes remain
-outside this release.
+link the original seven delivery gates. Multi-deck support shipped afterward;
+interval controls, detailed review history, and FSRS remain outside the current app.
 
 The project is named **LS9 Flashcards**. The [rename record](docs/rename.md)
 lists the new repositories and URLs. Original storage/configuration identifiers
@@ -56,7 +59,7 @@ node scripts/apply-ranks.mjs ranks.tsv src/seed.ts
 `scripts/tiers-test.mjs` then checks the boundaries against the real seed, including that
 every tier 1 word is more common than every tier 2 word.
 
-The tier is part of your account settings, so two accounts can study different sizes.
+The tier is saved per deck, so decks and accounts can study different sizes.
 Cards you add yourself have no rank and start in tier 3; the card editor has a tier box to move one.
 
 You can review a tier even when it has zero cards due. **Review ahead** selects
@@ -67,7 +70,7 @@ update the schedule through the normal grading controls.
 
 ## Forgiving streaks
 
-The quiet counter beneath the Home and review headers shows your streak:
+The quiet counter on Review and its session header shows your account-wide streak:
 **🔥** means today's target is complete, **🌙** means today is still unfinished,
 and **💀** shows how many reviews will repair earlier shortfalls. Tap the counter
 for the rules. There are no streak notifications, reminders, emails or popups.
@@ -85,7 +88,7 @@ copies merge into the signed-in account; the counter may update after sync.
 
 ## Account
 
-A Firebase build offers **Continue with Google** and **Study on this device**. New accounts get personal decks seeded from the bundled list; mapped legacy accounts share their assigned vocabulary deck. Each account has its own schedule. Signing in does not upload device-study data unless you confirm a copy; mapped legacy profiles use the separate recovery flow below. Two accounts cannot read each other’s progress. The public root serves the Firebase production build.
+A Firebase build offers **Continue with Google** and **Study on this device**. New accounts get a personal German deck seeded from the bundled list and can create private extra decks. Mapped legacy accounts retain their assigned vocabulary deck. Each account has its own per-deck schedules; streak activity is shared across that account's decks. Signing in does not upload device-study data unless you confirm a copy; mapped legacy profiles use the separate recovery flow below. Two accounts cannot read each other’s progress. The public root serves the Firebase production build.
 
 A profile name on an older install is local data only. It does not select a cloud account. The first launch of this build removes the saved GitHub token (`german-flashcards.github` and `german-flashcards.github.shas`) from this browser.
 
