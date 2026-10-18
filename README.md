@@ -77,7 +77,7 @@ node scripts/apply-ranks.mjs ranks.tsv src/seed.ts
 `scripts/tiers-test.mjs` then checks the boundaries against the real seed, including that
 every tier 1 word is more common than every tier 2 word.
 
-The tier is saved per deck, so decks and accounts can study different sizes.
+The tier and word-type choices sit on Review's home screen and are saved per deck, so decks and accounts can study different sizes. Decks keeps deck management, review direction and the per-deck Articles, Word types and Tiers switches.
 Cards you add yourself have no rank and start in tier 3; the card editor has a tier box to move one.
 
 You can review a tier even when it has zero cards due. **Review ahead** selects
