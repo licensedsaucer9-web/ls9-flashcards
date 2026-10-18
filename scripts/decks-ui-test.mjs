@@ -42,6 +42,13 @@ try {
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('http://127.0.0.1:4182/')
   await page.waitForSelector('#start')
+  assert.equal(await page.evaluate(async () => (await (await import('/src/db.ts')).getSettings()).direction), 'en-de', 'fresh study defaults to English first')
+  await page.click('#start')
+  await page.waitForSelector('#card')
+  assert.equal(await page.locator('.front .prompt').textContent(), 'English', 'the question is the English translation')
+  assert.equal(await page.locator('.back .prompt').textContent(), 'German', 'the answer is the target-language word')
+  await page.click('#back')
+  await page.waitForSelector('#start')
   // Establish existing study history before exercising navigation.
   await page.evaluate(async () => {
     const db = await import('/src/db.ts')
@@ -701,7 +708,7 @@ try {
   await page.fill('#new-deck [name="targetLang"]', 'French')
   await page.click('#new-deck [type="submit"]')
   await page.waitForSelector('#session-custom')
-  assert.deepEqual(await settings(), { direction: 'de-en', sessionSize: 20, tier: 3, wordTypes: [] })
+  assert.deepEqual(await settings(), { direction: 'en-de', sessionSize: 20, tier: 3, wordTypes: [] })
   // Exercise actual editor and import writes on the second deck using a German pair.
   const sharedPair = untypedFixture.cards[0]
   await tab('Cards', '#/deck', 'Cards')
@@ -779,9 +786,9 @@ try {
     await page.waitForSelector('#start')
     await tab('Decks', '#/decks', 'Decks')
   }
-  await assertLanguageFaces('Spanish', 'English')
-  await pickPreference('[data-dir="en-de"]', { direction: 'en-de' })
   await assertLanguageFaces('English', 'Spanish')
+  await pickPreference('[data-dir="de-en"]', { direction: 'de-en' })
+  await assertLanguageFaces('Spanish', 'English')
   await page.click('[data-switch="local-german"]')
   await page.waitForSelector('#start')
   await tab('Decks', '#/decks', 'Decks')

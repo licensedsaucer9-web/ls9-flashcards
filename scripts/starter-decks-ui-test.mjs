@@ -40,6 +40,7 @@ try {
       return { deck: await db.getActiveDeck(), cards: await db.getAllCards() }
     })
     assert.equal(initial.deck.targetLang, name)
+    assert.equal(initial.deck.direction, 'en-de', 'new language starters default to English questions')
     assert.equal(initial.cards.length, 567)
     assert(initial.cards.every(c => c.deckId === initial.deck.id))
     if (lang === 'fr') {
@@ -227,7 +228,8 @@ try {
     await offlinePage.waitForSelector('#start')
     await offlinePage.click('#start')
     await offlinePage.waitForSelector('#card')
-    assert.equal(await offlinePage.locator('.front .prompt').textContent(), name)
+    assert.equal(await offlinePage.locator('.front .prompt').textContent(), 'English')
+    assert.equal(await offlinePage.locator('.back .prompt').textContent(), name)
     await offlinePage.click('#card')
     await offlinePage.locator('[data-grade="good"]').click()
     await offlinePage.click('#back')

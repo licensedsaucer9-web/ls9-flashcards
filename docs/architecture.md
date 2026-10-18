@@ -138,7 +138,7 @@ Firestore uses an in-memory cache, leaving the durable queue in IndexedDB.
 IndexedDB version 5 copies the existing direction, session size, tier, and
 word-type selection onto the original deck row. Every deck stores its own study
 preferences; Review, Decks, and session selection read the active deck's values.
-New local decks start at 20 cards, target→English (`de-en`), tier 3, and all word
+New local decks start at 20 cards, English→target (`en-de`), tier 3, and all word
 types. The former boolean deck capability is named `supportsWordTypes` so
 `wordTypes` can hold the selected classes. The account settings row remains a
 mirror of the original deck's preferences for existing cloud sync and migration

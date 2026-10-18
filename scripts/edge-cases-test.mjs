@@ -87,7 +87,7 @@ assert(good.settings.sessionSize === 0, 'negative sessionSize floors to 0')
 const clamped = parseSnapshot({ version: 1, settings: { sessionSize: 7.9 }, cards: [] })
 assert(clamped.settings.sessionSize === 7, 'fractional sessionSize floors')
 const badDir = parseSnapshot({ version: 1, settings: { direction: 'fr' }, cards: [] })
-assert(badDir.settings.direction === 'de-en', 'unknown direction -> de-en')
+assert(badDir.settings.direction === 'en-de', 'unknown direction -> English first')
 
 // --- parseDeckFile: a foreign or hostile file must not be able to inject progress ---
 
@@ -114,7 +114,7 @@ assert(u.user === 'anna', 'user slug read')
 assert(u.settings.tier === 2, 'tier read')
 assert(parseUserFile({ version: 2, kind: 'user', progress: {}, settings: { tier: 9 } }).settings.tier === 1, 'bad tier -> 1')
 assert(parseUserFile({ version: 2, kind: 'user', progress: {}, settings: { tier: 'x' } }).settings.tier === 1, 'non-numeric tier -> 1')
-assert(parseUserFile({ version: 2, kind: 'user', progress: {} }).settings.direction === 'de-en', 'missing direction -> de-en')
+assert(parseUserFile({ version: 2, kind: 'user', progress: {} }).settings.direction === 'en-de', 'missing direction -> English first')
 assert(parseUserFile({ version: 2, kind: 'user', progress: {} }).settings.wordTypes.length === 0, 'missing word types -> All')
 assert(parseUserFile({ version: 2, kind: 'user', progress: {}, settings: { wordTypes: ['verb', 'noun', 'adverb'] } }).settings.wordTypes.join() === 'noun,verb', 'word types are cleaned on read')
 
@@ -197,10 +197,11 @@ assert(mergeProgress({}, { t: null }).t === undefined, 'null schedule is ignored
 // --- normalizeSettings ---
 
 assert(normalizeSettings().sessionSize === 20, 'defaults: sessionSize 20')
-assert(normalizeSettings(null).direction === 'de-en', 'defaults: direction')
+assert(normalizeSettings(null).direction === 'en-de', 'defaults: English prompt first')
 assert(normalizeSettings({ sessionSize: 'x' }).sessionSize === 20, 'bad sessionSize -> 20')
 assert(normalizeSettings({ sessionSize: 3.7 }).sessionSize === 3, 'sessionSize floors')
-assert(normalizeSettings({ direction: 'en-de' }).direction === 'en-de', 'direction kept')
+assert(normalizeSettings({ direction: 'en-de' }).direction === 'en-de', 'English-first choice kept')
+assert(normalizeSettings({ direction: 'de-en' }).direction === 'de-en', 'explicit target-first choice kept')
 assert(normalizeSettings({ deletedIds: { a: 1 } }).deletedIds.a === 1, 'deletedIds kept')
 assert(normalizeSettings({ deletedIds: 'x' }).deletedIds !== 'x', 'bad deletedIds replaced')
 // input object is not mutated

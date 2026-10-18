@@ -71,7 +71,7 @@ export async function pullCloud(db: Firestore, uid: string, deckId: string, extr
     return data ? [{ id: item.id, data }] : []
   })
   const settings = asSettings(settingsSnap.exists() ? settingsSnap.data() : null) ?? {
-    direction: 'de-en' as const,
+    direction: 'en-de' as const,
     sessionSize: 20,
     tier: extra ? 3 as const : 1 as const,
     settingsUpdatedAt: 0,

@@ -86,7 +86,7 @@ const onlyDeleted = filesToDocs(
 )
 assert(onlyDeleted.cards.length === 1 && onlyDeleted.cards[0].data.deletedAt === 77, 'deletion without content is still a document')
 assert(onlyDeleted.progress.length === 0, 'a deck file alone has no progress')
-assert(onlyDeleted.settings.direction === 'de-en' && onlyDeleted.settings.settingsUpdatedAt === 0, 'missing user settings fall back to defaults')
+assert(onlyDeleted.settings.direction === 'en-de' && onlyDeleted.settings.settingsUpdatedAt === 0, 'missing user settings fall back to defaults')
 
 const snapshot = {
   version: 1,

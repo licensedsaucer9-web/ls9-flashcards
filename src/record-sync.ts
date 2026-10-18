@@ -349,7 +349,7 @@ export function planSettingsWrite(
         ...(validSelectedTiers(remote.selectedTiers) ? { selectedTiers: reviewTiers(remote) } : {}),
         wordTypes: normalizeWordTypes(remote.wordTypes),
       }
-    : { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [] }
+    : { direction: 'en-de', sessionSize: 20, tier: 1, wordTypes: [] }
   const localSettings: PublicSettings = {
     direction: local.direction,
     sessionSize: local.sessionSize,

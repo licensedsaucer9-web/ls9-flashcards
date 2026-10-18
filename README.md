@@ -7,7 +7,9 @@ A local-first flashcard PWA (Vite + TypeScript), bundled with a German vocabular
 Review groups the active deck's tier, word-type filters, and session-size pills
 above the start button. Custom opens a number picker in increments of five;
 Done saves the size and Cancel leaves it unchanged. Review direction and the
-optional-feature switches live on Decks. Preferences remain separate per deck.
+optional-feature switches live on Decks. Preferences remain separate per deck. New decks default to English → target
+language: English supplies the question and the target word is the answer.
+Existing saved direction choices are preserved.
 
 **Release state, 2026-10-17:** The public site’s `release.json` reports `1.3.0` with the Firebase production backend; its source was verified at `0aaf08b78b33e1604c250e3cf751553b0e3c18bf`. This includes forgiving streaks, multi-deck creation/selection, per-deck preferences and cloud progress, and swipe tab navigation. Deck names, selection, optional-feature switches, and local deck deletion remain device-local; another device needs an extra deck's ID in its local list to select it. Version `1.2.0` added the word-type filter, and `1.1.0` added word-type badges; `1.0.0` shipped on 2026-10-07. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified the original production login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) records current operations and remaining evidence.
 

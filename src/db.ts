@@ -107,7 +107,7 @@ export function normalizeSettings(s?: Partial<Settings> | null): Settings {
   return {
     id: 'settings',
     activeDeckId: s?.activeDeckId || LOCAL_DECK_ID,
-    direction: s?.direction === 'en-de' ? 'en-de' : 'de-en',
+    direction: s?.direction === 'de-en' ? 'de-en' : 'en-de',
     sessionSize:
       typeof s?.sessionSize === 'number' && Number.isFinite(s.sessionSize)
         ? Math.max(0, Math.floor(s.sessionSize))
@@ -197,7 +197,7 @@ function openDb(name: string, upgrade = true, assignedDeckId?: string): Promise<
               ...deck,
               supportsWordTypes: deck.supportsWordTypes ?? (deck as unknown as { wordTypes: unknown }).wordTypes === true,
               ...(deck.origin === 'original' ? publicSettings(normalizeSettings(stored))
-                : { direction: 'de-en', sessionSize: 20, tier: 3, wordTypes: [] }),
+                : { direction: 'en-de', sessionSize: 20, tier: 3, wordTypes: [] }),
             })
           }
           if (!stored) return
@@ -295,7 +295,7 @@ export async function createLocalDeck(name: string, targetLang: string): Promise
     const deck: LocalDeck = {
       id: crypto.randomUUID(), name, targetLang, baseLang: 'English',
       articles: false, supportsWordTypes: false, tiers: false, origin: 'local',
-      direction: 'de-en', sessionSize: 20, tier: 3, wordTypes: [],
+      direction: 'en-de', sessionSize: 20, tier: 3, wordTypes: [],
     }
     tx.objectStore('decks').add(deck)
     tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deck.id })
@@ -329,7 +329,7 @@ export async function addStarterDeck(language: StarterLanguage): Promise<LocalDe
       id, starter: language, name: STARTERS.find(s => s.key === language)!.name,
       targetLang: language === 'fr' ? 'French' : 'Spanish', baseLang: 'English',
       articles: true, supportsWordTypes: true, tiers: true, origin: 'local',
-      direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [],
+      direction: 'en-de', sessionSize: 20, tier: 1, wordTypes: [],
     }
     const ids = new Set(cards.map(card => card.id))
     const rev = settings.localRevision + 1

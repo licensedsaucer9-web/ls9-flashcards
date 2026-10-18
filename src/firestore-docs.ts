@@ -138,7 +138,7 @@ export function filesToDocs(deck: DeckFile, user: UserFile | null): CloudDocs {
     progress,
     ...(user?.activity ? { activity: Object.entries(user.activity).map(([id, data]) => ({ id, data })) } : {}),
     settings: settingsToDoc(
-      user?.settings ?? { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [] },
+      user?.settings ?? { direction: 'en-de', sessionSize: 20, tier: 1, wordTypes: [] },
       user?.settings_updated_at ?? 0,
     ),
   }

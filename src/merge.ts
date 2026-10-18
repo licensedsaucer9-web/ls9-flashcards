@@ -13,7 +13,7 @@ export function emptyUser(user: string, now = Date.now()): UserFile {
     kind: 'user',
     user,
     updated_at: now,
-    settings: { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [] },
+    settings: { direction: 'en-de', sessionSize: 20, tier: 1, wordTypes: [] },
     progress: {},
   }
 }
@@ -72,7 +72,7 @@ export function parseUserFile(raw: unknown): UserFile | null {
     user: typeof o.user === 'string' ? o.user : '',
     updated_at: int(o.updated_at, 0),
     settings: {
-      direction: settings.direction === 'en-de' ? 'en-de' : 'de-en',
+      direction: settings.direction === 'de-en' ? 'de-en' : 'en-de',
       sessionSize: Math.max(0, int(settings.sessionSize, 20)),
       tier: tier === 1 || tier === 2 || tier === 3 ? tier : 1,
       ...(validSelectedTiers(settings.selectedTiers) ? { selectedTiers: reviewTiers({ tier: 3, selectedTiers: settings.selectedTiers }) } : {}),
@@ -94,7 +94,7 @@ export function parseSnapshot(raw: unknown): Snapshot | null {
     updated_at: int(o.updated_at, 0),
     settings_updated_at: typeof o.settings_updated_at === 'number' ? o.settings_updated_at : undefined,
     settings: {
-      direction: settings.direction === 'en-de' ? 'en-de' : 'de-en',
+      direction: settings.direction === 'de-en' ? 'de-en' : 'en-de',
       sessionSize: Math.max(0, int(settings.sessionSize, 20)),
     },
     cards: o.cards as Card[],
