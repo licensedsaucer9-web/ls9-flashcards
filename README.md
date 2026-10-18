@@ -49,7 +49,7 @@ French/Spanish deck content is CC BY-SA 4.0; application code remains MIT.
 ## Deck tiers
 
 The 514 German built-in words are split into three tiers by how common they are, and you pick the
-tier you want to study. Higher tiers include the lower ones.
+tier you want to study. Each Review pill selects only that tier. Select multiple pills to combine their cards.
 
 | Tier | Words | Cumulative |
 | --- | --- | --- |
@@ -78,6 +78,8 @@ node scripts/apply-ranks.mjs ranks.tsv src/seed.ts
 every tier 1 word is more common than every tier 2 word.
 
 The tier and word-type choices sit on Review's home screen and are saved per deck, so decks and accounts can study different sizes. Decks keeps deck management, review direction and the per-deck Articles, Word types and Tiers switches.
+Tier 3 alone excludes tiers 1 and 2. Turning the last selected tier off returns to all three. Existing cumulative preferences retain their scope on upgrade (old Tier 2 becomes tiers 1 + 2; old Tier 3 becomes all three). The exact selection syncs per deck. Cards keeps its separate cumulative browse filter.
+
 Cards you add yourself have no rank and start in tier 3; the card editor has a tier box to move one.
 
 You can review a tier even when it has zero cards due. **Review ahead** selects
@@ -162,7 +164,7 @@ The private repository secret
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-The source version is `1.4.0`. **Settings → Install** shows
+The source version is `1.4.1`. **Settings → Install** shows
 the running version and source revision, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI

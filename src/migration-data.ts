@@ -1,3 +1,4 @@
+import { validSelectedTiers } from './tiers.ts'
 import { legacyToFiles, mergeProgress, parseDeckFile, parseSnapshot, parseUserFile } from './merge.ts'
 import type { CardContent, DeckFile, PublicSettings, Srs, UserFile } from './types.ts'
 import { validWordTypeList } from './word-types.ts'
@@ -53,6 +54,7 @@ export function validateSettings(raw: unknown): asserts raw is PublicSettings {
   requireValue(raw.direction === 'de-en' || raw.direction === 'en-de', 'invalid direction')
   requireValue(clock(raw.sessionSize) && (raw.sessionSize as number) <= 500, 'invalid sessionSize')
   requireValue(raw.tier === undefined || [1, 2, 3].includes(raw.tier as number), 'invalid tier')
+  requireValue(raw.selectedTiers === undefined || validSelectedTiers(raw.selectedTiers), 'invalid selectedTiers')
   requireValue(raw.wordTypes === undefined || validWordTypeList(raw.wordTypes), 'invalid wordTypes')
 }
 

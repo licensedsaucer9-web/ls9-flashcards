@@ -229,8 +229,14 @@ and SRS information. These control locations do not change storage or deck
 assignment. Extra decks keep their own preferences and schedules; streak
 activity remains account-wide.
 
-A review session starts from a captured queue within the selected cumulative
-tier and word-type filter. It uses only due cards when any match. When none
+An optional `selectedTiers` settings list stores exact tier buckets. When absent,
+legacy `tier` expands cumulatively to preserve its previous scope. The scalar
+remains the highest selected tier for older clients and Cards browsing. A newer
+legacy settings write replaces an exact selection with its cumulative scope.
+The additive field is validated in rules and preserved in sync, copy and backup/restore.
+
+A review session starts from a captured queue within the selected exact
+tier buckets and word-type filter. It uses only due cards when any match. When none
 are due, it selects future cards in ascending due-time order and applies the
 same session-size cap (All includes the whole eligible queue). Selecting cards
 does not reschedule them; grading a review-ahead card uses the normal SRS and

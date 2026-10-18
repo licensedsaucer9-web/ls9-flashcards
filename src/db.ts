@@ -15,7 +15,7 @@ import { newSrs, review } from './srs.ts'
 import { deviceTimeZone, mergeReviewActivity, parseStoredReviewActivity, streakTimeZone, validReviewEvent, type ReviewActivity, type ReviewEvent } from './streak.ts'
 import { validateCard, validateMapping, validateSettings, validateSrs, validateTombstones } from './migration-data.ts'
 import { bumpStudyGeneration, captureStudyLock, hasStudyBinding, studyLockCurrent, type StudyLock } from './study-lock.ts'
-import { inSelectedTier, tierOf } from './tiers.ts'
+import { inSelectedTier, reviewTiers, sameSelectedTiers, tierOf, validSelectedTiers } from './tiers.ts'
 import { inSelectedWordTypes, normalizeWordTypes, sameWordTypes } from './word-types.ts'
 import { accountDatabaseName, activeUserSlug, dbNameForUser, hasMigrated, LEGACY_DB_NAME, listUsers, markMigrated } from './user.ts'
 
@@ -113,6 +113,7 @@ export function normalizeSettings(s?: Partial<Settings> | null): Settings {
         ? Math.max(0, Math.floor(s.sessionSize))
         : 20,
     tier: tier(s?.tier),
+    ...(validSelectedTiers(s?.selectedTiers) ? { selectedTiers: reviewTiers(s as Settings) } : {}),
     wordTypes: normalizeWordTypes(s?.wordTypes),
     deletedIds: s?.deletedIds && typeof s.deletedIds === 'object' ? { ...s.deletedIds } : {},
     ...(s?.deletedDeckIds ? { deletedDeckIds: { ...s.deletedDeckIds } } : {}),
@@ -130,7 +131,7 @@ function storeOriginalPreferences(tx: IDBTransaction, settings: Settings): void 
   const preferences = publicSettings(settings)
   request.onsuccess = () => {
     const original = (request.result as LocalDeck[]).find(deck => deck.origin === 'original')
-    if (original) tx.objectStore('decks').put({ ...original, ...preferences })
+    if (original) tx.objectStore('decks').put(replacePreferences({ ...original }, preferences))
   }
 }
 
@@ -637,8 +638,16 @@ function publicSettings(settings: PublicSettings): PublicSettings {
     direction: settings.direction,
     sessionSize: settings.sessionSize,
     tier: settings.tier,
+    ...(validSelectedTiers(settings.selectedTiers) ? { selectedTiers: reviewTiers(settings) } : {}),
     wordTypes: settings.wordTypes,
   }
+}
+
+
+/** Replace optional selection too when a newer legacy client omits it. */
+function replacePreferences<T extends PublicSettings>(target: T, preferences: PublicSettings): T {
+  delete target.selectedTiers
+  return Object.assign(target, preferences)
 }
 
 // --- legacy import --------------------------------------------------------
@@ -1044,7 +1053,7 @@ export async function getSettings(): Promise<Settings> {
     const settings = normalizeSettings((await value(tx.objectStore('settings').get('settings'))) as Settings | undefined)
     if (tx.objectStoreNames.contains('decks')) {
       const deck = await value(tx.objectStore('decks').get(settings.activeDeckId)) as LocalDeck | undefined
-      if (deck?.direction !== undefined) Object.assign(settings, publicSettings(deck))
+      if (deck?.direction !== undefined) replacePreferences(settings, publicSettings(deck))
     }
     return studyLockCurrent(lock) ? settings : normalizeSettings(null)
   } finally {
@@ -1063,26 +1072,28 @@ export async function putSettings(next: Partial<PublicSettings>): Promise<void> 
     const deck = await value(tx.objectStore('decks').get(settings.activeDeckId)) as LocalDeck | undefined
     if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return }
     if (!deck) { await done; return }
+    const selectedTiers = next.selectedTiers ?? (next.tier === undefined ? deck.selectedTiers : undefined)
     const preferences: PublicSettings = {
       direction: next.direction ?? deck.direction,
       sessionSize: next.sessionSize === undefined ? deck.sessionSize : normalizeSettings(next).sessionSize,
       tier: tier(next.tier ?? deck.tier),
+      ...(validSelectedTiers(selectedTiers) ? { selectedTiers: reviewTiers({ tier: 3, selectedTiers }) } : {}),
       wordTypes: next.wordTypes === undefined ? deck.wordTypes : normalizeWordTypes(next.wordTypes),
     }
-    tx.objectStore('decks').put({ ...deck, ...preferences })
+    tx.objectStore('decks').put(replacePreferences({ ...deck }, preferences))
     if (deck.origin === 'original') {
       if (settings.direction !== preferences.direction || settings.sessionSize !== preferences.sessionSize
-        || settings.tier !== preferences.tier || !sameWordTypes(settings.wordTypes, preferences.wordTypes)) {
+        || settings.tier !== preferences.tier || !sameSelectedTiers(settings, preferences) || !sameWordTypes(settings.wordTypes, preferences.wordTypes)) {
         settings.settingsUpdatedAt = Math.max(Date.now(), settings.settingsUpdatedAt + 1)
         settings.pending.settings = bumpMark(settings.pending.settings, settings.localRevision + 1)
       }
-      Object.assign(settings, preferences)
+      replacePreferences(settings, preferences)
       settings.localRevision += 1
       tx.objectStore('settings').put(settings)
     }
     if (deck.origin !== 'original' && (deck.direction !== preferences.direction || deck.sessionSize !== preferences.sessionSize
-      || deck.tier !== preferences.tier || !sameWordTypes(deck.wordTypes, preferences.wordTypes))) {
-      tx.objectStore('decks').put({ ...deck, ...preferences, settingsUpdatedAt: Math.max(Date.now(), (deck.settingsUpdatedAt ?? 0) + 1) })
+      || deck.tier !== preferences.tier || !sameSelectedTiers(deck, preferences) || !sameWordTypes(deck.wordTypes, preferences.wordTypes))) {
+      tx.objectStore('decks').put({ ...replacePreferences({ ...deck }, preferences), settingsUpdatedAt: Math.max(Date.now(), (deck.settingsUpdatedAt ?? 0) + 1) })
       settings.localRevision += 1
       ;(settings.pending.extraSettings ??= {})[deck.id] = bumpMark(settings.pending.extraSettings?.[deck.id], settings.localRevision)
       tx.objectStore('settings').put(settings)
@@ -1192,9 +1203,9 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
     for (const card of activeCards(current.cards, current.settings)) store.delete(card.id)
     for (const card of next.values()) store.put(card)
     const settingsUpdatedAt = Math.max(localSettingsAt, remoteSettingsAt || 0)
-    if (extra) tx.objectStore('decks').put({ ...deck, ...settings, settingsUpdatedAt })
+    if (extra) tx.objectStore('decks').put({ ...replacePreferences({ ...deck }, settings), settingsUpdatedAt })
     else {
-      Object.assign(current.settings, settings, { settingsUpdatedAt })
+      Object.assign(replacePreferences(current.settings, settings), { settingsUpdatedAt })
       storeOriginalPreferences(tx, current.settings)
     }
     current.activity = mergeActivityInTransaction(tx, current, incomingActivity, false)
@@ -1280,7 +1291,7 @@ export async function readCloudSnapshot(scope?: CloudScope): Promise<CloudSnapsh
     settings.pending.progress = Object.fromEntries(Object.entries(settings.pending.progress).filter(([id]) => ids.has(id)))
     settings.pending.tombstones = Object.fromEntries(Object.entries(settings.pending.tombstones).filter(([id]) => Object.hasOwn(tombstones, id)))
     if (deck?.origin !== 'original') {
-      Object.assign(settings, publicSettings(deck!), { settingsUpdatedAt: deck?.settingsUpdatedAt ?? 0 })
+      Object.assign(replacePreferences(settings, publicSettings(deck!)), { settingsUpdatedAt: deck?.settingsUpdatedAt ?? 0 })
       settings.pending.settings = settings.pending.extraSettings?.[deck!.id] ?? null
     }
     delete settings.pending.extraSettings
@@ -1506,9 +1517,9 @@ export async function copyMappedLegacyProfile(
     const sourceAt = sourceSettings.settingsUpdatedAt
     const preferences = newerSettings(publicSettings(current.settings), localAt, publicSettings(sourceSettings), sourceAt)
     if (current.settings.direction !== preferences.direction || current.settings.sessionSize !== preferences.sessionSize
-      || current.settings.tier !== preferences.tier || !sameWordTypes(current.settings.wordTypes, preferences.wordTypes)
+      || current.settings.tier !== preferences.tier || !sameSelectedTiers(current.settings, preferences) || !sameWordTypes(current.settings.wordTypes, preferences.wordTypes)
       || sourceAt > localAt || !current.settings.pending.settings) {
-      Object.assign(current.settings, preferences)
+      replacePreferences(current.settings, preferences)
       storeOriginalPreferences(tx, current.settings)
       current.settings.settingsUpdatedAt = Math.max(localAt, sourceAt)
       current.settings.pending.settings = bumpMark(current.settings.pending.settings, rev)
@@ -1612,10 +1623,13 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
       const settingsChanged = current.settings.direction !== sourceSettings.direction
         || current.settings.sessionSize !== sourceSettings.sessionSize
         || current.settings.tier !== sourceSettings.tier
+        || !sameSelectedTiers(current.settings, sourceSettings)
         || !sameWordTypes(current.settings.wordTypes, sourceSettings.wordTypes)
         || sourceSettings.settingsUpdatedAt > current.settings.settingsUpdatedAt
       current.settings.direction = sourceSettings.direction
       current.settings.sessionSize = sourceSettings.sessionSize
+      delete current.settings.selectedTiers
+      if (sourceSettings.selectedTiers) current.settings.selectedTiers = [...sourceSettings.selectedTiers]
       current.settings.tier = sourceSettings.tier
       current.settings.wordTypes = sourceSettings.wordTypes
       storeOriginalPreferences(tx, current.settings)

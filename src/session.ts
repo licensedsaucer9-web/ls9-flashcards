@@ -4,7 +4,7 @@ import { inSelectedWordTypes } from './word-types.ts'
 
 /** Due-only when possible; otherwise review the matching cards soonest due. */
 export function selectReviewCandidates(
-  cards: readonly Card[], tier: Tier, types: readonly WordType[], now = Date.now(),
+  cards: readonly Card[], tier: Tier | readonly Tier[], types: readonly WordType[], now = Date.now(),
 ): { cards: Card[]; dueCount: number } {
   const matching = inSelectedTier([...cards], tier)
     .filter((card) => inSelectedWordTypes(card, types))

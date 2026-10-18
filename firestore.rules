@@ -63,13 +63,19 @@ service cloud.firestore {
     }
 
     function validSettings() {
-      return request.resource.data.keys().hasOnly(['direction', 'sessionSize', 'tier', 'settingsUpdatedAt', 'wordTypes'])
+      return request.resource.data.keys().hasOnly(['direction', 'sessionSize', 'tier', 'settingsUpdatedAt', 'wordTypes', 'selectedTiers'])
         && request.resource.data.direction in ['de-en', 'en-de']
         && whole(request.resource.data.sessionSize)
         && request.resource.data.sessionSize >= 0
         && request.resource.data.sessionSize <= 500
         && request.resource.data.tier in [1, 2, 3]
         && clock(request.resource.data.settingsUpdatedAt)
+        && (!('selectedTiers' in request.resource.data) || (
+          request.resource.data.selectedTiers is list
+          && request.resource.data.selectedTiers.size() > 0
+          && request.resource.data.selectedTiers.size() <= 3
+          && request.resource.data.selectedTiers.size() == request.resource.data.selectedTiers.toSet().size()
+          && request.resource.data.selectedTiers.hasOnly([1, 2, 3])))
         && (!('wordTypes' in request.resource.data) || validWordTypes(request.resource.data.wordTypes));
     }
 

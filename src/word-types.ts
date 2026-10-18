@@ -1,3 +1,4 @@
+import { tierLabel } from './tiers.ts'
 import { articleGender, articleLabel } from './articles.ts'
 import type { Article, Direction, Tier, WordType } from './types.ts'
 import { esc, germanHead } from './dom.ts'
@@ -129,9 +130,9 @@ function englishList(items: readonly string[]): string {
 }
 
 /** Shown when the selected types have nothing due. Empty selection is not a filter. */
-export function noDueWordTypeMessage(selected: readonly WordType[], tier: Tier): string {
+export function noDueWordTypeMessage(selected: readonly WordType[], tier: Tier | readonly Tier[]): string {
   const names = normalizeWordTypes(selected).map((type) => TYPE_PLURALS[type])
-  return `No ${englishList(names)} due in Tier ${tier}`
+  return `No ${englishList(names)} due in ${typeof tier === 'number' ? `Tier ${tier}` : tierLabel(tier)}`
 }
 
 const TYPE_CHIP_LABELS: Record<WordType, string> = {

@@ -1,3 +1,4 @@
+import { reviewTiers, validSelectedTiers } from './tiers.ts'
 import { legacyToFiles, parseRemoteDeck } from './merge.ts'
 import type { CardContent, DeckFile, Direction, PublicSettings, Srs, Tier, UserFile, WordType } from './types.ts'
 import { normalizeWordTypes } from './word-types.ts'
@@ -17,6 +18,7 @@ export type SettingsDoc = {
   direction: Direction
   sessionSize: number
   tier: Tier
+  selectedTiers?: Tier[]
   settingsUpdatedAt: number
   /** Absent or empty means every word type. Only noun, verb, and adj are stored. */
   wordTypes?: WordType[]
@@ -66,6 +68,7 @@ export function settingsToDoc(settings: PublicSettings, settingsUpdatedAt: numbe
     tier: settings.tier,
     settingsUpdatedAt: settingsUpdatedAt > 0 ? settingsUpdatedAt : 0,
   }
+  if (validSelectedTiers(settings.selectedTiers)) doc.selectedTiers = reviewTiers(settings)
   const wordTypes = normalizeWordTypes(settings.wordTypes)
   // An empty list is All, which is also what a document written before this field means.
   if (wordTypes.length > 0) doc.wordTypes = wordTypes
@@ -190,6 +193,7 @@ export function docsToFiles(docs: CloudDocs, profileName: string, updatedAt: num
         direction: docs.settings.direction,
         sessionSize: docs.settings.sessionSize,
         tier: docs.settings.tier,
+        ...(validSelectedTiers(docs.settings.selectedTiers) ? { selectedTiers: reviewTiers(docs.settings) } : {}),
         wordTypes: normalizeWordTypes(docs.settings.wordTypes),
       },
       progress,

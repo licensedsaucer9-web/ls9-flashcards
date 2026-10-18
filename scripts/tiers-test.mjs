@@ -1,6 +1,6 @@
 // Tier boundaries and profile identity. Both are pure logic, so they run in node
 // against the real seed data rather than only through the browser.
-import { tierOf, inTier, inSelectedTier, tierCounts, tierLabel } from '../src/tiers.ts'
+import { tierOf, inTier, inSelectedTier, tierCounts, tierLabel, reviewTiers, toggleTier, validSelectedTiers } from '../src/tiers.ts'
 import { slugify, dbNameForUser, LEGACY_DB_NAME, DEFAULT_USER } from '../src/user.ts'
 import { seedCards } from '../src/seed.ts'
 import { TIER_CUMULATIVE } from '../src/types.ts'
@@ -91,3 +91,12 @@ assert(dbNameForUser('joakim') !== LEGACY_DB_NAME, 'a profile never reuses the l
 assert(DEFAULT_USER.slug === 'joakim', 'existing progress is claimed by the default profile')
 
 console.log('tiers-test: ok')
+
+// Exact review selections migrate legacy scopes without changing their contents.
+for (const tier of [1, 2, 3]) assert(JSON.stringify(reviewTiers({ tier })) === JSON.stringify([1, 2, 3].filter(t => t <= tier)), 'legacy scope preserved')
+assert(inSelectedTier(seed, [3]).length === 264, 'Tier 3 alone excludes tiers 1 and 2')
+assert(inSelectedTier(seed, [2, 3]).length === 414, 'Tier 2 + 3 exclude Tier 1')
+assert(inSelectedTier(seed, [1, 3]).length === 364, 'disjoint buckets are supported')
+assert(JSON.stringify(toggleTier([2, 3], 2)) === '[3]', 'each pill toggles independently')
+assert(JSON.stringify(toggleTier([3], 3)) === '[1,2,3]', 'last deselection returns to all tiers')
+for (const bad of [[], [1, 1], [0], [4], ['1'], '3', null]) assert(!validSelectedTiers(bad), 'invalid exact selection rejected')
