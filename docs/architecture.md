@@ -220,8 +220,10 @@ first Easy = 4 days. Again and Gender requeue immediately, with a smaller ease
 penalty for Gender. The account stores the latest SRS state per card, with
 no interval multiplier, detailed review history, or FSRS.
 
-Decks saves the active deck's direction preference. Review home saves the tier and
-word-type preferences and sets session size. Cards starts its browse tier filter at the saved
+Review saves the active deck's tier, word-type selection, and session size.
+Its compact size row offers 10 / 20 / 30 / All and a Custom dialog in increments
+of five. Done saves the choice; Cancel, Escape, and tapping outside discard it.
+Previously saved sizes remain valid until changed. Decks saves review direction. Cards starts its browse tier filter at the saved
 tier, but browsing does not write preferences. Settings retains account, install,
 and SRS information. These control locations do not change storage or deck
 assignment. Extra decks keep their own preferences and schedules; streak

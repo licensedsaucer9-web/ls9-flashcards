@@ -152,6 +152,10 @@ a {
   margin-top: auto;
 }
 
+.due-hero #who {
+  text-align: center;
+}
+
 .due-count {
   font-size: clamp(4.5rem, 22vw, 7rem);
   font-weight: 700;
@@ -726,14 +730,113 @@ p code {
   font-size: 0.85em;
 }
 
-.session-box {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: var(--surface);
+.chips.review-tiers,
+.chips.review-types,
+.chips.review-sizes {
+  flex-wrap: nowrap;
+}
+
+.review-tiers .chip,
+.review-types .chip {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-types .chip.type-chip {
+  padding: 6px 10px;
+  font-size: .85rem;
+}
+
+.review-types .chip small {
+  white-space: nowrap;
+  font-size: .6rem;
+}
+
+.review-types .chip:last-child {
+  flex: 1.2;
+  font-size: .78rem;
+}
+
+@media (max-width: 359px) {
+  .chips.review-types {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.review-sizes .chip {
+  flex: 1;
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.review-sizes #session-custom {
+  flex: 1.8;
+}
+
+@media (max-width: 359px) {
+  .review-sizes .chip {
+    padding: 0 6px;
+    font-size: .9rem;
+  }
+}
+
+.session-dialog {
+  width: min(350px, calc(100% - 40px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  padding: 20px;
   border: 1px solid var(--line);
   border-radius: 18px;
-  padding: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.session-dialog::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+
+.session-dialog h2 {
+  margin: 0 0 12px;
+  text-align: center;
+  font-size: 1.125rem;
+}
+
+.session-dialog select {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+.session-dialog select:focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 2px;
+}
+
+.session-dialog option {
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.session-dialog option:checked {
+  background: linear-gradient(var(--surface-2), var(--surface-2));
+  color: var(--text);
+  font-weight: 650;
+}
+
+.session-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 18px;
+}
+
+.session-dialog-actions .primary {
+  min-height: 44px;
+  border-radius: 22px;
 }
 
 .chips {
@@ -759,20 +862,6 @@ p code {
 
 .chip:active {
   transform: scale(0.97);
-}
-
-.inline-num {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.inline-num input {
-  width: 7rem;
-  min-height: 44px;
-  text-align: center;
 }
 
 .topbar .badge {

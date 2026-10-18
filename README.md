@@ -4,6 +4,11 @@
 
 A local-first flashcard PWA (Vite + TypeScript), bundled with a German vocabulary deck and optional French and Spanish starters. It supports multiple decks, SM-2-style review, card editing, CSV import, and offline study. Decks lets you create empty decks, switch between them, and save study preferences per deck. Articles, word types, and tiers can be enabled for each subject.
 
+Review groups the active deck's tier, word-type filters, and session-size pills
+above the start button. Custom opens a number picker in increments of five;
+Done saves the size and Cancel leaves it unchanged. Review direction and the
+optional-feature switches live on Decks. Preferences remain separate per deck.
+
 **Release state, 2026-10-17:** The public site’s `release.json` reports `1.3.0` with the Firebase production backend; its source was verified at `0aaf08b78b33e1604c250e3cf751553b0e3c18bf`. This includes forgiving streaks, multi-deck creation/selection, per-deck preferences and cloud progress, and swipe tab navigation. Deck names, selection, optional-feature switches, and local deck deletion remain device-local; another device needs an extra deck's ID in its local list to select it. Version `1.2.0` added the word-type filter, and `1.1.0` added word-type badges; `1.0.0` shipped on 2026-10-07. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified the original production login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) records current operations and remaining evidence.
 
 **Release evidence:** Additive production rules were verified on 2026-10-16.
@@ -157,7 +162,7 @@ The private repository secret
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-The current source and published artifact version is `1.3.0`. **Settings → Install** shows
+The source version is `1.4.0`. **Settings → Install** shows
 the running version and source revision, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI
