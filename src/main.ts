@@ -177,7 +177,7 @@ function tierChips(selected: Tier | readonly Tier[], dueByTier: Record<Tier, { d
     due = typeof selected === 'number' ? due + dueByTier[tier].due : dueByTier[tier].due
     const pressed = typeof selected === 'number' ? selected === tier : selected.includes(tier)
     const on = pressed ? ' is-on' : ''
-    return `<button type="button" class="chip tier-chip${on}" data-tier="${tier}" aria-pressed="${pressed}" title="${typeof selected === 'number' ? esc(TIER_NOTES[tier]) : `Only Tier ${tier} cards`}">Tier ${tier}<small>${words} · ${due} due</small></button>`
+    return `<button type="button" class="chip tier-chip${on}" data-tier="${tier}" aria-pressed="${pressed}" aria-label="Tier ${tier}, ${due} due, ${words} total" title="${typeof selected === 'number' ? esc(TIER_NOTES[tier]) : `Only Tier ${tier} cards`}">Tier ${tier}<small>${due} · ${words}</small></button>`
   }).join('')
 }
 
@@ -207,7 +207,7 @@ function wordTypeChips(selected: readonly WordType[], counts: WordTypeCounts): s
   return WORD_TYPE_CHIPS.map((chip) => {
     const on = chip.id === 'all' ? chosen.length === 0 : chosen.includes(chip.id)
     const count = counts[chip.id]
-    return `<button type="button" class="chip type-chip${on ? ' is-on' : ''}" data-word-type="${chip.id}" aria-pressed="${on ? 'true' : 'false'}">${chip.label}<small>${count.words} · ${count.due} due</small></button>`
+    return `<button type="button" class="chip type-chip${on ? ' is-on' : ''}" data-word-type="${chip.id}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${chip.label}, ${count.due} due, ${count.words} total">${chip.label}<small>${count.due} · ${count.words}</small></button>`
   }).join('')
 }
 
