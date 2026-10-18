@@ -69,6 +69,8 @@ export interface Settings {
   sessionSize: number
   /** Highest tier included in reviews. Higher tiers include the lower ones. */
   tier: Tier
+  /** Exact tier buckets. Absent means the legacy cumulative scope through tier. */
+  selectedTiers?: Tier[]
   /**
    * Word classes included in reviews. Empty means all of them, including cards
    * with no class. Older settings rows omit this and mean the same thing.
@@ -111,7 +113,7 @@ export interface PendingRecords {
 }
 
 /** The settings that travel between devices. */
-export type PublicSettings = Pick<Settings, 'direction' | 'sessionSize' | 'tier' | 'wordTypes'>
+export type PublicSettings = Pick<Settings, 'direction' | 'sessionSize' | 'tier' | 'selectedTiers' | 'wordTypes'>
 
 /** The fields that make up a card's vocabulary, without any user's progress. */
 export type CardContent = Pick<

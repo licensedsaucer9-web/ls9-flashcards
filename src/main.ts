@@ -65,7 +65,7 @@ import {
   type WordTypeCounts,
 } from './word-types.ts'
 import { selectReviewCandidates, sessionCount, SESSION_PRESETS } from './session.ts'
-import { tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
+import { reviewTiers, toggleTier, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { recoveryBridge, rehearsalPreview } from './rehearsal.ts'
 import { buildInfo } from './build-info.ts'
@@ -168,19 +168,16 @@ function showDatabaseNotice(event: 'versionchange' | 'blocked'): void {
     : 'This tab closed its database so another tab can upgrade. Reload to continue.'
 }
 
-/** A shared chip row for choosing the highest tier to include. */
-function tierChips(selected: Tier, dueByTier: Record<Tier, { due: number; total: number }>): string {
-  // Both numbers run cumulatively up to each tier, so a chip matches the queue you
-  // would actually review: tier 2 is 250 words and up to 250 due, not 150. The totals
-  // are computed per chip because the Deck screen can show a tier that is not the
-  // saved setting.
+/** Review toggles exact buckets; Cards retains its cumulative browse filter. */
+function tierChips(selected: Tier | readonly Tier[], dueByTier: Record<Tier, { due: number; total: number }>): string {
   let words = 0
   let due = 0
   return TIERS.map((tier) => {
-    words += dueByTier[tier].total
-    due += dueByTier[tier].due
-    const on = selected === tier ? ' is-on' : ''
-    return `<button type="button" class="chip tier-chip${on}" data-tier="${tier}" aria-pressed="${selected === tier}" title="${esc(TIER_NOTES[tier])}">Tier ${tier}<small>${words} · ${due} due</small></button>`
+    words = typeof selected === 'number' ? words + dueByTier[tier].total : dueByTier[tier].total
+    due = typeof selected === 'number' ? due + dueByTier[tier].due : dueByTier[tier].due
+    const pressed = typeof selected === 'number' ? selected === tier : selected.includes(tier)
+    const on = pressed ? ' is-on' : ''
+    return `<button type="button" class="chip tier-chip${on}" data-tier="${tier}" aria-pressed="${pressed}" title="${typeof selected === 'number' ? esc(TIER_NOTES[tier]) : `Only Tier ${tier} cards`}">Tier ${tier}<small>${words} · ${due} due</small></button>`
   }).join('')
 }
 
@@ -197,10 +194,10 @@ const WORD_TYPE_CHIPS: { id: 'all' | WordType; label: string }[] = [
   { id: 'adj', label: 'Adjectives' },
 ]
 
-function wordTypeCountsFor(cards: Card[], tier: Tier, now = Date.now()): WordTypeCounts {
+function wordTypeCountsFor(cards: Card[], tier: Tier | readonly Tier[], now = Date.now()): WordTypeCounts {
   return countWordTypes(
     cards
-      .filter((card) => tierOf(card) <= tier)
+      .filter((card) => typeof tier === 'number' ? tierOf(card) <= tier : tier.includes(tierOf(card)))
       .map((card) => ({ tags: card.tags, article: card.article, due: card.srs.due <= now })),
   )
 }
@@ -228,7 +225,7 @@ function bindWordTypeChips(current: readonly WordType[], onPick: (next: WordType
   })
 }
 
-function scopeLabel(tier: Tier, types: readonly WordType[], deck?: LocalDeck): string {
+function scopeLabel(tier: Tier | readonly Tier[], types: readonly WordType[], deck?: LocalDeck): string {
   const typesLabel = wordTypeSelectionLabel(types)
   const tierText = deck?.tiers === false ? 'All cards' : tierLabel(tier)
   return typesLabel ? `${tierText} · ${typesLabel}` : tierText
@@ -334,7 +331,7 @@ async function renderHome() {
   const dueByTier = await getDueByTier()
   if (!studyLockCurrent(lock)) return
   const now = Date.now()
-  const reviewTier = activeDeck?.tiers === false ? 3 : settings.tier
+  const reviewTier = activeDeck?.tiers === false ? [...TIERS] : reviewTiers(settings)
   const reviewTypes = activeDeck?.supportsWordTypes === false ? [] : settings.wordTypes
   const candidates = selectReviewCandidates(all, reviewTier, reviewTypes, now)
   const available = candidates.cards.length
@@ -379,7 +376,7 @@ async function renderHome() {
                 : 'No cards yet'
         }</p>
         ${noneOfType ? '<button type="button" class="secondary" id="show-all-types">All</button>' : ''}
-        ${activeDeck?.tiers ? `<div class="chips review-tiers" id="tier-chips" role="group" aria-label="Deck tier">${tierChips(settings.tier, dueByTier)}</div>` : ''}
+        ${activeDeck?.tiers ? `<div class="chips review-tiers" id="tier-chips" role="group" aria-label="Deck tier">${tierChips(reviewTier, dueByTier)}</div>` : ''}
         ${activeDeck?.supportsWordTypes ? `<div class="chips review-types" id="type-chips" role="group" aria-label="Word type">${wordTypeChips(reviewTypes, typeCounts)}</div>` : ''}
         <div class="chips review-sizes" id="session-chips" role="group" aria-label="Number of cards">
           ${presets}
@@ -397,7 +394,10 @@ async function renderHome() {
     await patchSettings(patch)
     if (studyLockCurrent(lock)) scheduleRender()
   }
-  bindTierChips(tier => { void savePreference({ tier }) })
+  bindTierChips(tier => {
+    const selectedTiers = toggleTier(reviewTier, tier)
+    void savePreference({ tier: Math.max(...selectedTiers) as Tier, selectedTiers })
+  })
   bindWordTypeChips(settings.wordTypes, wordTypes => { void savePreference({ wordTypes }) })
   $('#start').addEventListener('click', () => {
     if (canStart) go('/review')
@@ -412,7 +412,7 @@ async function renderHome() {
   })
   $('#session-custom').addEventListener('click', () => {
     // Keep old sizes intact until Done, including sizes saved before the five-card picker.
-    const max = Math.max(100, Math.ceil(all.length / 5) * 5)
+    const max = Math.min(500, Math.max(100, Math.ceil(all.length / 5) * 5))
     const initial = Math.min(max, Math.max(5, Math.round((settings.sessionSize || 20) / 5) * 5))
     const dialog = document.createElement('dialog')
     dialog.className = 'session-dialog'
@@ -452,7 +452,7 @@ async function renderReview() {
   if (!studyLockCurrent(lock)) return
   const all = await getAllCards()
   if (!studyLockCurrent(lock)) return
-  const reviewTier = activeDeck?.tiers === false ? 3 : settings.tier
+  const reviewTier = activeDeck?.tiers === false ? [...TIERS] : reviewTiers(settings)
   const reviewTypes = activeDeck?.supportsWordTypes === false ? [] : settings.wordTypes
   const candidates = selectReviewCandidates(all, reviewTier, reviewTypes)
   const reviewingAhead = candidates.dueCount === 0

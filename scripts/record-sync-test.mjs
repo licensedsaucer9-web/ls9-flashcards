@@ -292,3 +292,13 @@ assert(activityPending.activity.dirty.revision === 5, 'dirty activity marks surv
 assert(deckSyncs({ origin: 'original' }), 'the original deck syncs to the cloud deck')
 assert(deckSyncs({ origin: 'local' }), 'a created deck syncs cards')
 assert(!deckSyncs(undefined), 'a missing active deck does not sync')
+
+const exactScope = { direction: 'de-en', sessionSize: 20, tier: 3, selectedTiers: [3], wordTypes: [] }
+const exactUpload = planSettingsWrite(exactScope, 200, { direction: 'de-en', sessionSize: 20, tier: 3, settingsUpdatedAt: 100 })
+assert(JSON.stringify(exactUpload.selectedTiers) === '[3]', 'an exact selection survives the actual settings upload planner')
+assert(planSettingsWrite(exactScope, 200, exactUpload) === null, 'unchanged exact selections do not rewrite')
+assert(JSON.stringify(planSettingsWrite({ ...exactScope, selectedTiers: [2, 3] }, 200, exactUpload).selectedTiers) === '[2,3]', 'different exact scopes are not treated as equal when clocks tie')
+const newerScope = planSettingsWrite(exactScope, 200, { ...exactUpload, selectedTiers: [2, 3], settingsUpdatedAt: 300 })
+assert(newerScope === null, 'newer remote exact selection wins without rewrite')
+const oldScope = planSettingsWrite({ direction: 'de-en', sessionSize: 20, tier: 2, wordTypes: [] }, 400, exactUpload)
+assert(oldScope.tier === 2 && oldScope.selectedTiers === undefined, 'newer legacy preferences clear the exact selection')

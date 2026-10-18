@@ -1,3 +1,4 @@
+import { reviewTiers, validSelectedTiers } from './tiers.ts'
 import { cloudFirestore } from './cloud-handle.ts'
 import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettings, ensureExtraDeck, pullCloud } from './cloud-push.ts'
 import {
@@ -39,6 +40,7 @@ function publicSettings(settings: CloudSnapshot['settings']): PublicSettings {
     direction: settings.direction,
     sessionSize: settings.sessionSize,
     tier: settings.tier,
+    ...(validSelectedTiers(settings.selectedTiers) ? { selectedTiers: reviewTiers(settings) } : {}),
     wordTypes: settings.wordTypes,
   }
 }

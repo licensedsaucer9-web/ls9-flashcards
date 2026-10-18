@@ -92,7 +92,7 @@ try {
     cards: structuredClone(multiDump.decks['legacy-deck'].cards),
   }
   multiDump.users['uid-alice'].decks[extraId] = {
-    settings: { ...multiDump.users['uid-alice'].settings, wordTypes: ['verb'] },
+    settings: { ...multiDump.users['uid-alice'].settings, wordTypes: ['verb'], selectedTiers: [2, 3] },
     progress: structuredClone(multiDump.users['uid-alice'].progress),
   }
   const multiPlan = prepareRestore(resign(multiDump))
@@ -297,6 +297,17 @@ try {
   const dumpBody = () => structuredClone(JSON.parse(readFileSync(dumpPath, 'utf8')))
   assert(dumpBody().users['uid-alice'].settings, 'fixture has settings')
   assert.equal(Object.hasOwn(dumpBody().users['uid-alice'].settings, 'wordTypes'), false)
+  for (const selectedTiers of [[3], [2, 3], [1, 3], [1, 2, 3]]) {
+    const exact = dumpBody()
+    exact.users['uid-alice'].settings.selectedTiers = selectedTiers
+    const exactPlan = prepareRestore(resign(exact))
+    assert.deepEqual(exactPlan.items.find(item => item.path === 'users/uid-alice/settings/current').data.selectedTiers, selectedTiers)
+  }
+  for (const selectedTiers of [[], [1, 1], [0], [4], ['3'], '3', null]) {
+    const bad = dumpBody()
+    bad.users['uid-alice'].settings.selectedTiers = selectedTiers
+    assert.throws(() => prepareRestore(resign(bad)), /invalid settings/)
+  }
   for (const wordTypes of [[], ['verb'], ['adj', 'noun'], ['noun', 'verb', 'adj']]) {
     const typed = dumpBody()
     typed.users['uid-alice'].settings.wordTypes = wordTypes

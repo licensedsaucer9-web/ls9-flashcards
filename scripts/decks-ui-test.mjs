@@ -477,7 +477,8 @@ try {
       const db = await import('/src/db.ts')
       const { selectReviewCandidates, sessionCount } = await import('/src/session.ts')
       const settings = await db.getSettings()
-      const candidates = selectReviewCandidates(await db.getAllCards(), settings.tier, settings.wordTypes)
+      const { reviewTiers } = await import('/src/tiers.ts')
+      const candidates = selectReviewCandidates(await db.getAllCards(), reviewTiers(settings), settings.wordTypes)
       return sessionCount(candidates.cards.length, settings.sessionSize)
     })
     assert.equal(Number(await page.locator('#start').getAttribute('data-session-count')), expected)
@@ -489,7 +490,8 @@ try {
       const db = await import('/src/db.ts')
       const { selectReviewCandidates } = await import('/src/session.ts')
       const settings = await db.getSettings()
-      const candidates = selectReviewCandidates(await db.getAllCards(), settings.tier, settings.wordTypes).cards
+      const { reviewTiers } = await import('/src/tiers.ts')
+      const candidates = selectReviewCandidates(await db.getAllCards(), reviewTiers(settings), settings.wordTypes).cards
       const front = document.querySelector('.front .word').textContent
       const back = document.querySelector('.back .word').textContent
       return { matches: candidates.some(card => settings.direction === 'en-de'
@@ -511,7 +513,7 @@ try {
   await page.click('#session-custom')
   await page.waitForSelector('.session-dialog[open]')
   const options = await page.locator('#session-number option').evaluateAll(options => options.map(o => Number(o.value)))
-  assert(options.length >= 20 && options.every((n, i) => n === (i + 1) * 5), 'custom sizes advance in fives')
+  assert(options.length >= 20 && options.at(-1) <= 500 && options.every((n, i) => n === (i + 1) * 5), 'custom sizes advance in fives')
   await page.selectOption('#session-number', '35')
   await page.locator('#session-number').press('ArrowDown')
   assert.equal(await page.locator('#session-number').inputValue(), '40', 'keyboard selection advances by five')
@@ -557,10 +559,21 @@ try {
   const allQueue = await assertReviewQueue()
   assert(allQueue > nounQueue, 'All restores the wider review queue')
   async function pickPreference(selector, patch) {
-    if (selector.includes('data-tier')) await reviewHome()
+    if (selector.includes('data-tier')) {
+      await reviewHome()
+      // These existing queue tests exercise the legacy cumulative scopes.
+      // Toggle exact buckets to reproduce each scope through the real UI.
+      for (const t of [1, 2, 3]) {
+        const chip = page.locator(`[data-tier="${t}"]`)
+        if ((await chip.getAttribute('aria-pressed') === 'true') !== (t <= patch.tier)) {
+          await chip.click()
+          await page.waitForFunction(({t, on}) => document.querySelector(`[data-tier="${t}"]`)?.getAttribute('aria-pressed') === String(on), { t, on: t <= patch.tier })
+        }
+      }
+    }
     else await tab('Decks', '#/decks', 'Decks')
     const previous = await settings()
-    await page.locator(selector).click()
+    if (!selector.includes('data-tier')) await page.locator(selector).click()
     await page.waitForFunction(async ({ selector, patch }) => {
       const saved = await (await import('/src/db.ts')).getSettings()
       return Object.entries(patch).every(([key, value]) => saved[key] === value)

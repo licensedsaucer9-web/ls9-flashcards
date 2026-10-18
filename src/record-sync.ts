@@ -2,6 +2,7 @@ import { cardToDoc, progressToDoc, settingsToDoc, type CardDoc, type ProgressDoc
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
 import type { Card, CardContent, DeckFile, LocalDeck, PendingRecords, PublicSettings, RecordMark, Srs } from './types.ts'
 import { normalizeWordTypes, sameWordTypes } from './word-types.ts'
+import { reviewTiers, sameSelectedTiers, validSelectedTiers } from './tiers.ts'
 
 /** Strictly under Firestore's 500-write transaction cap. */
 export const WRITE_CHUNK = 499
@@ -330,6 +331,7 @@ function settingsEqual(a: SettingsDoc, b: SettingsDoc): boolean {
   return a.direction === b.direction
     && a.sessionSize === b.sessionSize
     && a.tier === b.tier
+    && sameSelectedTiers(a, b)
     && a.settingsUpdatedAt === b.settingsUpdatedAt
     && sameWordTypes(a.wordTypes, b.wordTypes)
 }
@@ -344,6 +346,7 @@ export function planSettingsWrite(
         direction: remote.direction,
         sessionSize: remote.sessionSize,
         tier: remote.tier,
+        ...(validSelectedTiers(remote.selectedTiers) ? { selectedTiers: reviewTiers(remote) } : {}),
         wordTypes: normalizeWordTypes(remote.wordTypes),
       }
     : { direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [] }
@@ -351,6 +354,7 @@ export function planSettingsWrite(
     direction: local.direction,
     sessionSize: local.sessionSize,
     tier: local.tier,
+    ...(validSelectedTiers(local.selectedTiers) ? { selectedTiers: reviewTiers(local) } : {}),
     wordTypes: normalizeWordTypes(local.wordTypes),
   }
   const remoteAt = remote?.settingsUpdatedAt ?? 0

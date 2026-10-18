@@ -61,9 +61,12 @@ publication and physical installation updates remain #38's operational gate.
 
 1. Review shows saved **Deck tier** chips with word and due counts. Tier 1 is selected
    on a fresh profile and includes 100 words.
-2. Tier 2 includes 250 words and all of tier 1; its due count cannot decrease
-   simply because the tier widened.
-3. Tier 3 includes all 514 built-in words.
+2. Tier 2 alone includes its own 150 words. Tier 2 + Tier 3 includes 414
+   words and excludes Tier 1. Pills show counts for their own bucket.
+3. Tier 3 alone includes 264 words and excludes tiers 1 and 2. Reload, switch
+   decks, and sync a second client to verify the exact selection persists.
+   Turning off the last tier returns to all three. Old cumulative settings
+   retain their scope on upgrade.
 4. Cards has an unsaved browse tier filter, and rows show `T1` / `T2` / `T3` badges.
    Changing this filter must leave the saved Review tier and next review unchanged.
 5. Spot-check tier 1's frequency order against the README: it opens with

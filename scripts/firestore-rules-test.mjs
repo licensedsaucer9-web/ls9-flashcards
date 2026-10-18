@@ -174,6 +174,13 @@ try {
   )
   await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings()))
   await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: [] })))
+  for (const selectedTiers of [[3], [2, 3], [1, 3], [1, 2, 3]]) {
+    await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ selectedTiers })))
+  }
+  for (const selectedTiers of [[], [1, 1], [0], [4], ['3'], '3', null]) {
+    await denied(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ selectedTiers })), 'invalid selected tiers')
+  }
+
   await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: ['verb', 'noun'] })))
   await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: ['noun', 'verb', 'adj'] })))
   await denied(

@@ -322,7 +322,7 @@ try {
   const first = await getDoc(doc(alice, 'decks', ALICE, 'cards', 'n000'))
   assert(sample.exists() && first.exists() && sample.data().de === 'w513', 'both chunks were written')
 
-  await commitSettings(alice, ALICE, { direction: 'en-de', sessionSize: 10, tier: 2 }, 100)
+  await commitSettings(alice, ALICE, { direction: 'en-de', sessionSize: 10, tier: 3, selectedTiers: [2, 3] }, 100)
   await env.withSecurityRulesDisabled(async (ctx) => {
     for (const timeZone of ['Not/AZone', 'UTC+1']) {
       await setDoc(doc(ctx.firestore(), 'users', ALICE, 'activity', randomUUID()), { ...event, timeZone })
@@ -338,7 +338,7 @@ try {
   assert(warnings.length === 1 && warnings[0] === 'Skipped 2 invalid cloud review activity events', 'pull reports aggregate skipped count')
   assert(pulled.activity.length === 12, 'pull retains valid events beside corrupt rows')
   assert(pulled.cards.some(row => row.id === 'n513') && pulled.progress.some(row => row.id === 'card-grade')
-    && pulled.settings.direction === 'en-de', 'invalid activity cannot block other account data')
+    && JSON.stringify(pulled.settings.selectedTiers) === '[2,3]' && pulled.settings.direction === 'en-de', 'invalid activity cannot block other account data')
   const repaired = parseStoredReviewActivity(Object.fromEntries(
     ['+01:00', '+00:00', '-05:00', 'GMT', '+05:30'].map(timeZone => [randomUUID(), { ...event, timeZone }]),
   ))
@@ -376,10 +376,10 @@ try {
   }
   const extraGrade = { ...review(newSrs(1000), 'good', 2000), updated_at: 2000 }
   await commitProgress(alice, ALICE, 'extra-card', extraGrade, extraId)
-  await commitSettings(alice, ALICE, { direction: 'en-de', sessionSize: 7, tier: 3, wordTypes: [] }, 3000, extraId)
+  await commitSettings(alice, ALICE, { direction: 'en-de', sessionSize: 7, tier: 3, selectedTiers: [3], wordTypes: [] }, 3000, extraId)
   extraState = await pullCloud(aliceSecond, ALICE, extraId, true)
   assert(extraState.progress.length === 3 && extraState.progress.find(row => row.id === 'extra-card')?.data.due === extraGrade.due, 'review on client one changes due time on client two')
-  assert(extraState.settings.direction === 'en-de' && extraState.settings.sessionSize === 7, 'extra preferences sync to client two')
+  assert(JSON.stringify(extraState.settings.selectedTiers) === '[3]' && extraState.settings.direction === 'en-de' && extraState.settings.sessionSize === 7, 'extra preferences sync to client two')
   assert(await commitProgress(aliceSecond, ALICE, 'extra-card', extraGrade, extraId) === 'noop', 'extra grade retry is idempotent')
   await commitSettings(aliceSecond, ALICE, { direction: 'de-en', sessionSize: 9, tier: 3, wordTypes: [] }, 4000, extraId)
   assert((await pullCloud(alice, ALICE, extraId, true)).settings.direction === 'de-en', 'both existing direction values work')
