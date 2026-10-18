@@ -55,7 +55,6 @@ import {
   noDueWordTypeMessage,
   normalizeWordTypes,
   reviewFaces,
-  sameWordTypes,
   savedWordTypes,
   tagsWithWordType,
   tagsWithoutTypeEdit,
@@ -65,8 +64,8 @@ import {
   wordTypeSpoken,
   type WordTypeCounts,
 } from './word-types.ts'
-import { selectReviewCandidates, sessionCount, SESSION_PRESETS, suggestSessionSize } from './session.ts'
-import { tierCounts, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
+import { selectReviewCandidates, sessionCount, SESSION_PRESETS } from './session.ts'
+import { tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { recoveryBridge, rehearsalPreview } from './rehearsal.ts'
 import { buildInfo } from './build-info.ts'
@@ -181,7 +180,7 @@ function tierChips(selected: Tier, dueByTier: Record<Tier, { due: number; total:
     words += dueByTier[tier].total
     due += dueByTier[tier].due
     const on = selected === tier ? ' is-on' : ''
-    return `<button type="button" class="chip tier-chip${on}" data-tier="${tier}" title="${esc(TIER_NOTES[tier])}">Tier ${tier}<small>${words} · ${due} due</small></button>`
+    return `<button type="button" class="chip tier-chip${on}" data-tier="${tier}" aria-pressed="${selected === tier}" title="${esc(TIER_NOTES[tier])}">Tier ${tier}<small>${words} · ${due} due</small></button>`
   }).join('')
 }
 
@@ -289,7 +288,7 @@ main.addEventListener('touchstart', (event) => {
   tabSwipe = null
   if (!app.classList.contains('has-tabbar') || event.touches.length !== 1) return
   // Preserve text selection, sliders and other native form interactions.
-  if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable]')) return
+  if (event.target instanceof Element && event.target.closest('input, textarea, select, dialog, [contenteditable]')) return
   const finger = event.touches[0]!
   tabSwipe = { id: finger.identifier, x: finger.clientX, y: finger.clientY, hash: location.hash }
 }, { passive: true })
@@ -332,13 +331,15 @@ async function renderHome() {
   const settings = await getSettings()
   const all = await getAllCards()
   const activeDeck = await getActiveDeck()
+  const dueByTier = await getDueByTier()
   if (!studyLockCurrent(lock)) return
   const now = Date.now()
   const reviewTier = activeDeck?.tiers === false ? 3 : settings.tier
   const reviewTypes = activeDeck?.supportsWordTypes === false ? [] : settings.wordTypes
   const candidates = selectReviewCandidates(all, reviewTier, reviewTypes, now)
   const available = candidates.cards.length
-  const suggested = suggestSessionSize(available)
+  const typeCounts = wordTypeCountsFor(all, reviewTier, now)
+  const customSize = settings.sessionSize > 0 && !SESSION_PRESETS.some(size => size === settings.sessionSize)
   const n = sessionCount(available, settings.sessionSize)
   const next = candidates.dueCount === 0 ? candidates.cards[0] : undefined
   const noneOfType = reviewTypes.length > 0 && available === 0
@@ -352,8 +353,7 @@ async function renderHome() {
   const presets = SESSION_PRESETS.map((size) => {
     const on = settings.sessionSize === size
     const label = size === 0 ? 'All' : String(size)
-    const extra = size === suggested ? ' · suggested' : ''
-    return `<button type="button" class="chip ${on ? 'is-on' : ''}" data-session="${size}">${label}${extra}</button>`
+    return `<button type="button" class="chip ${on ? 'is-on' : ''}" data-session="${size}" aria-pressed="${on}">${label}</button>`
   }).join('')
   main.innerHTML = `
     <section class="screen">
@@ -379,39 +379,65 @@ async function renderHome() {
                 : 'No cards yet'
         }</p>
         ${noneOfType ? '<button type="button" class="secondary" id="show-all-types">All</button>' : ''}
-        <div class="session-box">
-          <p class="kicker" style="margin:0">This session</p>
-          <div class="chips" id="session-chips">${presets}</div>
-          <label class="inline-num">Custom
-            <input id="session-custom" type="number" min="1" step="1" inputmode="numeric" value="${
-              settings.sessionSize > 0 ? settings.sessionSize : ''
-            }" placeholder="${suggested}" />
-          </label>
+        ${activeDeck?.tiers ? `<div class="chips review-tiers" id="tier-chips" role="group" aria-label="Deck tier">${tierChips(settings.tier, dueByTier)}</div>` : ''}
+        ${activeDeck?.supportsWordTypes ? `<div class="chips review-types" id="type-chips" role="group" aria-label="Word type">${wordTypeChips(reviewTypes, typeCounts)}</div>` : ''}
+        <div class="chips review-sizes" id="session-chips" role="group" aria-label="Number of cards">
+          ${presets}
+          <button type="button" class="chip ${customSize ? 'is-on' : ''}" id="session-custom" aria-label="${customSize ? `Custom number of cards: ${settings.sessionSize}` : 'Custom number of cards'}" aria-pressed="${customSize}" aria-haspopup="dialog">${customSize ? settings.sessionSize : 'Custom'}</button>
         </div>
         <button class="primary" id="start" data-session-count="${n}" ${canStart ? '' : 'disabled'}>${esc(startLabel)}</button>
         <p class="note" id="who">${accountSignIn ? accountHomeNote() : 'On this device'}</p>
       </div>
     </section>
   `
+  const savePreference = async (patch: Partial<PublicSettings>) => {
+    if (!studyLockCurrent(lock)) return
+    const current = await getSettings()
+    if (!studyLockCurrent(lock) || current.activeDeckId !== settings.activeDeckId) return
+    await patchSettings(patch)
+    if (studyLockCurrent(lock)) scheduleRender()
+  }
+  bindTierChips(tier => { void savePreference({ tier }) })
+  bindWordTypeChips(settings.wordTypes, wordTypes => { void savePreference({ wordTypes }) })
   $('#start').addEventListener('click', () => {
     if (canStart) go('/review')
   })
   document.getElementById('show-all-types')?.addEventListener('click', async () => {
-    await patchSettings({ wordTypes: [] })
-    await renderHome()
+    await savePreference({ wordTypes: [] })
   })
   $('#session-chips').querySelectorAll<HTMLButtonElement>('[data-session]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      await patchSettings({ sessionSize: Number(btn.dataset.session) })
-      await renderHome()
+      await savePreference({ sessionSize: Number(btn.dataset.session) })
     })
   })
-  const custom = $('#session-custom') as HTMLInputElement
-  custom.addEventListener('change', async () => {
-    const v = Math.floor(Number(custom.value))
-    if (!Number.isFinite(v) || v < 1) return
-    await patchSettings({ sessionSize: v })
-    await renderHome()
+  $('#session-custom').addEventListener('click', () => {
+    // Keep old sizes intact until Done, including sizes saved before the five-card picker.
+    const max = Math.max(100, Math.ceil(all.length / 5) * 5)
+    const initial = Math.min(max, Math.max(5, Math.round((settings.sessionSize || 20) / 5) * 5))
+    const dialog = document.createElement('dialog')
+    dialog.className = 'session-dialog'
+    dialog.setAttribute('aria-labelledby', 'session-dialog-title')
+    dialog.innerHTML = `<form method="dialog">
+      <h2 id="session-dialog-title">Number of cards</h2>
+      <select id="session-number" size="5" aria-label="Number of cards">${Array.from({ length: max / 5 }, (_, i) => (i + 1) * 5).map(size => `<option value="${size}" ${size === initial ? 'selected' : ''}>${size}</option>`).join('')}</select>
+      <div class="session-dialog-actions"><button type="button" class="ghost" id="session-cancel">Cancel</button><button type="submit" class="primary">Done</button></div>
+    </form>`
+    main.appendChild(dialog)
+    dialog.addEventListener('close', () => dialog.remove(), { once: true })
+    dialog.querySelector('#session-cancel')!.addEventListener('click', () => dialog.close())
+    dialog.addEventListener('click', event => {
+      const { left, right, top, bottom } = dialog.getBoundingClientRect()
+      if (event.target === dialog && (event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom)) dialog.close()
+    })
+    dialog.querySelector('form')!.addEventListener('submit', async event => {
+      event.preventDefault()
+      const value = Number(dialog.querySelector<HTMLSelectElement>('select')!.value)
+      if (!Number.isInteger(value) || value < 5 || value % 5 !== 0) return
+      dialog.close()
+      await savePreference({ sessionSize: value })
+    })
+    dialog.showModal()
+    dialog.querySelector('select')!.focus()
   })
 }
 
@@ -597,18 +623,13 @@ async function renderDecks() {
   const lock = captureStudyLock()
   setTabbar('decks')
   const decks = await getDecks()
-  const cards = await getAllCards()
   const settings = await getSettings()
   if (!studyLockCurrent(lock)) return
   const deckCounts = await getDeckCardCounts()
   if (!studyLockCurrent(lock)) return
-  const dueByTier = await getDueByTier()
-  if (!studyLockCurrent(lock)) return
   const activeDeck = decks.find(deck => deck.id === settings.activeDeckId)
   if (!activeDeck) return
   const { targetLang, baseLang } = activeDeck
-  const counts = tierCounts(cards)
-  const typeCounts = wordTypeCountsFor(cards, activeDeck.tiers ? settings.tier : 3)
   main.innerHTML = `
     <section class="screen scroll">
       <header class="topbar"><h1>Decks</h1></header>
@@ -644,11 +665,6 @@ async function renderDecks() {
       <div class="setting" role="group" aria-label="Deck extras">
         ${([['articles', 'Articles'], ['supportsWordTypes', 'Word types'], ['tiers', 'Tiers']] as const).map(([key, label]) => `<label><input type="checkbox" role="switch" data-feature="${key}" ${activeDeck[key] ? 'checked' : ''} /> ${label}</label>`).join('')}
       </div>
-      ${activeDeck.tiers ? `<div class="setting">
-        <p class="kicker" style="margin:0">Deck tier</p>
-        <div class="chips" id="tier-chips">${tierChips(settings.tier, dueByTier)}</div>
-        <p class="note">${esc(TIER_NOTES[settings.tier])} Higher tiers include the lower ones, so tier 2 reviews everything in tier 1 too. ${counts[1]} / ${counts[1] + counts[2]} / ${cards.length} words.</p>
-      </div>` : ''}
       <div class="setting">
         <p class="kicker" style="margin:0">Review direction</p>
         <div class="seg" id="dir">
@@ -657,11 +673,6 @@ async function renderDecks() {
         </div>
         <p class="note">${esc(targetLang)} → ${esc(baseLang)} shows the ${esc(targetLang)} word first. ${esc(baseLang)} → ${esc(targetLang)} shows ${esc(baseLang)} first.</p>
       </div>
-      ${activeDeck.supportsWordTypes ? `<div class="setting">
-        <p class="kicker" style="margin:0">Word type</p>
-        <div class="chips" id="type-chips" role="group" aria-label="Word type">${wordTypeChips(settings.wordTypes, typeCounts)}</div>
-        <p class="note">All reviews every word type, including words with no type. Pick nouns, verbs, adjectives, or any combination. Turning the last type off returns to All. A card with more than one type is still reviewed once. This does not change when a card is due.</p>
-      </div>` : ''}
     </section>
   `
   main.querySelectorAll<HTMLButtonElement>('[data-rename]').forEach(btn => {
@@ -738,10 +749,6 @@ async function renderDecks() {
       go('/')
     })
   })
-  bindTierChips(async (tier) => {
-    await patchSettings({ tier })
-    scheduleRender()
-  })
   $('#dir').querySelectorAll<HTMLButtonElement>('button').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const direction = btn.dataset.dir as Direction
@@ -749,11 +756,6 @@ async function renderDecks() {
       toast(direction === 'de-en' ? `${targetLang} → ${baseLang}` : `${baseLang} → ${targetLang}`)
       scheduleRender()
     })
-  })
-  bindWordTypeChips(settings.wordTypes, async (wordTypes) => {
-    if (sameWordTypes(settings.wordTypes, wordTypes)) return
-    await patchSettings({ wordTypes })
-    scheduleRender()
   })
 }
 

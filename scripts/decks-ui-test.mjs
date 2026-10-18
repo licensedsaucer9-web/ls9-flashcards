@@ -414,8 +414,8 @@ try {
     assert.equal(await page.locator('#main .badge').textContent(), 'Active')
     assert.equal(await page.locator('#main .card-row [data-rename]').count(), 1)
     assert.equal(await page.locator('#main .card-row [data-delete-deck]').count(), 0)
-    assert.equal(await page.locator('[data-word-type]').count(), 4)
-    assert.equal(await page.locator('[data-tier]').count(), 3)
+    assert.equal(await page.locator('[data-word-type]').count(), 0)
+    assert.equal(await page.locator('[data-tier]').count(), 0)
     assert.deepEqual(await page.locator('#dir button').allTextContents(), ['German → English', 'English → German'])
     assert.equal(await page.locator('[data-session], #session-custom, #session-size').count(), 0, 'Decks has no session-size control')
   }
@@ -448,7 +448,12 @@ try {
     return { direction, sessionSize, tier, wordTypes }
   })
   const originalSettings = await settings()
+  async function reviewHome() {
+    await page.click('[data-tab="home"]')
+    await page.waitForSelector('#start')
+  }
   async function pickType(type, expected) {
+    await reviewHome()
     const previous = await settings()
     await page.locator(`[data-word-type="${type}"]`).click()
     await page.waitForFunction(async expected => {
@@ -463,7 +468,9 @@ try {
   }
   async function assertReviewQueue(typeLabel) {
     await tab('Review', '#/', 'LS9 Flashcards')
-    assert.equal(await page.locator('[data-word-type], [data-tier], [data-dir]').count(), 0, 'Review home has no tier, word-type or direction controls')
+    assert.equal(await page.locator('[data-word-type]').count(), 4, 'Review has the word-type picker')
+    assert.equal(await page.locator('[data-tier]').count(), 3, 'Review has the tier picker')
+    assert.equal(await page.locator('[data-dir]').count(), 0, 'direction remains in Decks')
     assert.equal(await page.locator('#session-custom').isVisible(), true)
     if (typeLabel) assert.match(await page.locator('.due-hero > .kicker').textContent(), new RegExp(typeLabel))
     const expected = await page.evaluate(async () => {
@@ -495,6 +502,39 @@ try {
     await page.waitForSelector('#start')
     return expected
   }
+  await reviewHome()
+  // Compact controls and modal edits use the real per-deck store; cancellation
+  // must not alter saved preferences, pending marks, or review data.
+  assert.equal(await page.locator('.session-box, .inline-num').count(), 0)
+  assert.deepEqual(await page.locator('#session-chips button').allTextContents(), ['10', '20', '30', 'All', 'Custom'])
+  const beforePicker = await page.evaluate(async () => (await import('/src/db.ts')).getSettings())
+  await page.click('#session-custom')
+  await page.waitForSelector('.session-dialog[open]')
+  const options = await page.locator('#session-number option').evaluateAll(options => options.map(o => Number(o.value)))
+  assert(options.length >= 20 && options.every((n, i) => n === (i + 1) * 5), 'custom sizes advance in fives')
+  await page.selectOption('#session-number', '35')
+  await page.locator('#session-number').press('ArrowDown')
+  assert.equal(await page.locator('#session-number').inputValue(), '40', 'keyboard selection advances by five')
+  await page.click('#session-cancel')
+  assert.deepEqual(await page.evaluate(async () => (await import('/src/db.ts')).getSettings()), beforePicker, 'Cancel writes nothing')
+  await page.click('#session-custom')
+  await page.keyboard.press('Escape')
+  await page.waitForSelector('.session-dialog', { state: 'detached' })
+  assert.equal(await page.locator('#session-custom').evaluate(el => el === document.activeElement), true, 'Escape restores focus')
+  await page.click('#session-custom')
+  await page.mouse.click(2, 2)
+  await page.waitForSelector('.session-dialog', { state: 'detached' })
+  await page.click('#session-custom')
+  await page.selectOption('#session-number', '35')
+  await page.locator('.session-dialog [type="submit"]').click()
+  await page.waitForFunction(() => document.querySelector('#session-custom.is-on')?.textContent === '35')
+  assert.equal((await settings()).sessionSize, 35)
+  assert.equal(await page.locator('#start').getAttribute('data-session-count'), '35')
+  await page.reload()
+  await page.waitForSelector('#session-custom.is-on')
+  assert.equal(await page.locator('#session-custom').textContent(), '35', 'custom size survives reload')
+  await page.click('[data-session="0"]')
+  await page.waitForSelector('[data-session="0"].is-on')
   assert.equal(await page.locator('[data-word-type="all"]').getAttribute('aria-pressed'), 'true')
   await pickType('noun', ['noun'])
   await page.reload()
@@ -517,6 +557,8 @@ try {
   const allQueue = await assertReviewQueue()
   assert(allQueue > nounQueue, 'All restores the wider review queue')
   async function pickPreference(selector, patch) {
+    if (selector.includes('data-tier')) await reviewHome()
+    else await tab('Decks', '#/decks', 'Decks')
     const previous = await settings()
     await page.locator(selector).click()
     await page.waitForFunction(async ({ selector, patch }) => {
@@ -531,6 +573,7 @@ try {
   await pickPreference('[data-dir="de-en"]', { direction: 'de-en' })
   await page.reload()
   await page.waitForSelector('[data-dir="de-en"].is-on')
+  await reviewHome()
   assert.equal(await page.locator('[data-tier="1"].is-on').count(), 1, 'saved tier survives reload')
   const tierOneQueue = await assertReviewQueue()
   assert(tierOneQueue < allQueue, 'the saved tier narrows the next review')
@@ -546,6 +589,7 @@ try {
     'Cards tier/search filters do not write preferences, clocks or pending markers')
   assert.equal(await assertReviewQueue(), tierOneQueue, 'Cards browsing does not change the next review')
   await tab('Decks', '#/decks', 'Decks')
+  await reviewHome()
   assert.equal(await page.locator('[data-tier="1"].is-on').count(), 1)
   await pickPreference('[data-tier="2"]', { tier: 2 })
   const tierTwoQueue = await assertReviewQueue()
@@ -626,13 +670,13 @@ try {
   await tab('Decks', '#/decks', 'Decks')
   await pickType('noun', ['noun'])
   await tab('Review', '#/', 'LS9 Flashcards')
-  assert.equal(await page.locator('[data-word-type]').count(), 0)
+  assert.equal(await page.locator('[data-word-type]').count(), 4)
   assert.match(await page.locator('.due-hero > .kicker').textContent(), /Nouns/)
   assert.equal(await page.locator('#start').isDisabled(), true)
   await page.locator('#show-all-types').click()
   await page.waitForFunction(() => document.querySelector('#start')?.disabled === false && !document.querySelector('#show-all-types'))
   assert.deepEqual(await settings(), originalSettings, 'empty-match All button clears only wordTypes')
-  await tab('Decks', '#/decks', 'Decks')
+  await reviewHome()
   assert.equal(await page.locator('[data-word-type="all"]').getAttribute('aria-pressed'), 'true')
   assert.deepEqual(await snapshot(), untypedFixture, 'empty-match recovery preserves cards, schedules and streaks')
   // Study preferences belong to the selected deck, including the Review size control.
@@ -671,8 +715,9 @@ try {
   assert(secondDeck.cards.every(card => card.deckId === secondDeck.id && card.srs.reps === 0 && card.srs.due <= Date.now()), 'second-deck cards have ownership and are immediately due')
   assert(secondDeck.cards.some(card => card.de === sharedPair.de && card.en === sharedPair.en), 'same pair exists in both decks')
   await tab('Review', '#/', 'French fixture')
-  await page.fill('#session-custom', '5')
-  await page.locator('#session-custom').dispatchEvent('change')
+  await page.click('#session-custom')
+  await page.selectOption('#session-number', '5')
+  await page.locator('.session-dialog [type="submit"]').click()
   await page.waitForFunction(async () => (await (await import('/src/db.ts')).getSettings()).sessionSize === 5)
   await tab('Decks', '#/decks', 'Decks')
   await page.click('[data-switch="local-german"]')
@@ -685,7 +730,7 @@ try {
   await page.reload()
   await page.waitForSelector('#session-custom')
   assert.equal((await settings()).sessionSize, 5)
-  assert.equal(await page.locator('#session-custom').inputValue(), '5')
+  assert.equal(await page.locator('#session-custom').textContent(), '5')
   await tab('Decks', '#/decks', 'Decks')
   await page.click('[data-switch="local-german"]')
   await page.waitForSelector('#start')
@@ -745,12 +790,11 @@ try {
   await pickPreference('[data-tier="1"]', { tier: 1 })
   await pickType('noun', ['noun'])
   async function feature(key, enabled) {
+    await tab('Decks', '#/decks', 'Decks')
     await page.locator(`[data-feature="${key}"]`).setChecked(enabled)
     await page.waitForFunction(async ({ key, enabled }) => {
       const deck = await (await import('/src/db.ts')).getActiveDeck()
       return deck[key] === enabled && document.querySelector(`[data-feature="${key}"]`)?.checked === enabled
-        && (key !== 'tiers' || !!document.querySelector('[data-tier]') === enabled)
-        && (key !== 'supportsWordTypes' || !!document.querySelector('[data-word-type]') === enabled)
     }, { key, enabled })
   }
   for (const key of ['articles', 'supportsWordTypes', 'tiers']) await feature(key, false)
@@ -819,6 +863,7 @@ try {
   assert.deepEqual(savedAfterMerge.srs, mergedCard.srs, 'editing preserves foreground progress')
   await tab('Decks', '#/decks', 'Decks')
   for (const key of ['articles', 'supportsWordTypes', 'tiers']) await feature(key, true)
+  await reviewHome()
   assert.equal(await page.locator('[data-word-type]').count(), 4, 'enabling Word types restores chips')
   await pickType('all', [])
   await pickPreference('[data-tier="3"]', { tier: 3 })
@@ -967,7 +1012,7 @@ try {
   assert.deepEqual(guards, { original: false, blank: false, tooLong: false, last: false, count: 1 })
   assert.deepEqual(errors, [], 'no browser errors')
   assert.deepEqual(externalRequests, [], 'no external service access')
-  console.log('decks-ui: v2/v3 card and tombstone upgrades, deck-isolated reads/writes/counts/sync, original-only seed insertion, four ordered tabs, native touch swipes, boundaries, history, vertical scrolling, hidden-screen and mouse guards, distinct routes, deck count, Decks-only saved tier/direction/word-type controls, unsaved Cards filters, Review-only session size, Settings content, persisted review filters, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')
+  console.log('decks-ui: v2/v3 card and tombstone upgrades, deck-isolated reads/writes/counts/sync, original-only seed insertion, four ordered tabs, native touch swipes, boundaries, history, vertical scrolling, hidden-screen and mouse guards, distinct routes, deck count, Review tier/word-type controls and Decks direction, unsaved Cards filters, compact session size and custom popup save/cancel, Settings content, persisted review filters, All/last deselection, empty-match recovery, edit/import, German cards/schedules/streak preservation: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()
