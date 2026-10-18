@@ -3,5 +3,5 @@ Description=Back up production Firestore for LS9 Flashcards
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/joakim/src/german-flashcards
-ExecStart=/home/joakim/.local/share/mise/installs/node/26.8.1/bin/node --experimental-strip-types /home/joakim/src/german-flashcards/scripts/firestore-backup.mjs
+WorkingDirectory=/home/joakim/src/ls9-flashcards
+ExecStart=/home/joakim/.local/share/mise/installs/node/26.8.1/bin/node --experimental-strip-types /home/joakim/src/ls9-flashcards/scripts/firestore-backup.mjs
