@@ -250,7 +250,6 @@ export function cardDocsEqual(a: CardDoc, b: CardDoc): boolean {
     && a.deletedAt === b.deletedAt
     && a.rank === b.rank
     && a.tier === b.tier
-    && sameSelectedTiers(a, b)
 }
 
 function blankContent(id: string, deletedAt: number): CardContent {
@@ -332,6 +331,7 @@ function settingsEqual(a: SettingsDoc, b: SettingsDoc): boolean {
   return a.direction === b.direction
     && a.sessionSize === b.sessionSize
     && a.tier === b.tier
+    && sameSelectedTiers(a, b)
     && a.settingsUpdatedAt === b.settingsUpdatedAt
     && sameWordTypes(a.wordTypes, b.wordTypes)
 }
