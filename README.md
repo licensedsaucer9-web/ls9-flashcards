@@ -162,7 +162,7 @@ The private repository secret
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-The current source and published artifact version is `1.3.0`. **Settings → Install** shows
+The source version is `1.4.0`. **Settings → Install** shows
 the running version and source revision, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI

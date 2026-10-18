@@ -88,7 +88,7 @@ and clears preview/bridge/emulator overrides. It refuses test/device/bridge
 artifacts, an unversioned package, wrong project/base, or dirty source as
 candidates. Both publication conditions must keep the same exact
 master-only/non-PR guard. Ordinary development
-builds still work and mark local changes. The package version is `1.3.0`.
+builds still work and mark local changes. The package version is `1.4.0`.
 
 `dist-firebase/release.json` identifies version, full source commit, backend,
 project, base, mode, emulator flag and public-site repository. The same values
