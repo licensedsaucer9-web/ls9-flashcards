@@ -3,6 +3,10 @@
 - Read `README.md` for release state and `docs/architecture.md` for implemented
   behavior. `docs/firebase-rollout-plan.md` is the only active plan; setup,
   migration, and rehearsal guides are runbooks, not separate roadmaps.
+- For UI design work, read `docs/design-workflow.md`. Penpot is our workspace
+  for editable sketches and discussion before implementation. The app, code,
+  tests and architecture docs remain authoritative; Penpot can contain proposals
+  and example states, and does not automatically sync with the code.
 - The real-data test rehearsal (#22–#25) is complete as of 2026-10-04.
   Publication and the `1.0.0` device checks are recorded. The legacy data repo
   is archived. A daily private Firestore backup runs on this machine, and one

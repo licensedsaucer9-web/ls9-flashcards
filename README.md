@@ -202,6 +202,7 @@ A private Firestore export is described in [Firebase setup](docs/firebase-setup.
 
 ## Other documentation
 
+- [Design collaboration](docs/design-workflow.md): using Penpot to sketch and discuss changes before implementation; the app and repository remain the source of truth.
 - [Rollout plan](docs/firebase-rollout-plan.md): completed milestones, remaining production gates, and later product direction.
 - [Architecture](docs/architecture.md): account/deck boundaries, persistence, merge rules, and current limits.
 - [Rename record](docs/rename.md): repository/URL mapping and compatibility for old installations.
