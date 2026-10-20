@@ -1,4 +1,6 @@
 import './style.css'
+import { automaticGrade, matchAnswer } from './hard-mode.ts'
+import { chooseHardMode, hardModeEnabled } from './review-mode.ts'
 import { chooseTheme, currentTheme, initializeTheme, type Theme } from './theme.ts'
 import { registerSW } from 'virtual:pwa-register'
 import type { Article, Card, Direction, Grade, LocalDeck, PublicSettings, Tier, WordType } from './types.ts'
@@ -384,6 +386,7 @@ async function renderHome() {
           ${presets}
           <button type="button" class="chip ${customSize ? 'is-on' : ''}" id="session-custom" aria-label="${customSize ? `Custom number of cards: ${settings.sessionSize}` : 'Custom number of cards'}" aria-pressed="${customSize}" aria-haspopup="dialog">${customSize ? settings.sessionSize : 'Custom'}</button>
         </div>
+        <label class="hard-mode-switch"><input type="checkbox" id="hard-mode" ${hardModeEnabled() ? 'checked' : ''}> Hard mode <span>Type your answer · automatic grading</span></label>
         <button class="primary" id="start" data-session-count="${n}" ${canStart ? '' : 'disabled'}>${esc(startLabel)}</button>
         <p class="note" id="who">${accountSignIn ? accountHomeNote() : 'On this device'}</p>
       </div>
@@ -401,6 +404,9 @@ async function renderHome() {
     void savePreference({ tier: Math.max(...selectedTiers) as Tier, selectedTiers })
   })
   bindWordTypeChips(settings.wordTypes, wordTypes => { void savePreference({ wordTypes }) })
+  $('#hard-mode').addEventListener('change', event => {
+    if (!chooseHardMode((event.target as HTMLInputElement).checked)) toast('Hard mode changed, but browser storage is unavailable. This choice may not survive a reload.')
+  })
   $('#start').addEventListener('click', () => {
     if (canStart) go('/review')
   })
@@ -467,13 +473,17 @@ async function renderReview() {
 
   const sessionTotal = queue.length
   const leftover = () => Math.max(0, candidates.dueCount - sessionTotal)
+  const hardMode = hardModeEnabled()
+  let secondTry = false
+  let typedAnswer = ''
+  let result: { card: Card; grade: Grade; saved: boolean } | null = null
   let flipped = false
   let saving = false
   let attempt: string | null = null
 
   const paint = () => {
     if (!studyLockCurrent(lock) || parseRoute().name !== 'review') return
-    const card = queue[0]
+    const card = result?.card ?? queue[0]
     if (!card) {
       main.innerHTML = `
         <section class="screen review">
@@ -528,7 +538,28 @@ async function renderReview() {
         </header>
         ${streakPlaceholder()}
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-        <div class="card-stage">
+        ${hardMode ? `
+          <div class="typed-card">
+            ${faces.front.kickerHtml}
+            <div class="word${wordClass(faces.front.wordClass)}">${esc(faces.front.wordText)}</div>
+          </div>
+          ${result ? `
+            <div class="typed-feedback" role="status">
+              <p class="kicker">${{ easy: 'Easy · first try', good: 'Good · second try', wrong_gender: 'Gender · right word, wrong gender', hard: 'Hard · keep practicing', again: 'Again' }[result.grade]}</p>
+              <p>Your answer: <span>${esc(typedAnswer)}</span></p>
+              <p class="word">${esc(faces.back.wordText)}</p>
+              ${card.example_de ? `<p class="example">${esc(card.example_de)}${card.example_en ? `<br>${esc(card.example_en)}` : ''}</p>` : ''}
+              <button type="button" class="primary" id="typed-next" ${saving ? 'disabled' : ''}>${saving ? 'Saving…' : result.saved ? 'Next card' : 'Retry saving'}</button>
+            </div>
+          ` : `
+            <form id="typed-answer" class="typed-answer">
+              <label for="answer">${settings.direction === 'de-en' ? esc(activeDeck?.baseLang ?? 'English') : esc(activeDeck?.targetLang ?? 'German')} answer${settings.direction === 'en-de' && activeDeck?.articles !== false && card.article !== 'none' ? ' (include the article)' : ''}</label>
+              <input id="answer" name="answer" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" required aria-describedby="answer-help" value="${esc(typedAnswer)}">
+              <p class="note" id="answer-help" role="status">${secondTry ? 'Not quite. Try once more.' : 'First try: Easy · second try: Good · wrong gender: Gender · otherwise: Hard'}</p>
+              <button type="submit" class="primary">Check answer</button>
+            </form>
+          `}
+        ` : `<div class="card-stage">
           <button class="flip ${flipped ? 'is-flipped' : ''}" id="card" type="button" aria-label="Flip card">
             <div class="flip-inner">
               <div class="${faces.front.className}">
@@ -560,12 +591,47 @@ async function renderReview() {
           <button class="grade hard" data-grade="hard">Hard<small>2</small></button>
           <button class="grade good" data-grade="good">Good<small>3</small></button>
           <button class="grade easy" data-grade="easy">Easy<small>4</small></button>
-        </div>
+        </div>`}
       </section>
     `
 
     quietlyRefreshStreak()
     $('#back').addEventListener('click', () => go('/'))
+    if (hardMode) {
+      main.querySelector<HTMLFormElement>('#typed-answer')?.addEventListener('submit', async event => {
+        event.preventDefault()
+        if (saving || result || !studyLockCurrent(lock)) return
+        const input = main.querySelector<HTMLInputElement>('#answer')!
+        if (!input.value.trim()) return
+        typedAnswer = input.value
+        const g = automaticGrade(matchAnswer(card, settings.direction, typedAnswer, activeDeck ?? undefined), secondTry)
+        if (!g) {
+          secondTry = true
+          paint()
+          main.querySelector<HTMLInputElement>('#answer')?.select()
+          return
+        }
+        result = { card, grade: g, saved: false }
+        flipped = true
+        await grade(g, false)
+      })
+      main.querySelector<HTMLButtonElement>('#typed-next')?.addEventListener('click', async () => {
+        if (!result || saving || !studyLockCurrent(lock)) return
+        if (!result.saved) {
+          flipped = true
+          await grade(result.grade, false)
+          return
+        }
+        result = null
+        secondTry = false
+        typedAnswer = ''
+        paint()
+      })
+      const answerInput = main.querySelector<HTMLInputElement>('#answer')
+      if (answerInput) answerInput.focus()
+      else if (!saving) main.querySelector<HTMLButtonElement>('#typed-next')?.focus()
+      return
+    }
     $('#card').addEventListener('click', () => {
       if (flipped) return
       flipped = true
@@ -576,12 +642,13 @@ async function renderReview() {
     })
   }
 
-  const grade = async (g: Grade) => {
+  const grade = async (g: Grade, advance = true) => {
     if (!studyLockCurrent(lock) || saving || !flipped) return
     const card = queue[0]
     if (!card) return
     saving = true
     attempt ??= crypto.randomUUID()
+    if (hardMode) paint()
     try {
       const saved = await saveReview(card.id, g, attempt)
       if (!studyLockCurrent(lock)) return
@@ -593,16 +660,18 @@ async function renderReview() {
         if (g === 'again' || g === 'wrong_gender') queue.push(saved)
       }
       flipped = false
-      paint()
+      if (result) result.saved = true
+      if (advance) paint()
     } catch {
       if (studyLockCurrent(lock)) toast('Could not save this review. Try again.')
     } finally {
       saving = false
+      if (hardMode) paint()
     }
   }
 
   const onKey = (e: KeyboardEvent) => {
-    if (!queue.length) return
+    if (hardMode || !queue.length) return
     if (e.target instanceof Element && e.target.closest('[data-streak]')) return
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
     if (e.key === ' ' || e.key === 'Enter') {
