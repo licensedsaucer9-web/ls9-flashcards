@@ -491,13 +491,21 @@ async function renderReview() {
                 ? `Session complete · ${leftover()} still due`
                 : 'No more due cards'
             }</p>
-            <button class="primary" id="home">Back home</button>
+            <div class="review-finished-actions">
+              <button class="primary" id="home">Home</button>
+              <button class="primary" id="review-more">${settings.sessionSize || 'All'} more</button>
+            </div>
           </div>
         </section>
       `
       quietlyRefreshStreak()
       $('#back').addEventListener('click', () => go('/'))
       $('#home').addEventListener('click', () => go('/'))
+      $('#review-more').addEventListener('click', (event) => {
+        if (!studyLockCurrent(lock)) return
+        ;(event.currentTarget as HTMLButtonElement).disabled = true
+        void renderReview()
+      })
       return
     }
 
@@ -590,6 +598,7 @@ async function renderReview() {
   }
 
   const onKey = (e: KeyboardEvent) => {
+    if (!queue.length) return
     if (e.target instanceof Element && e.target.closest('[data-streak]')) return
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
     if (e.key === ' ' || e.key === 'Enter') {
