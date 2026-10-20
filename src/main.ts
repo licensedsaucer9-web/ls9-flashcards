@@ -447,11 +447,11 @@ async function renderReview() {
   const lock = captureStudyLock()
   setTabbar('none')
   const settings = await getSettings()
-  if (!studyLockCurrent(lock)) return
+  if (!studyLockCurrent(lock) || parseRoute().name !== 'review') return
   const activeDeck = await getActiveDeck()
-  if (!studyLockCurrent(lock)) return
+  if (!studyLockCurrent(lock) || parseRoute().name !== 'review') return
   const all = await getAllCards()
-  if (!studyLockCurrent(lock)) return
+  if (!studyLockCurrent(lock) || parseRoute().name !== 'review') return
   const reviewTier = activeDeck?.tiers === false ? [...TIERS] : reviewTiers(settings)
   const reviewTypes = activeDeck?.supportsWordTypes === false ? [] : settings.wordTypes
   const candidates = selectReviewCandidates(all, reviewTier, reviewTypes)
@@ -504,6 +504,8 @@ async function renderReview() {
       $('#review-more').addEventListener('click', (event) => {
         if (!studyLockCurrent(lock)) return
         ;(event.currentTarget as HTMLButtonElement).disabled = true
+        $('#home').setAttribute('disabled', '')
+        $('#back').setAttribute('disabled', '')
         void renderReview()
       })
       return

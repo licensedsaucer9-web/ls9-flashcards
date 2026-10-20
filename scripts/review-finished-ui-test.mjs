@@ -56,8 +56,33 @@ export async function testReviewFinishedUI(newPage) {
     assert.equal(await page.locator('#start').count(), 0, 'restart immediately opens cards')
     assert.equal(await page.locator('.review-meta').textContent().then(text => text.includes('Review ahead')), !remainingDue)
     await finish(nextCount)
-    await page.click('#home')
+    if (size === 3) {
+      const disabled = await page.evaluate(() => {
+        document.querySelector('#review-more').click()
+        const disabled = ['review-more', 'home', 'back'].every(id => document.getElementById(id).disabled)
+        // Hash navigation can still leave Review while its async restart is pending.
+        location.hash = '#/'
+        return disabled
+      })
+      assert(disabled, 'restart disables completion actions until the new session is ready')
+    } else {
+      await page.click('#home')
+    }
     await page.waitForSelector('#start')
+    if (size === 3) {
+      await page.evaluate(async () => {
+        await (await import('/src/db.ts')).getAllCards()
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      })
+      assert.equal(await page.evaluate(() => {
+        return ['Enter', ' '].some(key => {
+          const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+          window.dispatchEvent(event)
+          return event.defaultPrevented
+        })
+      }), false, 'an abandoned restart must not arm review shortcuts on Home')
+      assert.equal(await page.locator('#card').count(), 0, 'an abandoned restart must not paint cards on Home')
+    }
     assert.equal(await page.evaluate(async () => (await (await import('/src/db.ts')).getSettings()).sessionSize), size)
     await page.context().close()
   }
