@@ -156,6 +156,13 @@ a {
   text-align: center;
 }
 
+.review-finished-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: auto;
+}
+
 .due-count {
   font-size: clamp(4.5rem, 22vw, 7rem);
   font-weight: 700;
