@@ -265,7 +265,9 @@ The saved answer and automatic grade remain visible until Next card. A failed
 save stays on the result with Retry saving and reuses the same activity ID.
 
 Matching runs locally against the saved translation, with slash/semicolon-separated
-alternatives accepted individually. Case, whitespace, apostrophe typography and
+alternatives accepted individually. Separators inside parenthetical glosses do not
+create alternatives. Trailing glosses such as “teacher (m)” may be omitted.
+Case, whitespace, apostrophe typography and
 trailing sentence punctuation are normalized; accents and spelling are preserved.
 There is no inferred synonym or fuzzy-spelling grading. Target-language nouns
 require their article when the deck enables articles. Missing articles, number

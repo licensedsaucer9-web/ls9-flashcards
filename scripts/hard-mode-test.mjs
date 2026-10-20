@@ -5,6 +5,17 @@ const card = { de: 'Katze', en: 'cat / feline', article: 'die' }
 assert.equal(matchAnswer(card, 'de-en', '  CAT! '), 'correct')
 assert.equal(matchAnswer(card, 'de-en', 'feline'), 'correct')
 assert.equal(matchAnswer(card, 'de-en', 'dog'), 'incorrect')
+for (const [saved, accepted] of [
+  ['teacher (m)', 'teacher'], ['orange (fruit)', 'orange'],
+  ['stop (bus/tram)', 'stop'], ['class (school) / course', 'course'],
+  ['class (school) / course', 'class'], ['to do / to make', 'to make'],
+]) {
+  assert.equal(matchAnswer({ ...card, en: saved }, 'de-en', accepted), 'correct', saved)
+  assert.equal(matchAnswer({ ...card, en: saved }, 'de-en', saved), 'correct', 'full saved answer remains valid')
+}
+for (const rejected of ['tram)', 'stop (bus', 'bus', 'tram', 'teacher', 'stopping']) {
+  assert.equal(matchAnswer({ ...card, en: 'stop (bus/tram)' }, 'de-en', rejected), 'incorrect', rejected)
+}
 assert.equal(matchAnswer(card, 'en-de', 'DIE   Katze'), 'correct')
 assert.equal(matchAnswer(card, 'en-de', 'der Katze'), 'wrong_gender')
 assert.equal(matchAnswer(card, 'en-de', 'das Katze'), 'wrong_gender')

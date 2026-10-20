@@ -20,7 +20,7 @@ try {
     { answers: ['der Katze'], grade: 'Gender', interval: 0, ease: 2.4 },
     { answers: ['Hund', 'das Katze'], grade: 'Gender', interval: 0, ease: 2.4 },
     { answers: ['Hund', 'Vogel'], grade: 'Hard', interval: 1, ease: 2.35 },
-    { answers: ['feline'], direction: 'de-en', grade: 'Easy', interval: 4, ease: 2.65 },
+    { answers: ['cat'], direction: 'de-en', grade: 'Easy', interval: 4, ease: 2.65 },
     { answers: ['die Katze'], failSave: true, grade: 'Easy', interval: 4, ease: 2.65 },
   ]) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' })
@@ -36,7 +36,7 @@ try {
       const db = await import('/src/db.ts')
       const cards = await db.getAllCards()
       await db.putCards(cards.map((card, i) => ({ ...card,
-        ...(i === 0 ? { de: 'Katze', en: 'cat / feline', article: 'die', example_de: 'Die Katze schläft.', example_en: 'The cat sleeps.' } : {}),
+        ...(i === 0 ? { de: 'Katze', en: 'cat (animal/pet) / feline', article: 'die', example_de: 'Die Katze schläft.', example_en: 'The cat sleeps.' } : {}),
         srs: { ease: 2.5, interval: 0, reps: 0, due: i ? Date.now() + 86400000 : 0 },
       })))
       await db.putSettings({ direction: direction ?? 'en-de', tier: 3, selectedTiers: [1, 2, 3], wordTypes: [], sessionSize: 1 })

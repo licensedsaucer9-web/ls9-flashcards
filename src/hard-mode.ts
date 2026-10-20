@@ -8,13 +8,28 @@ export type AnswerMatch = 'correct' | 'wrong_gender' | 'incorrect'
 
 /** Preserve accents and word punctuation; normalize typography, case and spacing. */
 export function normalizeAnswer(value: string): string {
-  return value.normalize('NFC').toLocaleLowerCase().replace(/[’‘]/g, "'")
+  return value.normalize('NFC').toLowerCase().replace(/[’‘]/g, "'")
     .replace(/\s+/g, ' ').trim().replace(/[.!?]+$/, '').trim()
 }
 
-/** Saved slash/semicolon-separated translations are alternatives, not a required list. */
+/** Split alternatives only outside glosses such as “stop (bus/tram)”. */
 function alternatives(value: string): string[] {
-  return [value, ...value.split(/\s*[\/;]\s*/)].map(normalizeAnswer).filter(Boolean)
+  const parts = [value]
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] === '(') depth++
+    else if (value[i] === ')') depth = Math.max(0, depth - 1)
+    else if (depth === 0 && (value[i] === '/' || value[i] === ';')) {
+      parts.push(value.slice(start, i))
+      start = i + 1
+    }
+  }
+  parts.push(value.slice(start))
+  // Trailing parenthetical notes disambiguate the prompt; they need not be typed.
+  // Keep the complete saved answer valid, without accepting the gloss by itself.
+  return parts.flatMap(part => [part, part.replace(/(?:\s*\([^()]*\))+\s*$/, '')])
+    .map(normalizeAnswer).filter(Boolean)
 }
 
 function withArticle(article: Article, word: string): string {
