@@ -1,4 +1,5 @@
 import './style.css'
+import { chooseTheme, currentTheme, initializeTheme, type Theme } from './theme.ts'
 import { registerSW } from 'virtual:pwa-register'
 import type { Article, Card, Direction, Grade, LocalDeck, PublicSettings, Tier, WordType } from './types.ts'
 import { articleGender, articleLabel, articlesFor } from './articles.ts'
@@ -78,6 +79,7 @@ import {
   syncNow,
 } from './sync.ts'
 
+initializeTheme()
 registerSW({ immediate: true })
 
 type Route =
@@ -1090,6 +1092,14 @@ async function renderCloudSettings() {
   main.innerHTML = `
     <section class="screen scroll">
       <header class="topbar"><h1>Settings</h1><span class="badge">${esc(accountBadge())}</span></header>
+      <div class="setting">
+        <label for="theme">Theme</label>
+        <select id="theme" aria-describedby="theme-note">
+          <option value="dark" ${currentTheme() === 'dark' ? 'selected' : ''}>Dark</option>
+          <option value="light" ${currentTheme() === 'light' ? 'selected' : ''}>Light</option>
+        </select>
+        <p class="note" id="theme-note">Colors for every deck and account on this device.</p>
+      </div>
       ${accountPanelHtml()}
       <div class="setting">
         <p class="kicker" style="margin:0">Starter content</p>
@@ -1108,6 +1118,10 @@ async function renderCloudSettings() {
     </section>
   `
   bindAccountPanel(accountHooks)
+  $('#theme').addEventListener('change', (event) => {
+    const theme = (event.target as HTMLSelectElement).value as Theme
+    if (!chooseTheme(theme)) toast('Theme applied for now. Browser storage is unavailable.')
+  })
   const sw = 'serviceWorker' in navigator
   $('#sw-status').textContent = sw
     ? 'Service worker APIs are available in this browser.'

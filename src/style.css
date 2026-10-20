@@ -16,12 +16,41 @@
   --good: #3dd68c;
   --easy: #4ea1ff;
   --gender: #c77dff;
+  --shadow: rgb(0 0 0 / 28%);
+  --backdrop: rgb(0 0 0 / 65%);
   --radius: 18px;
   --tabbar-h: 64px;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
   --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f5f7fb;
+  --bg-elev: #eaf0f7;
+  --surface: #ffffff;
+  --surface-2: #e3eaf3;
+  --line: #c5cfdd;
+  --text: #182333;
+  --muted: #526176;
+  --der: #1460b8;
+  --die: #b52450;
+  --das: #147545;
+  --none: #526176;
+  --again: #b52626;
+  --hard: #855000;
+  --good: #147545;
+  --easy: #1460b8;
+  --gender: #793bb5;
+  --shadow: rgb(24 35 51 / 12%);
+  --backdrop: rgb(24 35 51 / 40%);
+}
+
+#theme:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
 }
 
 * {
@@ -353,7 +382,7 @@ a {
   align-items: center;
   text-align: center;
   gap: 12px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 16px 40px var(--shadow);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -364,17 +393,17 @@ a {
 
 .face.gender-der {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--der) 55%, transparent),
-    0 16px 40px rgba(0, 0, 0, 0.28);
+    0 16px 40px var(--shadow);
 }
 
 .face.gender-die {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--die) 55%, transparent),
-    0 16px 40px rgba(0, 0, 0, 0.28);
+    0 16px 40px var(--shadow);
 }
 
 .face.gender-das {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--das) 55%, transparent),
-    0 16px 40px rgba(0, 0, 0, 0.28);
+    0 16px 40px var(--shadow);
 }
 
 .article {
@@ -800,7 +829,7 @@ p code {
 }
 
 .session-dialog::backdrop {
-  background: rgb(0 0 0 / 65%);
+  background: var(--backdrop);
 }
 
 .session-dialog h2 {
