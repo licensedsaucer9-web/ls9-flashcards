@@ -170,7 +170,7 @@ The private repository secret
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-The source version is `1.4.2`. **Settings → Install** shows
+The source version is `1.5.0`, adding typed-answer Hard mode with automatic grading. **Settings → Install** shows
 the running version and source revision, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI

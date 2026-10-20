@@ -349,6 +349,32 @@ a {
   perspective: 1400px;
 }
 
+.hard-mode-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.hard-mode-switch input { width: auto; margin: 0; }
+.hard-mode-switch span { flex-basis: 100%; color: var(--muted); font-size: 0.85rem; }
+.typed-card, .typed-feedback {
+  padding: 24px 20px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.typed-card .word { margin: 12px 0; }
+.typed-answer { display: grid; gap: 12px; margin: 20px 0; }
+.typed-answer input { min-width: 0; width: 100%; font-size: 1.1rem; }
+.typed-feedback { margin-top: 16px; }
+.typed-feedback .primary { width: 100%; margin-top: 16px; }
+.typed-feedback p { margin: 12px 0; }
+
 .flip {
   flex: 1;
   width: 100%;

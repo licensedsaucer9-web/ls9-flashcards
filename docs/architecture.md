@@ -251,6 +251,31 @@ does not reschedule them; grading a review-ahead card uses the normal SRS and
 progress-save path. Cards arriving from sync do not join that running session;
 start a new session to include them.
 
+### Hard mode
+
+Review offers a Hard mode switch, off by default and remembered in this browser
+(across decks/accounts, like appearance). It is captured when a session starts;
+review direction, filters, session size and scheduling still use the active deck.
+Hard mode replaces flipping and manual grades with an answer form. A correct
+first answer saves Easy; another mistake offers one retry without revealing the
+answer or writing progress/activity. A correct retry saves Good, an incorrect
+retry saves Hard. A correct word with a recognized wrong-gender article saves
+Gender immediately on either attempt and requeues through the existing scheduler.
+The saved answer and automatic grade remain visible until Next card. A failed
+save stays on the result with Retry saving and reuses the same activity ID.
+
+Matching runs locally against the saved translation, with slash/semicolon-separated
+alternatives accepted individually. Separators inside parenthetical glosses do not
+create alternatives. Trailing glosses such as “teacher (m)” may be omitted.
+Case, whitespace, apostrophe typography and
+trailing sentence punctuation are normalized; accents and spelling are preserved.
+There is no inferred synonym or fuzzy-spelling grading. Target-language nouns
+require their article when the deck enables articles. Missing articles, number
+errors and misspelled words are ordinary mistakes. Gender grading only applies
+when answering into the target language; an elided French l’ cannot distinguish
+gender in typed text. Typed attempts stay in memory and are never synced or logged;
+only the existing SRS update and anonymous activity event are saved.
+
 ## Forgiving streaks
 
 IndexedDB version 2 adds an `activity` store. A grade commits the schedule,
