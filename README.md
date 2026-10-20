@@ -106,6 +106,12 @@ Earlier days create no debt. Days follow the time zone of your first tracked
 review and keep that zone when travelling. Offline activity and confirmed device
 copies merge into the signed-in account; the counter may update after sync.
 
+## Themes
+
+**Settings → Theme** switches between Dark (the original palette) and Light.
+The choice applies immediately across the app and survives reloads on this
+device. It stays separate from account sync and per-deck study preferences.
+
 ## Account
 
 A Firebase build offers **Continue with Google** and **Study on this device**. New accounts get a personal German deck seeded from the bundled list and can create private extra decks. Mapped legacy accounts retain their assigned vocabulary deck. Each account has its own per-deck schedules; streak activity is shared across that account's decks. Signing in does not upload device-study data unless you confirm a copy; mapped legacy profiles use the separate recovery flow below. Two accounts cannot read each other’s progress. The public root serves the Firebase production build.
@@ -164,7 +170,7 @@ The private repository secret
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-The source version is `1.4.1`. **Settings → Install** shows
+The source version is `1.4.2`. **Settings → Install** shows
 the running version and source revision, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI

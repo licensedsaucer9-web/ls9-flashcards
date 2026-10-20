@@ -76,7 +76,7 @@ publication and physical installation updates remain #38's operational gate.
    **EN → DE** shows English first. Change it and start a new review to verify.
 7. Review shows tier, word-type, and session-size chips in that order.
    Decks retains review direction and optional-feature switches.
-   Settings retains account controls, Install/version, and the SRS note.
+   Settings retains account controls, Theme, Install/version, and the SRS note.
 
 ## 2. Review loop and exit
 
@@ -223,3 +223,10 @@ account isolation and device copies. `npm run test:rules` checks immutable activ
 ownership, malformed writes, concurrent clients and offline retry in the emulator.
 The recovery build also verifies that opening a version-1 source does not upgrade
 or mutate it. Production two-device/installed-app acceptance belongs to release.
+
+## Themes
+
+Run `npm run test:themes-ui` for disposable Chromium checks. In Settings, select
+Light and Dark with touch or keyboard. Confirm readable screens, article badges,
+grade buttons and dialogs on mobile and desktop, then reload to check persistence.
+The theme applies to every deck/account on this device and does not sync.
