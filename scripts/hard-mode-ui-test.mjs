@@ -19,7 +19,7 @@ try {
     { answers: ['Hund', 'die Katze'], grade: 'Good', interval: 1, ease: 2.5 },
     { answers: ['der Katze'], grade: 'Gender', interval: 0, ease: 2.4 },
     { answers: ['Hund', 'das Katze'], grade: 'Gender', interval: 0, ease: 2.4 },
-    { answers: ['Hund', 'Vogel'], grade: 'Hard', interval: 1, ease: 2.35 },
+    { answers: ['Hund', 'Vogel'], grade: 'Again', interval: 0, ease: 2.3 },
     { answers: ['cat'], direction: 'de-en', grade: 'Easy', interval: 4, ease: 2.65 },
     { answers: ['die Katze'], failSave: true, grade: 'Easy', interval: 4, ease: 2.65 },
   ]) {
@@ -99,9 +99,9 @@ try {
     }
     if (scenario.grade === 'Good') await page.screenshot({ path: '/tmp/flashcards-hard-mode-result.png', fullPage: true })
     await page.locator('#typed-next').focus(); await page.keyboard.press('Enter')
-    if (scenario.grade === 'Gender') {
+    if (scenario.grade === 'Gender' || scenario.grade === 'Again') {
       await page.waitForSelector('#answer')
-      assert.equal(await page.locator('#answer').inputValue(), '', 'gender-requeued card starts with fresh attempts')
+      assert.equal(await page.locator('#answer').inputValue(), '', 'requeued card starts with fresh attempts')
       await page.locator('#answer').fill('die Katze'); await page.locator('#answer').press('Enter')
       await page.getByRole('button', { name: 'Next card', exact: true }).waitFor()
       assert.match(await page.locator('.typed-feedback .kicker').textContent(), /^Easy/)
@@ -115,7 +115,7 @@ try {
     await context.close()
   }
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('Hard mode UI: first/second try, immediate gender/requeue, hard, both directions, persistence, save recovery, keyboard, responsive layout, classic flow: ok')
+  console.log('Hard mode UI: first/second try, immediate gender/requeue, two misses requeue as Again, both directions, persistence, save recovery, keyboard, responsive layout, classic flow: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()

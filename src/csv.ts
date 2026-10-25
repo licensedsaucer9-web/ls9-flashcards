@@ -1,6 +1,7 @@
 import type { Article, Card } from './types.ts'
 import { ARTICLES } from './types.ts'
 import { newSrs } from './srs.ts'
+import { cardContentProblem } from './limits.ts'
 import { parseWordTypeToken } from './word-types.ts'
 
 export type CsvResult = {
@@ -176,6 +177,12 @@ export function importCsv(text: string, existing: Card[], now = Date.now(), deck
       errors.push(`Line ${line}: ${tagged.error}`)
       continue
     }
+    const example_en = (cols[map.example_en] ?? '').trim()
+    const tooLong = cardContentProblem({ de, en, example_de, example_en, tags: tagged.tags })
+    if (tooLong) {
+      errors.push(`Line ${line}: ${tooLong}`)
+      continue
+    }
     const key = cardKey(de, en)
     if (seen.has(key)) {
       skipped++
@@ -189,7 +196,7 @@ export function importCsv(text: string, existing: Card[], now = Date.now(), deck
       en,
       article,
       example_de,
-      example_en: (cols[map.example_en] ?? '').trim(),
+      example_en,
       tags: tagged.tags,
       created_at: now,
       updated_at: now,

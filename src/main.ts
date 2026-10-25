@@ -48,6 +48,7 @@ import {
 import { seedCards } from './seed.ts'
 import { seedBeforeFirstSync } from './sign-in-flow.ts'
 import { newSrs } from './srs.ts'
+import { cardContentProblem, MAX_EXAMPLE_LENGTH, MAX_TERM_LENGTH } from './limits.ts'
 import { quietlyRefreshStreak, refreshStreakDay, streakPlaceholder } from './streak-ui.ts'
 import { importCsv } from './csv.ts'
 import { $, esc, formatDue, germanHead, shuffle } from './dom.ts'
@@ -545,7 +546,7 @@ async function renderReview() {
           </div>
           ${result ? `
             <div class="typed-feedback" role="status">
-              <p class="kicker">${{ easy: 'Easy · first try', good: 'Good · second try', wrong_gender: 'Gender · right word, wrong gender', hard: 'Hard · keep practicing', again: 'Again' }[result.grade]}</p>
+              <p class="kicker">${{ easy: 'Easy · first try', good: 'Good · second try', wrong_gender: 'Gender · right word, wrong gender', hard: 'Hard · keep practicing', again: 'Again · not remembered' }[result.grade]}</p>
               <p>Your answer: <span>${esc(typedAnswer)}</span></p>
               <p class="word">${esc(faces.back.wordText)}</p>
               ${card.example_de ? `<p class="example">${esc(card.example_de)}${card.example_en ? `<br>${esc(card.example_en)}` : ''}</p>` : ''}
@@ -966,10 +967,10 @@ async function renderEdit(id: string | null) {
       </header>
       <form class="form" id="form">
         <label>${esc(targetLang)}
-          <input name="de" type="text" required value="${esc(c?.de ?? '')}" autocomplete="off" />
+          <input name="de" type="text" required maxlength="${MAX_TERM_LENGTH}" value="${esc(c?.de ?? '')}" autocomplete="off" />
         </label>
         <label>${esc(baseLang)}
-          <input name="en" type="text" required value="${esc(c?.en ?? '')}" autocomplete="off" />
+          <input name="en" type="text" required maxlength="${MAX_TERM_LENGTH}" value="${esc(c?.en ?? '')}" autocomplete="off" />
         </label>
         ${activeDeck.articles ? `<label>Article
           <select name="article">${articleOptions(c?.article ?? 'none', targetLang)}</select>
@@ -983,10 +984,10 @@ async function renderEdit(id: string | null) {
             : ''
         }
         <label>Example (${esc(targetLang)})
-          <textarea name="example_de">${esc(c?.example_de ?? '')}</textarea>
+          <textarea name="example_de" maxlength="${MAX_EXAMPLE_LENGTH}">${esc(c?.example_de ?? '')}</textarea>
         </label>
         <label>Example (${esc(baseLang)})
-          <textarea name="example_en">${esc(c?.example_en ?? '')}</textarea>
+          <textarea name="example_en" maxlength="${MAX_EXAMPLE_LENGTH}">${esc(c?.example_en ?? '')}</textarea>
         </label>
         <label>Tags (comma separated)
           <input name="tags" type="text" value="${esc(editorTagField(c?.tags ?? []))}" />
@@ -1020,6 +1021,12 @@ async function renderEdit(id: string | null) {
     const tier = activeDeck.tiers ? Math.min(3, Math.max(1, Number(fd.get('tier')) || 3)) as Tier : c?.tier
     if (!de || !en) {
       toast(`${targetLang} and ${baseLang} are required`)
+      return
+    }
+    // Pasted text bypasses maxlength in some browsers, and the server rejects anything over the limits.
+    const tooLong = cardContentProblem({ de, en, example_de, example_en, tags })
+    if (tooLong) {
+      toast(`Not saved: ${tooLong}`)
       return
     }
     const now = Date.now()

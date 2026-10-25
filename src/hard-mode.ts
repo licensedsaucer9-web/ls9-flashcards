@@ -59,5 +59,6 @@ export function matchAnswer(card: AnswerCard, direction: Direction, answer: stri
 export function automaticGrade(match: AnswerMatch, secondTry: boolean): Grade | null {
   if (match === 'wrong_gender') return 'wrong_gender'
   if (match === 'correct') return secondTry ? 'good' : 'easy'
-  return secondTry ? 'hard' : null
+  // Missing it twice means it was not remembered; 'hard' would lengthen a learned card's interval.
+  return secondTry ? 'again' : null
 }
