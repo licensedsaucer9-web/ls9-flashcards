@@ -307,6 +307,30 @@ export async function createLocalDeck(name: string, targetLang: string): Promise
   } finally { db.close() }
 }
 
+/** Stage a starter deck's row and its missing seed cards in `tx`. The caller decides whether it becomes the open deck. */
+function stageStarterDeck(
+  tx: IDBTransaction, language: StarterLanguage, id: string, settings: Settings,
+  existing: LocalDeck | undefined, cards: Card[], rev: number,
+): { deck: LocalDeck; added: Card[] } {
+  const deck: LocalDeck = existing ?? {
+    id, starter: language, name: STARTERS.find(s => s.key === language)!.name,
+    targetLang: language === 'fr' ? 'French' : 'Spanish', baseLang: 'English',
+    articles: true, supportsWordTypes: true, tiers: true, origin: 'local',
+    direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [],
+  }
+  const ids = new Set(cards.map(card => card.id))
+  const added: Card[] = []
+  for (const card of starterCards(language)) {
+    if (ids.has(card.id) || settings.deletedIds[card.id]) continue
+    const saved = { ...card, deckId: id }
+    tx.objectStore('cards').add(saved)
+    settings.pending.cards[card.id] = { revision: rev, acked: 0, deckId: id }
+    added.push(saved)
+  }
+  tx.objectStore('decks').put(deck)
+  return { deck, added }
+}
+
 /** Explicit catalog addition: one atomic insert, preserving edits, schedules and tombstones.
  * Existing built-ins are never overwritten; new seed IDs can be appended on repeat addition.
  */
@@ -325,23 +349,9 @@ export async function addStarterDeck(language: StarterLanguage): Promise<LocalDe
     ])
     if (!studyLockCurrent(lock)) { tx.abort(); await done.catch(() => {}); return null }
     const settings = normalizeSettings(stored)
-    const deck: LocalDeck = existing ?? {
-      id, starter: language, name: STARTERS.find(s => s.key === language)!.name,
-      targetLang: language === 'fr' ? 'French' : 'Spanish', baseLang: 'English',
-      articles: true, supportsWordTypes: true, tiers: true, origin: 'local',
-      direction: 'de-en', sessionSize: 20, tier: 1, wordTypes: [],
-    }
-    const ids = new Set(cards.map(card => card.id))
     const rev = settings.localRevision + 1
-    let added = false
-    for (const card of starterCards(language)) {
-      if (ids.has(card.id) || settings.deletedIds[card.id]) continue
-      tx.objectStore('cards').add({ ...card, deckId: id })
-      settings.pending.cards[card.id] = { revision: rev, acked: 0, deckId: id }
-      added = true
-    }
-    if (added) settings.localRevision = rev
-    tx.objectStore('decks').put(deck)
+    const { deck, added } = stageStarterDeck(tx, language, id, settings, existing, cards, rev)
+    if (added.length) settings.localRevision = rev
     tx.objectStore('settings').put({ ...settings, activeDeckId: id })
     await done
     if (!studyLockCurrent(lock)) return null
@@ -1547,9 +1557,11 @@ function originalDeckId(decks: LocalDeck[], settings: Settings): string {
 /**
  * Copy a signed-out database into the database the current study lock names.
  * Progress copies schedules and settings only. Vocabulary also copies cards and deletions.
- * Only the original deck is copied, always into the destination's original deck, whichever
- * deck either side has open: the open deck is a viewing choice, and copying it would put,
- * say, a French starter deck's cards into the German deck. Other decks stay on this device.
+ * The original (German) deck is copied into the destination's original deck whichever deck is open
+ * on either side: copying the open deck would put, say, French cards into the German deck. The
+ * French and Spanish starter decks are copied into the destination's own starter deck of that
+ * language, created with its seed cards when missing (starter IDs are per account, so they differ
+ * from the device's). Created decks are not copied. The open deck never changes.
  * The source database is left in place. A lock that changed mid-copy writes nothing.
  */
 export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode): Promise<boolean> {
@@ -1577,6 +1589,14 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
   }
   if (!studyLockCurrent(lock)) return false
   const copiedActivity = activityFromRows(sourceActivity)
+  // A starter deck's ID is derived from its owner, so the account's French deck differs from the device's.
+  const starterIds = new Map<StarterLanguage, string>()
+  for (const deck of sourceDecks) {
+    if (deck.starter && deck.origin === 'local' && !starterIds.has(deck.starter)) {
+      starterIds.set(deck.starter, await starterDeckId(lock.uid ?? lock.dbName, deck.starter))
+    }
+  }
+  if (!studyLockCurrent(lock)) return false
   const db = await openDb(lock.dbName)
   try {
     if (!studyLockCurrent(lock)) return false
@@ -1593,53 +1613,86 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
     const sourceSettings = stored ? normalizeSettings(stored) : null
     const sourceId = originalDeckId(sourceDecks, sourceSettings ?? normalizeSettings(null))
     const targetId = originalDeckId(targetDecks, current.settings)
-    cards = cards.filter(card => !card.deckId || card.deckId === sourceId)
-    const inTarget = (card: Card) => !card.deckId || card.deckId === targetId
     const store = tx.objectStore('cards')
     const rev = current.settings.localRevision + 1
     // Marks name their deck so a sync of another open deck never picks them up.
-    const mark = (previous: RecordMark | undefined): RecordMark => ({ ...bumpMark(previous, rev), deckId: targetId })
-    if (mode === 'vocabulary') {
-      const tombstoned = new Set<string>()
-      if (sourceSettings) {
-        // Tombstones without an owner predate multiple decks, so they belong to the original deck.
-        for (const [id, time] of Object.entries(deckTombstones({ ...sourceSettings, activeDeckId: sourceId }))) {
-          if ((Number(time) || 0) > 0) tombstoned.add(id)
+    const mark = (previous: RecordMark | undefined, deckId: string): RecordMark => ({ ...bumpMark(previous, rev), deckId })
+    // Tombstones without an owner predate multiple decks, so they belong to the original deck.
+    const tombstoneSource = { ...(sourceSettings ?? normalizeSettings(null)), activeDeckId: sourceId }
+    const staged = { ...(current.settings.stagedProgress ?? {}) }
+
+    /** Copy one device deck into one account deck; `into` holds the account deck's cards so far. */
+    const copyDeck = (from: string, to: string, into: Card[], original: boolean) => {
+      const incoming = cards.filter(card => card.deckId === from || (original && !card.deckId))
+      const mine = new Map(into.map(card => [card.id, card]))
+      const elsewhere = (id: string) => current.cards.some(card => card.id === id && card.deckId !== to)
+      if (mode === 'vocabulary') {
+        const tombstoned = new Set<string>()
+        if (sourceSettings) {
+          for (const [id, time] of Object.entries(deckTombstones(tombstoneSource, from))) {
+            if ((Number(time) || 0) > 0) tombstoned.add(id)
+          }
+        }
+        for (const card of incoming) {
+          if (elsewhere(card.id) || tombstoned.has(card.id)) continue
+          const before = mine.get(card.id)
+          // A starter card the device never studied must not erase the account's progress on it.
+          const untouched = !original && before?.srs && (!card.srs || sameSrs(card.srs, newSrs(0)))
+          store.put({ ...card, deckId: to, ...(untouched ? { srs: before.srs } : {}) })
+          current.settings.pending.cards[card.id] = mark(current.settings.pending.cards[card.id], to)
+          if (original || (!untouched && (!before?.srs || !card.srs || !sameSrs(card.srs, before.srs)))) {
+            current.settings.pending.progress[card.id] = mark(current.settings.pending.progress[card.id], to)
+          }
+        }
+        for (const id of tombstoned) {
+          if (elsewhere(id)) continue
+          if (current.settings.deletedDeckIds?.[id] && current.settings.deletedDeckIds[id] !== to) continue
+          const stamp = Number(sourceSettings?.deletedIds[id]) || 0
+          ;(current.settings.deletedDeckIds ??= {})[id] = to
+          current.settings.deletedIds[id] = Math.max(current.settings.deletedIds[id] || 0, stamp)
+          store.delete(id)
+          current.settings.pending.tombstones[id] = mark(current.settings.pending.tombstones[id], to)
+        }
+      } else {
+        for (const card of incoming) {
+          if (!card.srs) continue
+          const existing = mine.get(card.id)
+          if (!existing) {
+            if (original) staged[card.id] = card.srs
+            continue
+          }
+          if (sameSrs(card.srs, existing.srs)) continue
+          if (!original && sameSrs(card.srs, newSrs(0))) continue // never studied on the device
+          store.put({ ...existing, srs: card.srs })
+          current.settings.pending.progress[card.id] = mark(current.settings.pending.progress[card.id], to)
         }
       }
-      for (const card of cards) {
-        if (current.cards.some(mine => mine.id === card.id && mine.deckId !== targetId)) continue
-        if (tombstoned.has(card.id)) continue
-        store.put({ ...card, deckId: targetId })
-        current.settings.pending.cards[card.id] = mark(current.settings.pending.cards[card.id])
-        current.settings.pending.progress[card.id] = mark(current.settings.pending.progress[card.id])
-      }
-      for (const id of tombstoned) {
-        if (current.cards.some(mine => mine.id === id && mine.deckId !== targetId)) continue
-        if (current.settings.deletedDeckIds?.[id] && current.settings.deletedDeckIds[id] !== targetId) continue
-        const stamp = Number(sourceSettings?.deletedIds[id]) || 0
-        ;(current.settings.deletedDeckIds ??= {})[id] = targetId
-        current.settings.deletedIds[id] = Math.max(current.settings.deletedIds[id] || 0, stamp)
-        store.delete(id)
-        current.settings.pending.tombstones[id] = mark(current.settings.pending.tombstones[id])
-      }
-    } else {
-      const byId = new Map(current.cards.filter(inTarget).map((card) => [card.id, card]))
-      const staged = { ...(current.settings.stagedProgress ?? {}) }
-      for (const card of cards) {
-        if (!card.srs) continue
-        const mine = byId.get(card.id)
-        if (!mine) {
-          staged[card.id] = card.srs
-          continue
-        }
-        if (sameSrs(card.srs, mine.srs)) continue
-        store.put({ ...mine, srs: card.srs })
-        current.settings.pending.progress[card.id] = mark(current.settings.pending.progress[card.id])
-      }
+    }
+
+    copyDeck(sourceId, targetId, current.cards.filter(card => !card.deckId || card.deckId === targetId), true)
+    if (mode === 'progress') {
       if (Object.keys(staged).length) current.settings.stagedProgress = staged
       else delete current.settings.stagedProgress
     }
+
+    for (const guest of sourceDecks) {
+      const language = guest.starter
+      const id = language && guest.origin === 'local' ? starterIds.get(language) : undefined
+      if (!language || !id) continue
+      const existing = targetDecks.find(deck => deck.id === id)
+      const { deck, added } = stageStarterDeck(tx, language, id, current.settings, existing, current.cards, rev)
+      copyDeck(guest.id, id, [...current.cards.filter(card => card.deckId === id), ...added], false)
+      // Preferences: a newly created account deck takes the device's; an existing one only if the device's are newer.
+      const guestAt = guest.settingsUpdatedAt ?? 0
+      if (!existing || guestAt > (deck.settingsUpdatedAt ?? 0)) {
+        const preferences = publicSettings(guest)
+        const changed = deck.direction !== preferences.direction || deck.sessionSize !== preferences.sessionSize
+          || deck.tier !== preferences.tier || !sameSelectedTiers(deck, preferences) || !sameWordTypes(deck.wordTypes, preferences.wordTypes)
+        tx.objectStore('decks').put({ ...replacePreferences({ ...deck }, preferences), settingsUpdatedAt: Math.max(guestAt, deck.settingsUpdatedAt ?? 0) })
+        if (changed) (current.settings.pending.extraSettings ??= {})[id] = bumpMark(current.settings.pending.extraSettings?.[id], rev)
+      }
+    }
+
     if (sourceSettings) {
       const settingsChanged = current.settings.direction !== sourceSettings.direction
         || current.settings.sessionSize !== sourceSettings.sessionSize

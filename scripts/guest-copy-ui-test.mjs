@@ -1,4 +1,5 @@
-// Guest-to-account copy pairs the original deck with the original deck (#109); fresh browser storage, no live services.
+// Guest-to-account copy (#109): original deck pairs with original deck, and the French and Spanish
+// starter decks copy into the account's own starter decks. Fresh browser storage, no live services.
 import assert from 'node:assert/strict'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -26,9 +27,11 @@ try {
   await page.goto('http://127.0.0.1:4195/')
   await page.waitForSelector('#start')
 
-  const runs = await page.evaluate(async () => {
+  const { runs, ids, seedEn } = await page.evaluate(async () => {
     const api = await import('/src/db.ts')
     const { bindStudyDatabase, clearStudyBinding } = await import('/src/study-lock.ts')
+    const { starterCards, starterDeckId } = await import('/src/starter-decks.ts')
+    const seedIds = { fr: starterCards('fr').map(card => card.id), es: starterCards('es').map(card => card.id) }
     const german = (id, due) => ({
       id, de: `de-${id}`, en: `en-${id}`, article: null, example_de: '', example_en: '', tags: [], rank: 1, tier: 1,
       created_at: 1, updated_at: 1, srs: { ease: 2.5, interval: due, reps: 3, due },
@@ -46,71 +49,117 @@ try {
         tx.onabort = () => { db.close(); reject(tx.error) }
       }
     })
-    // Seed a database: German cards, then an optional starter deck that stays open.
-    const seed = async (name, starter, tag) => {
+    const review = async (language, index) => {
+      await api.saveReview(seedIds[language][index], 'good', crypto.randomUUID(), Date.now(), 'UTC')
+    }
+    // The device: German deck, then French (reviewed, edited, extended, one card deleted, own session size),
+    // then Spanish (reviewed). It was last studying French.
+    const seedGuest = async name => {
       bindStudyDatabase({ uid: null, dbName: name })
-      await api.putCard(german(`g-only-${tag}`, 40))
-      await api.putCard(german('g-shared', tag === 'guest' ? 99 : 5))
-      let deck = null
+      await api.putCard(german('g-only-guest', 40))
+      await api.putCard(german('g-shared', 99))
+      const french = await api.addStarterDeck('fr')
+      await review('fr', 0)
+      const edit = (await api.getAllCards()).find(card => card.id === seedIds.fr[1])
+      await api.putCard({ ...edit, en: 'edited on the device', updated_at: 5 })
+      await api.putCard({ ...german('custom-fr', 7), de: 'custom' })
+      await api.deleteCard(seedIds.fr[2], 6001)
+      await api.putSettings({ sessionSize: 7 })
+      await api.addStarterDeck('es')
+      await review('es', 0)
+      await api.switchActiveDeck(french.id)
+    }
+    // The account: German deck, optionally a starter deck with progress on a card the device never studied.
+    const seedAccount = async (name, starter) => {
+      bindStudyDatabase({ uid: null, dbName: name })
+      await api.putCard(german('g-only-account', 40)) // German cards first: new cards join the open deck
+      await api.putCard(german('g-shared', 5))
       if (starter) {
-        deck = await api.addStarterDeck(starter)
-        const cards = (await api.getAllCards()).filter(card => card.deckId === deck.id)
-        await api.saveReview(cards[0].id, 'good', crypto.randomUUID(), Date.now(), 'UTC')
+        await api.addStarterDeck(starter)
+        await review(starter, starter === 'fr' ? 3 : 5)
       }
-      return deck
     }
     const out = []
     try {
-      // The guest was last studying French, as in the reported scenario.
       let index = 0
       for (const mode of ['vocabulary', 'progress']) {
-        for (const targetStarter of [null, 'fr', 'es']) {
+        for (const starter of [null, 'fr', 'es']) {
           const guest = `guest-${index}`
           const account = `account-${index++}`
-          await seed(guest, 'fr', 'guest')
-          await seed(account, targetStarter, 'account')
+          await seedGuest(guest)
+          await seedAccount(account, starter)
           const before = await rows(account)
+          const frId = await starterDeckId(account, 'fr')
+          const esId = await starterDeckId(account, 'es')
           bindStudyDatabase({ uid: null, dbName: account })
           const copied = await api.copyGuestDatabase(guest, mode)
-          out.push({ mode, targetStarter, copied, before, after: await rows(account), guest: await rows(guest) })
+          out.push({ mode, starter, copied, frId, esId, before, after: await rows(account), guest: await rows(guest) })
         }
       }
-      return out
+      return { runs: out, ids: seedIds, seedEn: starterCards('fr')[1].en }
     } finally { clearStudyBinding() }
   })
 
+  const card = (rows, id) => rows.cards.find(item => item.id === id)
   for (const run of runs) {
-    const label = `${run.mode}, account has ${run.targetStarter ?? 'no starter deck'}`
+    const label = `${run.mode}, account ${run.starter ? `has ${run.starter} open` : 'has no starter deck'}`
     assert.equal(run.copied, true, `${label}: copy ran`)
+    const vocabulary = run.mode === 'vocabulary'
     const original = run.after.decks.find(deck => deck.origin === 'original').id
+    const inDeck = id => run.after.cards.filter(item => item.deckId === id)
     const guestFrench = run.guest.decks.find(deck => deck.starter === 'fr').id
-    const guestFrenchIds = new Set(run.guest.cards.filter(card => card.deckId === guestFrench).map(card => card.id))
-    const inOriginal = run.after.cards.filter(card => card.deckId === original)
-    assert.ok(guestFrenchIds.size > 100, `${label}: fixture guest has a French deck`)
-    // 1. The guest's open French deck never lands in the German deck.
-    assert.deepEqual(inOriginal.filter(card => guestFrenchIds.has(card.id)).map(card => card.id), [],
-      `${label}: no guest French card in the German deck`)
-    // 2. The guest's German progress is what arrives, in the German deck.
-    const shared = run.after.cards.find(card => card.id === 'g-shared')
-    assert.equal(shared.deckId, original, `${label}: German card stays in the German deck`)
-    assert.equal(shared.srs.due, 99, `${label}: guest German progress copied`)
-    const guestOnly = run.after.cards.find(card => card.id === 'g-only-guest')
-    if (run.mode === 'vocabulary') assert.equal(guestOnly?.deckId, original, `${label}: guest-only German card copied`)
-    else assert.equal(guestOnly, undefined, `${label}: progress mode copies no vocabulary`)
-    // 3. The account's own other decks are untouched.
-    const others = cards => cards.filter(card => card.deckId !== original).map(card => [card.id, card.deckId, card.srs])
-    assert.deepEqual(others(run.after.cards), others(run.before.cards), `${label}: account's other decks untouched`)
-    // 4. Pending marks name the German deck, so a sync of another open deck cannot pick them up.
-    const fresh = Object.entries(run.after.settings.pending.progress).filter(([, mark]) => mark.revision > run.before.settings.localRevision)
-    assert.ok(fresh.length > 0, `${label}: copy recorded pending progress`)
-    for (const [, mark] of fresh) assert.equal(mark.deckId, original, `${label}: pending progress scoped to the German deck`)
-    // 5. Which deck is open does not change.
+
+    // German deck: only the device's German deck arrives; no French card ever lands in it.
+    assert.ok(run.guest.cards.filter(item => item.deckId === guestFrench).length > 100, `${label}: fixture guest has a French deck`)
+    assert.deepEqual(inDeck(original).filter(item => ids.fr.includes(item.id) || item.id === 'custom-fr').map(item => item.id), [],
+      `${label}: no French card in the German deck`)
+    assert.equal(card(run.after, 'g-shared').srs.due, 99, `${label}: guest German progress copied`)
+    assert.equal(card(run.after, 'g-shared').deckId, original, `${label}: German card stays in the German deck`)
+    assert.equal(card(run.after, 'g-only-guest')?.deckId, vocabulary ? original : undefined, `${label}: German vocabulary only in vocabulary mode`)
+
+    // French deck: the account's own starter deck (its ID is derived from the account, not the device).
+    assert.notEqual(run.frId, guestFrench, `${label}: account and device French decks have different IDs`)
+    const french = run.after.decks.find(deck => deck.id === run.frId)
+    assert.equal(french?.starter, 'fr', `${label}: account has its French deck`)
+    assert.deepEqual(card(run.after, ids.fr[0]).srs, card(run.guest, ids.fr[0]).srs, `${label}: reviewed French card's schedule copied`)
+    assert.equal(card(run.after, ids.fr[0]).deckId, run.frId, `${label}: French card lives in the account's French deck`)
+    assert.equal(card(run.after, ids.fr[1]).en, vocabulary ? 'edited on the device' : seedEn, `${label}: French edit only in vocabulary mode`)
+    assert.equal(card(run.after, 'custom-fr')?.deckId, vocabulary ? run.frId : undefined, `${label}: custom French card only in vocabulary mode`)
+    if (vocabulary) {
+      assert.equal(card(run.after, ids.fr[2]), undefined, `${label}: French card deleted on the device is deleted`)
+      assert.equal(run.after.settings.deletedDeckIds[ids.fr[2]], run.frId, `${label}: tombstone owned by the account's French deck`)
+      assert.ok(run.after.settings.pending.tombstones[ids.fr[2]], `${label}: deletion pending upload`)
+    } else {
+      assert.ok(card(run.after, ids.fr[2]), `${label}: progress mode deletes nothing`)
+    }
+    assert.equal(inDeck(run.frId).length, ids.fr.length, `${label}: French deck size (one card deleted, one added, or neither)`)
+    const progressMark = run.after.settings.pending.progress[ids.fr[0]]
+    assert.equal(progressMark?.deckId, run.frId, `${label}: French progress mark names the French deck`)
+    assert.equal(french.sessionSize, 7, `${label}: device's French preferences copied`)
+    assert.ok(run.after.settings.pending.extraSettings?.[run.frId], `${label}: French preferences pending upload`)
+    if (run.starter === 'fr') {
+      // Progress the device never touched stays.
+      assert.deepEqual(card(run.after, ids.fr[3]).srs, card(run.before, ids.fr[3]).srs, `${label}: account's own French progress kept`)
+    }
+
+    // Spanish deck, same rules.
+    const spanish = run.after.decks.find(deck => deck.id === run.esId)
+    assert.equal(spanish?.starter, 'es', `${label}: account has its Spanish deck`)
+    assert.deepEqual(card(run.after, ids.es[0]).srs, card(run.guest, ids.es[0]).srs, `${label}: reviewed Spanish card's schedule copied`)
+    assert.equal(card(run.after, ids.es[0]).deckId, run.esId, `${label}: Spanish card lives in the account's Spanish deck`)
+    if (run.starter === 'es') {
+      assert.deepEqual(card(run.after, ids.es[5]).srs, card(run.before, ids.es[5]).srs, `${label}: account's own Spanish progress kept`)
+    }
+
+    // Which deck is open does not change, and nothing else is created.
     assert.equal(run.after.settings.activeDeckId, run.before.settings.activeDeckId, `${label}: open deck unchanged`)
-    // 6. The guest database stays in place.
-    assert.ok(run.guest.cards.some(card => card.id === 'g-shared' && card.srs.due === 99), `${label}: guest database left in place`)
+    assert.deepEqual(run.after.decks.map(deck => deck.id).sort(),
+      [...new Set([...run.before.decks.map(deck => deck.id), run.frId, run.esId])].sort(), `${label}: only the two starter decks are added`)
+    // The device's database stays in place.
+    assert.ok(card(run.guest, ids.fr[0]).srs.reps > 0, `${label}: device database left in place`)
   }
   assert.deepEqual(errors, [], 'no page errors')
-  console.log('guest copy: original deck pairs with original deck whichever deck is open on either side: ok')
+  console.log('guest copy: German deck pairs with German deck; French and Spanish decks copy into the account\'s own: ok')
 } finally {
   await browser?.close()
   await server?.close()
