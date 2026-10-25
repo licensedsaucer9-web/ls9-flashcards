@@ -373,3 +373,15 @@ No database/schema migration is required. The article whitelist is additive and
 requires a separate rules deployment before production sync. See
 [starter-decks.md](starter-decks.md) for article/gender tokens, identity, seed-update
 policy, content licensing, supported backups and device-local deck-list limits.
+
+## Copying a signed-out device into an account
+
+After sign-in, "Copy" moves the device's German deck into the account's German
+deck: progress and settings, plus word-list edits and deletions in vocabulary mode.
+The pairing is original deck to original deck, whichever deck is open on the device
+or in the account, and the open deck never changes. Cards of other decks (French,
+Spanish, created decks) stay on the device, and pending marks created by the copy
+carry the German deck's id so syncing another open deck cannot pick them up.
+`scripts/guest-copy-ui-test.mjs` covers a device that was studying French copied
+into accounts with no, French and Spanish decks (#109). Copying the other decks is
+not implemented.

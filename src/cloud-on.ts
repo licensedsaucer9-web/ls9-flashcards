@@ -211,8 +211,8 @@ async function askToCopy(personal: boolean): Promise<'skip' | 'progress' | 'voca
   hooks?.setTabs(false)
   const first = await presentChoice(
     personal
-      ? 'Copy this device’s review progress and settings into this account? Word-list edits on this device are copied too. Not now leaves those cards on this device.'
-      : 'Copy this device’s review progress and settings into this account? Not now leaves those cards on this device.',
+      ? 'Copy this device’s German deck progress and settings into this account? Word-list edits to that deck are copied too. Other decks stay on this device. Not now leaves those cards on this device.'
+      : 'Copy this device’s German deck progress and settings into this account? Other decks stay on this device. Not now leaves those cards on this device.',
     [
       ['copy', 'Copy', 'primary'],
       ['not-now', 'Not now', 'secondary'],

@@ -1,5 +1,5 @@
 import { STARTERS, starterCards, starterDeckId, type StarterLanguage } from './starter-decks.ts'
-import type { Card, CardContent, DeckFile, Grade, LocalDeck, PublicSettings, Settings, Srs, Tier, UserFile, WordType } from './types.ts'
+import type { Card, CardContent, DeckFile, Grade, LocalDeck, PublicSettings, RecordMark, Settings, Srs, Tier, UserFile, WordType } from './types.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
 import {
   applyAck,
@@ -1539,9 +1539,17 @@ export async function copyMappedLegacyProfile(
 
 export type GuestCopyMode = 'progress' | 'vocabulary'
 
+/** The original (German) deck of a database. A legacy database without deck rows only has the active deck. */
+function originalDeckId(decks: LocalDeck[], settings: Settings): string {
+  return decks.find(deck => deck.origin === 'original')?.id ?? settings.activeDeckId
+}
+
 /**
  * Copy a signed-out database into the database the current study lock names.
  * Progress copies schedules and settings only. Vocabulary also copies cards and deletions.
+ * Only the original deck is copied, always into the destination's original deck, whichever
+ * deck either side has open: the open deck is a viewing choice, and copying it would put,
+ * say, a French starter deck's cards into the German deck. Other decks stay on this device.
  * The source database is left in place. A lock that changed mid-copy writes nothing.
  */
 export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode): Promise<boolean> {
@@ -1550,15 +1558,19 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
   const source = await openDb(sourceName, false)
   let cards: Card[] = []
   let stored: Settings | undefined
+  let sourceDecks: LocalDeck[] = []
   let sourceActivity: ActivityRow[]
   try {
-    const tx = source.transaction(dataStores(source), 'readonly')
+    const hasDecks = source.objectStoreNames.contains('decks')
+    const tx = source.transaction([...dataStores(source), ...(hasDecks ? ['decks'] : [])], 'readonly')
     const cardsRequest = tx.objectStore('cards').getAll()
     const settingsRequest = tx.objectStore('settings').get('settings')
-    ;[cards, stored, sourceActivity] = await Promise.all([
+    const decksRequest = hasDecks ? tx.objectStore('decks').getAll() : null
+    ;[cards, stored, sourceActivity, sourceDecks] = await Promise.all([
       value(cardsRequest) as Promise<Card[]>,
       value(settingsRequest) as Promise<Settings | undefined>,
       activityRows(tx),
+      decksRequest ? value(decksRequest) as Promise<LocalDeck[]> : Promise.resolve([]),
     ])
   } finally {
     source.close()
@@ -1569,41 +1581,50 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
   try {
     if (!studyLockCurrent(lock)) return false
     const tx = db.transaction(['cards', 'settings', 'activity', 'decks'], 'readwrite')
+    // Attach the handler before awaiting anything else: a request that finishes first never resolves later.
+    const targetDecksRead = value(tx.objectStore('decks').getAll()) as Promise<LocalDeck[]>
     const current = await load(tx)
+    const targetDecks = await targetDecksRead
     if (!studyLockCurrent(lock)) {
       tx.abort()
       await current.done.catch(() => {})
       return false
     }
     const sourceSettings = stored ? normalizeSettings(stored) : null
-    cards = activeCards(cards, sourceSettings ?? normalizeSettings(null))
+    const sourceId = originalDeckId(sourceDecks, sourceSettings ?? normalizeSettings(null))
+    const targetId = originalDeckId(targetDecks, current.settings)
+    cards = cards.filter(card => !card.deckId || card.deckId === sourceId)
+    const inTarget = (card: Card) => !card.deckId || card.deckId === targetId
     const store = tx.objectStore('cards')
     const rev = current.settings.localRevision + 1
+    // Marks name their deck so a sync of another open deck never picks them up.
+    const mark = (previous: RecordMark | undefined): RecordMark => ({ ...bumpMark(previous, rev), deckId: targetId })
     if (mode === 'vocabulary') {
       const tombstoned = new Set<string>()
       if (sourceSettings) {
-        for (const [id, time] of Object.entries(deckTombstones(sourceSettings))) {
+        // Tombstones without an owner predate multiple decks, so they belong to the original deck.
+        for (const [id, time] of Object.entries(deckTombstones({ ...sourceSettings, activeDeckId: sourceId }))) {
           if ((Number(time) || 0) > 0) tombstoned.add(id)
         }
       }
       for (const card of cards) {
-        if (current.cards.some(mine => mine.id === card.id && mine.deckId !== current.settings.activeDeckId)) continue
+        if (current.cards.some(mine => mine.id === card.id && mine.deckId !== targetId)) continue
         if (tombstoned.has(card.id)) continue
-        store.put({ ...card, deckId: current.settings.activeDeckId })
-        current.settings.pending.cards[card.id] = bumpMark(current.settings.pending.cards[card.id], rev)
-        current.settings.pending.progress[card.id] = bumpMark(current.settings.pending.progress[card.id], rev)
+        store.put({ ...card, deckId: targetId })
+        current.settings.pending.cards[card.id] = mark(current.settings.pending.cards[card.id])
+        current.settings.pending.progress[card.id] = mark(current.settings.pending.progress[card.id])
       }
       for (const id of tombstoned) {
-        if (current.cards.some(mine => mine.id === id && mine.deckId !== current.settings.activeDeckId)) continue
-        if (current.settings.deletedDeckIds?.[id] && current.settings.deletedDeckIds[id] !== current.settings.activeDeckId) continue
+        if (current.cards.some(mine => mine.id === id && mine.deckId !== targetId)) continue
+        if (current.settings.deletedDeckIds?.[id] && current.settings.deletedDeckIds[id] !== targetId) continue
         const stamp = Number(sourceSettings?.deletedIds[id]) || 0
-        ;(current.settings.deletedDeckIds ??= {})[id] = current.settings.activeDeckId
+        ;(current.settings.deletedDeckIds ??= {})[id] = targetId
         current.settings.deletedIds[id] = Math.max(current.settings.deletedIds[id] || 0, stamp)
         store.delete(id)
-        current.settings.pending.tombstones[id] = bumpMark(current.settings.pending.tombstones[id], rev)
+        current.settings.pending.tombstones[id] = mark(current.settings.pending.tombstones[id])
       }
     } else {
-      const byId = new Map(activeCards(current.cards, current.settings).map((card) => [card.id, card]))
+      const byId = new Map(current.cards.filter(inTarget).map((card) => [card.id, card]))
       const staged = { ...(current.settings.stagedProgress ?? {}) }
       for (const card of cards) {
         if (!card.srs) continue
@@ -1614,7 +1635,7 @@ export async function copyGuestDatabase(sourceName: string, mode: GuestCopyMode)
         }
         if (sameSrs(card.srs, mine.srs)) continue
         store.put({ ...mine, srs: card.srs })
-        current.settings.pending.progress[card.id] = bumpMark(current.settings.pending.progress[card.id], rev)
+        current.settings.pending.progress[card.id] = mark(current.settings.pending.progress[card.id])
       }
       if (Object.keys(staged).length) current.settings.stagedProgress = staged
       else delete current.settings.stagedProgress
