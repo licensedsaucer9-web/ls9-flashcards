@@ -116,6 +116,9 @@ try {
     assert.equal(card(run.after, 'g-shared').srs.due, 99, `${label}: guest German progress copied`)
     assert.equal(card(run.after, 'g-shared').deckId, original, `${label}: German card stays in the German deck`)
     assert.equal(card(run.after, 'g-only-guest')?.deckId, vocabulary ? original : undefined, `${label}: German vocabulary only in vocabulary mode`)
+    // Pending marks name the German deck, so a sync of another open deck cannot pick them up.
+    assert.equal(run.after.settings.pending.progress['g-shared']?.deckId, original, `${label}: German progress mark scoped to the German deck`)
+    if (vocabulary) assert.equal(run.after.settings.pending.cards['g-only-guest']?.deckId, original, `${label}: German card mark scoped to the German deck`)
 
     // French deck: the account's own starter deck (its ID is derived from the account, not the device).
     assert.notEqual(run.frId, guestFrench, `${label}: account and device French decks have different IDs`)
