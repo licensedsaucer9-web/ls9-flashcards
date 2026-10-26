@@ -10,7 +10,7 @@ and public URL rename before continuing development on 2026-10-04.
 | Built site (public) | [ls9-flashcards-site](https://github.com/licensedsaucer9-web/ls9-flashcards-site) |
 | Public app | <https://licensedsaucer9-web.github.io/ls9-flashcards-site/> |
 | Test rehearsal | <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/rehearsal/> |
-| Retired old-installation URL (404-only since 2026-10-17) | `https://licensedsaucer9-web.github.io/german-flashcards-site/` |
+| Retired old-installation URL (404 page, plus kill-switch workers since 2026-10-26) | `https://licensedsaucer9-web.github.io/german-flashcards-site/` |
 
 ## Old-site retirement, 2026-10-17
 
@@ -43,7 +43,13 @@ GitHub rejected the Pages-disable API request with HTTP 422, "Deactivating
 GitHub pages for this repository is not allowed." Pages remains configured,
 publishing only `gh-pages:/docs`, which contains `.nojekyll` and `404.html`.
 The original root, worker, assets and test previews remain in Git, outside the
-publishing directory. This removes the hosted app/redirect without deleting
+publishing directory. On 2026-10-26 (`gh-pages` commit `7d48bdb`, issue #119) the
+repository was unarchived briefly to add self-removing `sw.js` workers at
+`docs/`, `docs/auth-spike/`, `docs/auth-spike-prod/` and
+`docs/auth-spike/rehearsal/`: a browser that still has an old worker installed
+fetches the new file, clears that scope's caches, unregisters and opens the new app;
+then the repository was archived again. A bare 404 had left those workers (and the cached
+legacy app) in place. This removes the hosted app/redirect without deleting
 history or falsely claiming that the Pages configuration was disabled.
 
 The sections below record the historical 2026-10-04 rename and publication,
