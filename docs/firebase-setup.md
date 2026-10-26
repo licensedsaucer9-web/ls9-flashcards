@@ -202,7 +202,10 @@ On this machine the daily command is `node --experimental-strip-types
 scripts/firestore-backup.mjs`. It reads production through the logged-in
 Firebase CLI, writes the same private dump, and records aggregate counts,
 checksum, and elapsed time in `backup-status.json`. The user timer
-`firestore-backup.timer` runs that command at 08:30 and keeps 14 dumps.
+`firestore-backup.timer` runs that command at 08:30 and keeps 14 dumps. Since
+2026-10-25 it runs from a pinned clone at `~/.local/ls9-flashcards-backup`
+(detached at a merged master commit, `npm ci --ignore-scripts`), not from the
+development checkout, so branch switches never change the backup job.
 Stdout is the status object. A failed run writes `ok: false` and a non-zero
 exit. A separate `firestore-drive-copy.timer` runs an rclone copy of dumps and
 `backup-status.json` to the configured off-machine backup destination at 08:45.

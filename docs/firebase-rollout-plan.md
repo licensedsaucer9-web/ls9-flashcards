@@ -3,7 +3,7 @@
 Updated 2026-10-17. The historical production preparation used master `63b1ee0`.
 This remains the repository's operational plan. Firebase production publication
 is complete; studied-data import and legacy device recovery were waived on
-2026-10-07. The public artifact reports `1.3.0`, including multiple decks.
+2026-10-07. As of 2026-10-26 the public artifact reports `1.5.0` (its `sourceCommit` moves with each publish); multiple decks arrived in `1.3.0`.
 The operating record below separates verified host state from pending
 installed-device/recovery evidence. The original Prod v1 scope and delivery
 procedures are retained as history, including gates later waived by the owner;
@@ -61,9 +61,9 @@ of legacy progress recovery. See the [retirement record](rename.md#old-site-reti
 
 ## Current operations — 2026-10-17
 
-- **Published client:** public `release.json` was verified at version `1.3.0`,
-  source `0aaf08b78b33e1604c250e3cf751553b0e3c18bf`, production Firebase.
-  This includes streaks, multiple decks, per-deck preferences/progress and swipe
+- **Published client:** public `release.json` was verified on 2026-10-26 at version `1.5.0`,
+  production Firebase; read `sourceCommit` from the file for the exact master commit.
+  This includes Hard mode, themes, streaks, multiple decks, per-deck preferences/progress and swipe
   navigation. Names, deck selection, optional-feature switches and local deck
   deletion remain device-local; another device needs an extra deck's ID locally.
 - **Rules:** the production `cloud.firestore` release was updated on
