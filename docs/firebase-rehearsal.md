@@ -11,6 +11,11 @@ The auth-only identity preview is its parent:
 <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/>.
 Neither preview is linked from the public root app.
 
+The auth-only parent and the earlier `auth-spike-prod/` build are retired (#118): the
+publish workflow leaves only `retired/kill-switch-sw.js` as their `sw.js`, so any browser that
+still has the old worker removes it. Only `auth-spike/rehearsal/` remains. Restoring the
+auth-only preview below would be undone by the next publish.
+
 The environment (#23), real import (#24), and real second-device verification
 (#25) are complete as of 2026-10-04. The recorded physical-device result used
 app revision `10d48ab`. Account UI fixes from #28–#29 are merged in current
