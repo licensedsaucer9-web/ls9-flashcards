@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore'
 import { commitActivity, ensureExtraDeck, pullDeckCards, pullCloud, commitCard, commitProgress, commitSettings } from '../src/cloud-push.ts'
 import { review, newSrs } from '../src/srs.ts'
+import { clampSrs, MAX_EASE, MAX_EXAMPLE_LENGTH, MAX_INTERVAL_DAYS, MAX_TAGS, MAX_TERM_LENGTH } from '../src/limits.ts'
 import { importCsv } from '../src/csv.ts'
 import { parseStoredReviewActivity } from '../src/streak.ts'
 import { applyAck, chunkItems, isDirty, runDirtyQueue } from '../src/record-sync.ts'
@@ -281,6 +282,29 @@ try {
   assert(!denied.clean && denied.rejected.length === 1 && denied.rejected[0].code === 'permission-denied', 'rules rejection keeps the queue pending')
   assert(rejectedAcks.join() === 'card-valid', 'a valid record behind a rejected card is acknowledged')
   assert((await getDoc(doc(alice, 'decks', ALICE, 'cards', 'card-valid'))).exists(), 'the valid later card reached the server')
+
+  // The client limits are the server's limits: exactly at them is accepted, one past is rejected (#112).
+  const edge = (over) => content('card-edge', over)
+  assert(await commitCard(alice, ALICE, 'card-edge', edge({
+    de: 'd'.repeat(MAX_TERM_LENGTH), en: 'e'.repeat(MAX_TERM_LENGTH),
+    example_de: 'x'.repeat(MAX_EXAMPLE_LENGTH), example_en: 'y'.repeat(MAX_EXAMPLE_LENGTH),
+    tags: Array.from({ length: MAX_TAGS }, (_, i) => `t${i}`),
+  }), 0) === 'wrote', 'cards exactly at the limits are accepted')
+  for (const [name, over] of [
+    ['first word', { de: 'd'.repeat(MAX_TERM_LENGTH + 1) }],
+    ['translation', { en: 'e'.repeat(MAX_TERM_LENGTH + 1) }],
+    ['example', { example_en: 'y'.repeat(MAX_EXAMPLE_LENGTH + 1) }],
+    ['tags', { tags: Array.from({ length: MAX_TAGS + 1 }, (_, i) => `t${i}`) }],
+  ]) await assertFails(commitCard(alice, ALICE, `card-over-${name.replace(' ', '-')}`, edge(over), 0))
+
+  // Repeated Easy grades used to push a schedule past the rules and block that card's sync for good (#110).
+  let grown = { ...newSrs(1), reps: 3, interval: 400, ease: 2.5 }
+  for (let i = 0; i < 30; i++) grown = review(grown, 'easy', grown.due - 1)
+  assert(grown.interval <= MAX_INTERVAL_DAYS && grown.ease <= MAX_EASE, 'review keeps schedules within the rules')
+  assert(await commitProgress(alice, ALICE, 'card-grown', { ...grown, updated_at: 1 }) === 'wrote', 'a schedule grown by review is accepted')
+  const legacy = { ease: 11.2, interval: 51809, reps: 9, due: 1790856000000, updated_at: 1 }
+  await assertFails(commitProgress(alice, ALICE, 'card-legacy', legacy))
+  assert(await commitProgress(alice, ALICE, 'card-legacy', clampSrs(legacy)) === 'wrote', 'a schedule saved past the caps uploads once repaired')
 
   const expiredAcks = []
   const expired = await runDirtyQueue(

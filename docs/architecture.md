@@ -259,7 +259,7 @@ review direction, filters, session size and scheduling still use the active deck
 Hard mode replaces flipping and manual grades with an answer form. A correct
 first answer saves Easy; another mistake offers one retry without revealing the
 answer or writing progress/activity. A correct retry saves Good, an incorrect
-retry saves Hard. A correct word with a recognized wrong-gender article saves
+retry saves Again, so a forgotten card comes back now instead of later. A correct word with a recognized wrong-gender article saves
 Gender immediately on either attempt and requeues through the existing scheduler.
 The saved answer and automatic grade remain visible until Next card. A failed
 save stays on the result with Retry saving and reuses the same activity ID.
@@ -394,3 +394,23 @@ Decks created by hand are not copied. The open deck never changes, and every pen
 mark the copy creates carries its deck's ID so a sync of another open deck cannot pick
 it up. `scripts/guest-copy-ui-test.mjs` covers a device that was studying French, with
 a Spanish deck, copied into accounts with no, French and Spanish decks in both modes (#109).
+
+## Limits the server enforces
+
+`firestore.rules` rejects a card whose first word or translation is over 200 characters,
+an example over 1000, more than 12 tags, or a schedule with an interval over 36,500 days
+or ease over 10. A rejected record stays pending forever, so the client keeps within the
+same numbers (`src/limits.ts`; `scripts/limits-test.mjs` compares them with the rules text,
+and the emulator suite checks both sides of each boundary):
+
+- **Schedules.** `review()` starts from a schedule clamped to the caps and never exceeds
+  them. Reviewing ahead of schedule never lengthens an interval, so a small deck that keeps
+  offering not-yet-due cards cannot inflate them. A schedule saved past the caps by an older
+  build is repaired when it is uploaded and by its next review.
+- **Editor and CSV import.** The fields carry `maxlength`, the save re-checks pasted text, and
+  a CSV row over a limit is reported by line instead of creating a card that can never sync.
+- **Hard mode.** Missing a card twice saves Again, not Hard: Hard lengthens a learned card's
+  interval.
+- **Rejections.** When a card is rejected anyway (for example one saved before these limits),
+  the status names the card and says what to fix; saving an edit queues it again. The rest of
+  the queue keeps syncing past it. There is no separate list of rejected cards yet.

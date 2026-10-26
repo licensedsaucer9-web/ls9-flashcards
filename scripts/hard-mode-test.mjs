@@ -37,6 +37,6 @@ assert.equal(matchAnswer({ ...card, article: 'none', de: 'gut / schön' }, 'en-d
 for (const second of [false, true]) {
   assert.equal(automaticGrade('wrong_gender', second), 'wrong_gender')
   assert.equal(automaticGrade('correct', second), second ? 'good' : 'easy')
-  assert.equal(automaticGrade('incorrect', second), second ? 'hard' : null)
+  assert.equal(automaticGrade('incorrect', second), second ? 'again' : null)
 }
 console.log('Hard mode matching and automatic grades: ok')

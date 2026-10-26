@@ -14,6 +14,7 @@ import {
   type CloudSnapshot,
 } from './db.ts'
 import { docsToFiles } from './firestore-docs.ts'
+import { cardContentProblem, clampSrs } from './limits.ts'
 import { deckSyncs, hasDirty, listPushItems, runDirtyQueue, type PushItem } from './record-sync.ts'
 import { seedCards } from './seed.ts'
 import { captureStudyLock, studyLockCurrent } from './study-lock.ts'
@@ -59,7 +60,8 @@ async function pushLoaded(
   }
   if (item.kind === 'progress') {
     const card = snapshot.cards.get(item.id)
-    return commitProgress(db, uid, item.id, card ? card.srs : null, extraDeckId)
+    // Repairs a schedule saved before the caps existed, which the server would reject for good.
+    return commitProgress(db, uid, item.id, card ? clampSrs(card.srs) : null, extraDeckId)
   }
   const card = snapshot.cards.get(item.id)
   const deletedAt = Number(snapshot.settings.deletedIds[item.id]) || 0
@@ -125,8 +127,14 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     const dirty = hasDirty(after.settings.pending)
     if (result.rejected.length) {
       const first = result.rejected[0]
-      const record = first.item.kind === 'settings' ? 'settings' : first.item.id
-      return { state: 'rejected', message: `Saved on this device · ${record} rejected (${first.code})` }
+      const card = first.item.kind === 'card' ? snapshot.cards.get(first.item.id) : undefined
+      const problem = card ? cardContentProblem(card) : null
+      const more = result.rejected.length > 1 ? ` (+${result.rejected.length - 1} more)` : ''
+      // Name the card and say what to fix; editing it queues it again.
+      const message = card && problem
+        ? `Saved on this device · “${card.de.slice(0, 40)}” can’t sync: ${problem}. Edit it to fix${more}`
+        : `Saved on this device · ${first.item.kind === 'settings' ? 'settings' : first.item.id} rejected (${first.code})${more}`
+      return { state: 'rejected', message }
     }
     if (!result.clean || dirty) {
       if (result.clean && dirty && studyLockCurrent(lock)) control.requestAgain()

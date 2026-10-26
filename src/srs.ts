@@ -1,3 +1,4 @@
+import { clampSrs, MAX_EASE, MAX_INTERVAL_DAYS } from './limits.ts'
 import type { Grade, Srs } from './types.ts'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -9,10 +10,14 @@ export function newSrs(now = Date.now()): Srs {
 }
 
 /** SuperMemo-2 with Anki-style Again / Hard / Good / Easy. Interval is in days. */
-export function review(srs: Srs, grade: Grade, now = Date.now()): Srs {
+export function review(stored: Srs, grade: Grade, now = Date.now()): Srs {
+  // A schedule saved before the caps existed may be past them; start from one the server accepts.
+  const srs = clampSrs(stored)
   const ease = srs.ease
   const interval = srs.interval
   const reps = srs.reps
+  // Reviewing ahead of schedule proves little, so it never lengthens the interval.
+  const early = interval > 0 && now < srs.due
 
   if (grade === 'again') {
     return {
@@ -35,7 +40,7 @@ export function review(srs: Srs, grade: Grade, now = Date.now()): Srs {
 
   let nextEase = ease
   if (grade === 'hard') nextEase = Math.max(MIN_EASE, ease - 0.15)
-  if (grade === 'easy') nextEase = ease + 0.15
+  if (grade === 'easy') nextEase = Math.min(MAX_EASE, ease + 0.15)
 
   let nextInterval: number
   if (grade === 'hard') {
@@ -49,6 +54,9 @@ export function review(srs: Srs, grade: Grade, now = Date.now()): Srs {
     else if (reps === 1) nextInterval = Math.max(4, Math.round(6 * 1.3))
     else nextInterval = Math.max(1, Math.round(interval * nextEase * 1.3))
   }
+
+  if (early) nextInterval = Math.min(nextInterval, interval)
+  nextInterval = Math.min(MAX_INTERVAL_DAYS, nextInterval)
 
   return {
     ease: nextEase,
