@@ -1,6 +1,6 @@
 // Synthetic local browser data only. The production-build phase verifies real SW offline reopen.
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer, preview } from 'vite'
@@ -200,6 +200,16 @@ try {
   // Locally npm run build creates the same offline assets in dist/.
   const outDir = process.env.STARTER_ARTIFACT_DIR || 'dist'
   if (!existsSync(join(outDir, 'sw.js'))) throw new Error(`Build ${outDir} before this test`)
+  // A dist/ built from older sources fails this test in confusing ways (a missing button,
+  // a 30 s timeout), so say so. A CI artifact directory is whatever the release built.
+  if (!process.env.STARTER_ARTIFACT_DIR) {
+    const builtAt = statSync(join(outDir, 'sw.js')).mtimeMs
+    const newest = (dir) => readdirSync(dir, { withFileTypes: true }).reduce((latest, entry) => {
+      const path = join(dir, entry.name)
+      return Math.max(latest, entry.isDirectory() ? newest(path) : statSync(path).mtimeMs)
+    }, 0)
+    if (newest('src') > builtAt) throw new Error(`${outDir}/ is older than src/; run npm run build before this test`)
+  }
   process.env.BASE = process.env.STARTER_APP_BASE || '/'
   built = await preview({ preview: { host: '127.0.0.1', port: 4186, strictPort: true }, build: { outDir } })
   const offlineContext = await browser.newContext({ viewport: { width: 390, height: 844 } })

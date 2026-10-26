@@ -268,7 +268,9 @@ Matching runs locally against the saved translation, with slash/semicolon-separa
 alternatives accepted individually. Separators inside parenthetical glosses do not
 create alternatives. Trailing glosses such as “teacher (m)” may be omitted.
 Case, whitespace, apostrophe typography and
-trailing sentence punctuation are normalized; accents and spelling are preserved.
+sentence punctuation anywhere in the answer ("a beer please" matches "A beer, please.") are
+normalized, and the German ß and umlauts are interchangeable with their ss/ae/oe/ue spellings;
+other accents and spelling are preserved.
 There is no inferred synonym or fuzzy-spelling grading. Target-language nouns
 require their article when the deck enables articles. Missing articles, number
 errors and misspelled words are ordinary mistakes. Gender grading only applies
