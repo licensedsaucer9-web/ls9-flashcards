@@ -69,7 +69,7 @@ import {
   type WordTypeCounts,
 } from './word-types.ts'
 import { selectReviewCandidates, sessionCount, SESSION_PRESETS } from './session.ts'
-import { reviewTiers, toggleTier, tierOf, tierLabel, TIERS, TIER_NOTES } from './tiers.ts'
+import { reviewTiers, toggleTier, tierOf, tierLabel, tierPillLabel, tierPillName, TIERS, TIER_NOTES } from './tiers.ts'
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { recoveryBridge, rehearsalPreview } from './rehearsal.ts'
 import { buildInfo } from './build-info.ts'
@@ -175,14 +175,12 @@ function showDatabaseNotice(event: 'versionchange' | 'blocked'): void {
 
 /** Review toggles exact buckets; Cards retains its cumulative browse filter. */
 function tierChips(selected: Tier | readonly Tier[], dueByTier: Record<Tier, { due: number; total: number }>): string {
-  let words = 0
   let due = 0
   return TIERS.map((tier) => {
-    words = typeof selected === 'number' ? words + dueByTier[tier].total : dueByTier[tier].total
     due = typeof selected === 'number' ? due + dueByTier[tier].due : dueByTier[tier].due
     const pressed = typeof selected === 'number' ? selected === tier : selected.includes(tier)
     const on = pressed ? ' is-on' : ''
-    return `<button type="button" class="chip tier-chip${on}" data-tier="${tier}" aria-pressed="${pressed}" title="${typeof selected === 'number' ? esc(TIER_NOTES[tier]) : `Only Tier ${tier} cards`}">Tier ${tier}<small>${words} · ${due} due</small></button>`
+    return `<button type="button" class="chip tier-chip${on}" data-tier="${tier}" aria-pressed="${pressed}" aria-label="${tierPillName(tier, due)}" title="${typeof selected === 'number' ? esc(TIER_NOTES[tier]) : `Only Tier ${tier} cards`}">${tierPillLabel(tier, due)}</button>`
   }).join('')
 }
 

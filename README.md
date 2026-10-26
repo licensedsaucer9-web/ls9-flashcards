@@ -49,7 +49,7 @@ French/Spanish deck content is CC BY-SA 4.0; application code remains MIT.
 ## Deck tiers
 
 The 514 German built-in words are split into three tiers by how common they are, and you pick the
-tier you want to study. Each Review pill selects only that tier. Select multiple pills to combine their cards.
+tier you want to study. Each Review pill selects only that tier and reads `T<n>: <due>` (`T1: 23` means 23 tier 1 cards are due now). Select multiple pills to combine their cards.
 
 | Tier | Words | Cumulative |
 | --- | --- | --- |

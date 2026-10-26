@@ -1029,7 +1029,12 @@ p code {
 
 /* --- tiers and profiles --- */
 
-.chip.tier-chip,
+.chip.tier-chip {
+  padding: 6px 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .chip.type-chip {
   display: flex;
   flex-direction: column;
@@ -1040,7 +1045,6 @@ p code {
   line-height: 1.15;
 }
 
-.chip.tier-chip small,
 .chip.type-chip small {
   font-size: 0.68rem;
   font-weight: 500;

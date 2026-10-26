@@ -59,10 +59,10 @@ publication and physical installation updates remain #38's operational gate.
 
 ## 1. Tiers
 
-1. Review shows saved **Deck tier** chips with word and due counts. Tier 1 is selected
+1. Review shows saved **Deck tier** pills reading `T1: <due>`, `T2: <due>`, `T3: <due>` (due-now count only; accessible name such as `Tier 1, 23 due`). Tier 1 is selected
    on a fresh profile and includes 100 words.
 2. Tier 2 alone includes its own 150 words. Tier 2 + Tier 3 includes 414
-   words and excludes Tier 1. Pills show counts for their own bucket.
+   words and excludes Tier 1. Pills show due counts for their own bucket.
 3. Tier 3 alone includes 264 words and excludes tiers 1 and 2. Reload, switch
    decks, and sync a second client to verify the exact selection persists.
    Turning off the last tier returns to all three. Old cumulative settings
