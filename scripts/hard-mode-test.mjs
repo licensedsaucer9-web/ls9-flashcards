@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { automaticGrade, matchAnswer } from '../src/hard-mode.ts'
+import { answerKey, automaticGrade, matchAnswer } from '../src/hard-mode.ts'
 
 const card = { de: 'Katze', en: 'cat / feline', article: 'die' }
 assert.equal(matchAnswer(card, 'de-en', '  CAT! '), 'correct')
@@ -39,4 +39,20 @@ for (const second of [false, true]) {
   assert.equal(automaticGrade('correct', second), second ? 'good' : 'easy')
   assert.equal(automaticGrade('incorrect', second), second ? 'again' : null)
 }
+// Internal punctuation and German digraph spellings are not mistakes (#117).
+assert.equal(matchAnswer({ ...card, en: 'A beer, please.' }, 'de-en', 'a beer please'), 'correct')
+assert.equal(matchAnswer({ ...card, en: 'a beer please' }, 'de-en', 'A beer, please!'), 'correct')
+assert.equal(matchAnswer({ ...card, en: 'hello; how are you?' }, 'de-en', 'hello'), 'correct')
+for (const [de, typed] of [['Straße', 'Strasse'], ['Mädchen', 'Maedchen'], ['Käse', 'Kaese'],
+  ['schön', 'schoen'], ['Tür', 'Tuer'], ['Strasse', 'Straße'], ['Fuß', 'Fuss']]) {
+  assert.equal(matchAnswer({ de, en: 'x', article: 'none' }, 'en-de', typed), 'correct', `${de} / ${typed}`)
+}
+assert.equal(matchAnswer({ de: 'Straße', en: 'street', article: 'die' }, 'en-de', 'der Strasse'), 'wrong_gender')
+assert.equal(matchAnswer({ de: 'Mädchen', en: 'girl', article: 'das' }, 'en-de', 'die Maedchen'), 'wrong_gender')
+// Other accents, and different words, still matter.
+assert.equal(matchAnswer({ de: 'schön', en: 'beautiful', article: 'none' }, 'en-de', 'schon'), 'incorrect')
+assert.equal(matchAnswer({ de: 'Tür', en: 'door', article: 'die' }, 'en-de', 'die Tur'), 'incorrect')
+assert.equal(matchAnswer({ de: 'Tür', en: 'door', article: 'die' }, 'en-de', 'die Tuere'), 'incorrect')
+assert.equal(matchAnswer(card, 'de-en', '?!'), 'incorrect')
+assert.equal(answerKey('  Wo ist das Café?! '), 'wo ist das café')
 console.log('Hard mode matching and automatic grades: ok')

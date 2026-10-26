@@ -12,6 +12,19 @@ export function normalizeAnswer(value: string): string {
     .replace(/\s+/g, ' ').trim().replace(/[.!?]+$/, '').trim()
 }
 
+const GERMAN_DIGRAPHS: Record<string, string> = { ß: 'ss', ä: 'ae', ö: 'oe', ü: 'ue' }
+
+/**
+ * What two answers are compared on: normalizeAnswer, then punctuation inside the answer
+ * ignored ("a beer please" = "A beer, please.") and German umlauts and ß interchangeable with
+ * their ae/oe/ue/ss spellings. Other accents stay significant. Brackets and slashes are not
+ * touched; they separate alternatives and glosses.
+ */
+export function answerKey(value: string): string {
+  return normalizeAnswer(value).replace(/[ßäöü]/g, ch => GERMAN_DIGRAPHS[ch])
+    .replace(/[.,;:!?¿¡"“”„«»…]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
 /** Split alternatives only outside glosses such as “stop (bus/tram)”. */
 function alternatives(value: string): string[] {
   const parts = [value]
@@ -29,16 +42,16 @@ function alternatives(value: string): string[] {
   // Trailing parenthetical notes disambiguate the prompt; they need not be typed.
   // Keep the complete saved answer valid, without accepting the gloss by itself.
   return parts.flatMap(part => [part, part.replace(/(?:\s*\([^()]*\))+\s*$/, '')])
-    .map(normalizeAnswer).filter(Boolean)
+    .map(answerKey).filter(Boolean)
 }
 
 function withArticle(article: Article, word: string): string {
-  return normalizeAnswer(germanHead(article, word))
+  return answerKey(germanHead(article, word))
 }
 
 export function matchAnswer(card: AnswerCard, direction: Direction, answer: string,
   languages: Languages = { targetLang: 'German' }): AnswerMatch {
-  const entered = normalizeAnswer(answer)
+  const entered = answerKey(answer)
   if (!entered) return 'incorrect'
   if (direction === 'de-en') return alternatives(card.en).includes(entered) ? 'correct' : 'incorrect'
   const words = alternatives(card.de)

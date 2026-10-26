@@ -1,8 +1,9 @@
 rules_version = '2';
 
-// Demo-project rules for issue #11. CI and pull requests run these in the
-// emulator only. Do not deploy them to flashcards-ls9-prod or the auth-test
-// project from this workflow.
+// Production rules for the LS9 Flashcards sync data (each user's own cards, progress,
+// decks and activity). They are deployed to the production Firebase project and also run
+// against the emulator in CI and pull requests; change them deliberately and keep
+// scripts/limits-test.mjs and the emulator tests in step with any limit you change.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
