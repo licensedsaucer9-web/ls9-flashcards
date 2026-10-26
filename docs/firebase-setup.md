@@ -206,7 +206,12 @@ checksum, and elapsed time in `backup-status.json`. The user timer
 2026-10-25 it runs from a pinned clone at `~/.local/ls9-flashcards-backup`
 (detached at a merged master commit, `npm ci --ignore-scripts`), not from the
 development checkout, so branch switches never change the backup job.
-Stdout is the status object. A failed run writes `ok: false` and a non-zero
+Every read in one run uses a single `readTime` (a few seconds before the start, within
+Firestore's one-hour window), so the dump is a point-in-time snapshot: an account created
+while it runs cannot appear without its deck. Before reporting `ok: true` the job runs the
+restore validator (`prepareRestore`) on the new dump. A dump restore would refuse is renamed
+`firestore-<stamp>.rejected.json` (outside the 14-dump retention), reported as `ok: false`,
+and exits non-zero. Stdout is the status object. A failed run writes `ok: false` and a non-zero
 exit. A separate `firestore-drive-copy.timer` runs an rclone copy of dumps and
 `backup-status.json` to the configured off-machine backup destination at 08:45.
 The local backup and copy jobs both succeeded on 2026-10-17. Their private

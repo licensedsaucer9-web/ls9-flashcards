@@ -1,10 +1,11 @@
 // Daily private Firestore backup. Stdout is aggregate status only.
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { configDirectory, exportFirestore } from './migration-files.mjs'
+import { prepareRestore } from './restore-core.mjs'
 
 const KEEP = 14
 const require = createRequire(import.meta.url)
@@ -72,11 +73,18 @@ async function readJson(url, token) {
   return response.json()
 }
 
-export function cliStore(token, projectId) {
+/**
+ * Firestore REST store. With `readTime`, every get and list reads the database as it was at
+ * that instant (it must be within the past hour), so users and decks written while the dump
+ * runs cannot end up in it without each other.
+ */
+export function cliStore(token, projectId, readTime) {
   const root = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`
   return {
     get: async (path) => {
-      const body = await readJson(`${root}/${path}`, token)
+      const url = new URL(`${root}/${path}`)
+      if (readTime) url.searchParams.set('readTime', readTime)
+      const body = await readJson(url, token)
       return body?.fields ? fieldsOf(body.fields) : null
     },
     list: async (path) => {
@@ -85,6 +93,7 @@ export function cliStore(token, projectId) {
       do {
         const url = new URL(`${root}/${path}`)
         url.searchParams.set('pageSize', '300')
+        if (readTime) url.searchParams.set('readTime', readTime)
         if (page) url.searchParams.set('pageToken', page)
         const body = await readJson(url, token)
         if (!body) break
@@ -137,6 +146,14 @@ export async function runBackup({ store, directory }) {
   try {
     const result = await exportFirestore(store, destination)
     const snapshot = JSON.parse(readFileSync(destination, 'utf8'))
+    try {
+      // A backup that restore would refuse is not a backup. Keep it for inspection, outside
+      // the retention pattern so it never pushes out a good dump, and report not-ok.
+      prepareRestore(snapshot)
+    } catch (error) {
+      renameSync(destination, destination.replace(/\.json$/, '.rejected.json'))
+      throw new Error(`dump failed restore validation: ${error.message}`)
+    }
     const status = {
       ok: true, at: snapshot.exportedAt, sha256: result.sha256, ...backupCounts(snapshot),
       elapsedMs: Date.now() - started, file: basename(destination),
@@ -152,7 +169,9 @@ export async function runBackup({ store, directory }) {
 
 async function main() {
   const projectId = 'flashcards-ls9-prod'
-  const store = cliStore(await cliAccessToken(), projectId)
+  // One read time for the whole dump, a few seconds back so server clock skew cannot put it in the future.
+  const readTime = new Date(Date.now() - 5000).toISOString()
+  const store = cliStore(await cliAccessToken(), projectId, readTime)
   const status = await runBackup({ store, directory: configDirectory })
   console.log(JSON.stringify(status))
 }
