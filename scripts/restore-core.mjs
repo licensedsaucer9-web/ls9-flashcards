@@ -1,4 +1,5 @@
 import { validSelectedTiers } from '../src/tiers.ts'
+import { isTier } from '../src/types.ts'
 import { validReviewEvent } from '../src/streak.ts'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -89,7 +90,7 @@ function settingsDoc(uid, value) {
   if (Object.hasOwn(value, 'selectedTiers') && !validSelectedTiers(value.selectedTiers)) fail(`invalid settings ${uid}`)
   if (Object.hasOwn(value, 'wordTypes') && !validWordTypeList(value.wordTypes)) fail(`invalid settings ${uid}`)
   if (value.direction !== 'de-en' && value.direction !== 'en-de') fail(`invalid settings ${uid}`)
-  if (!clock(value.sessionSize, 500) || ![1, 2, 3].includes(value.tier) || !clock(value.settingsUpdatedAt)) fail(`invalid settings ${uid}`)
+  if (!clock(value.sessionSize, 500) || !isTier(value.tier) || !clock(value.settingsUpdatedAt)) fail(`invalid settings ${uid}`)
 }
 
 function progressDoc(uid, id, value) {
@@ -112,7 +113,7 @@ function cardDoc(deckId, id, value) {
   if (!Array.isArray(value.tags) || value.tags.length > 12 || value.tags.some((tag) => typeof tag !== 'string')) fail(`invalid card ${deckId}/${id}`)
   if (!clock(value.created_at) || !clock(value.updated_at) || !clock(value.deletedAt)) fail(`invalid card ${deckId}/${id}`)
   if (Object.hasOwn(value, 'rank') && !clock(value.rank, 1000000)) fail(`invalid card ${deckId}/${id}`)
-  if (Object.hasOwn(value, 'tier') && ![1, 2, 3].includes(value.tier)) fail(`invalid card ${deckId}/${id}`)
+  if (Object.hasOwn(value, 'tier') && !isTier(value.tier)) fail(`invalid card ${deckId}/${id}`)
 }
 
 function assignments(users, decks) {

@@ -1,6 +1,7 @@
 import { validSelectedTiers } from './tiers.ts'
 import { legacyToFiles, mergeProgress, parseDeckFile, parseSnapshot, parseUserFile } from './merge.ts'
 import type { CardContent, DeckFile, PublicSettings, Srs, UserFile } from './types.ts'
+import { isTier } from './types.ts'
 import { validWordTypeList } from './word-types.ts'
 
 export type MigrationMapping = {
@@ -53,7 +54,7 @@ export function validateSettings(raw: unknown): asserts raw is PublicSettings {
   requireValue(object(raw), 'missing settings')
   requireValue(raw.direction === 'de-en' || raw.direction === 'en-de', 'invalid direction')
   requireValue(clock(raw.sessionSize) && (raw.sessionSize as number) <= 500, 'invalid sessionSize')
-  requireValue(raw.tier === undefined || [1, 2, 3].includes(raw.tier as number), 'invalid tier')
+  requireValue(raw.tier === undefined || isTier(raw.tier), 'invalid tier')
   requireValue(raw.selectedTiers === undefined || validSelectedTiers(raw.selectedTiers), 'invalid selectedTiers')
   requireValue(raw.wordTypes === undefined || validWordTypeList(raw.wordTypes), 'invalid wordTypes')
 }
@@ -75,7 +76,7 @@ export function validateCard(raw: unknown): asserts raw is CardContent {
   requireValue(Array.isArray(raw.tags) && raw.tags.length <= 12 && raw.tags.every((tag) => typeof tag === 'string'), `invalid tags ${raw.id}`)
   requireValue(clock(raw.created_at) && clock(raw.updated_at), `invalid content clock ${raw.id}`)
   requireValue(raw.rank === undefined || (clock(raw.rank) && (raw.rank as number) <= 1000000), `invalid rank ${raw.id}`)
-  requireValue(raw.tier === undefined || [1, 2, 3].includes(raw.tier as number), `invalid card tier ${raw.id}`)
+  requireValue(raw.tier === undefined || isTier(raw.tier), `invalid card tier ${raw.id}`)
 }
 
 export function validateTombstones(raw: unknown): asserts raw is Record<string, number> {

@@ -391,7 +391,7 @@ try {
   assert(await commitProgress(alice, ALICE, importedExtra.id, importedExtra.srs, extraId) === 'noop', 'leftover pending new-card progress is safe to acknowledge repeatedly')
   let extraState = await pullCloud(aliceSecond, ALICE, extraId, true)
   assert(extraState.progress.length === 0, 'missing extra progress is unstudied')
-  assert(extraState.settings.tier === 3, 'missing extra settings use extra-deck defaults')
+  assert(extraState.settings.tier === 4, 'missing extra settings use extra-deck defaults')
   for (const grade of ['again', 'wrong_gender']) {
     const state = { ...review(newSrs(1000), grade, 2000), updated_at: 2000 }
     assert(await commitProgress(alice, ALICE, grade, state, extraId) === 'wrote', `${grade} syncs zero-rep reviewed progress`)

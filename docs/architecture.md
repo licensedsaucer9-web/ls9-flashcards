@@ -146,7 +146,7 @@ Firestore uses an in-memory cache, leaving the durable queue in IndexedDB.
 IndexedDB version 5 copies the existing direction, session size, tier, and
 word-type selection onto the original deck row. Every deck stores its own study
 preferences; Review, Decks, and session selection read the active deck's values.
-New local decks start at 20 cards, target→English (`de-en`), tier 3, and all word
+New local decks start at 20 cards, target→English (`de-en`), tier 4 (every tier), and all word
 types. The former boolean deck capability is named `supportsWordTypes` so
 `wordTypes` can hold the selected classes. The account settings row remains a
 mirror of the original deck's preferences for existing cloud sync and migration
@@ -242,6 +242,18 @@ legacy `tier` expands cumulatively to preserve its previous scope. The scalar
 remains the highest selected tier for older clients and Cards browsing. A newer
 legacy settings write replaces an exact selection with its cumulative scope.
 The additive field is validated in rules and preserved in sync, copy and backup/restore.
+
+There are four tiers (`TIERS` in `src/types.ts`). Tier 4 holds 250 German words
+that are rarer than every tier 1-3 word; see [starter-decks.md](starter-decks.md#german-tier-4).
+Rules, sync, copy, migration validation and guarded restore accept tier 4
+on cards, in the `tier` scalar and in `selectedTiers` (one to four distinct tiers).
+A card without a valid tier, such as one the user added, counts as tier 3, so a
+scope saved before tier 4 existed keeps its own cards and does not grow: legacy
+`tier: 3` and an exact `[1, 2, 3]` stay tiers 1-3, and tier 4 is opt-in. New
+accounts still start on Tier 1; new local and extra decks default to tier 4.
+Review hides the `T4` pill when the deck has no tier 4 cards (French and Spanish)
+and it is not selected. Pre-tier-4 clients read a tier 4 setting as tier 1 and
+ignore an exact selection that contains 4, so upgrade every device.
 
 Tier pills read exactly `T<n>: <due>` (`tierPillLabel()` in `src/tiers.ts`), where the
 number is the count of that tier's cards with `due <= now`, the same rule as the review

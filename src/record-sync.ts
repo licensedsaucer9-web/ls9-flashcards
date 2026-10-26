@@ -1,6 +1,7 @@
 import { cardToDoc, progressToDoc, settingsToDoc, type CardDoc, type ProgressDoc, type SettingsDoc } from './firestore-docs.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
 import type { Card, CardContent, DeckFile, LocalDeck, PendingRecords, PublicSettings, RecordMark, Srs } from './types.ts'
+import { isTier } from './types.ts'
 import { normalizeWordTypes, sameWordTypes } from './word-types.ts'
 import { reviewTiers, sameSelectedTiers, validSelectedTiers } from './tiers.ts'
 
@@ -219,7 +220,7 @@ function contentFromDoc(id: string, doc: CardDoc): CardContent {
     updated_at: doc.updated_at,
   }
   if (typeof doc.rank === 'number') card.rank = doc.rank
-  if (doc.tier === 1 || doc.tier === 2 || doc.tier === 3) card.tier = doc.tier
+  if (isTier(doc.tier)) card.tier = doc.tier
   return card
 }
 

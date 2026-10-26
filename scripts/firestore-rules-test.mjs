@@ -174,10 +174,12 @@ try {
   )
   await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings()))
   await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ wordTypes: [] })))
-  for (const selectedTiers of [[3], [2, 3], [1, 3], [1, 2, 3]]) {
+  await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ tier: 4 })))
+  await denied(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ tier: 5 })), 'settings tier 5')
+  for (const selectedTiers of [[3], [2, 3], [1, 3], [1, 2, 3], [4], [1, 4], [1, 2, 3, 4]]) {
     await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ selectedTiers })))
   }
-  for (const selectedTiers of [[], [1, 1], [0], [4], ['3'], '3', null]) {
+  for (const selectedTiers of [[], [1, 1], [0], [5], [1, 2, 3, 4, 4], ['3'], '3', null]) {
     await denied(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ selectedTiers })), 'invalid selected tiers')
   }
 
@@ -326,6 +328,8 @@ try {
   await assertSucceeds(getDoc(doc(db(BOB), 'decks', 'legacy', 'cards', SEED)))
   await assertSucceeds(setDoc(doc(db(BOB), 'decks', 'legacy', 'cards', CUSTOM), card({ rank: undefined, tier: undefined, tags: [] })))
   await assertSucceeds(getDoc(doc(db(ALICE), 'decks', 'legacy', 'cards', CUSTOM)))
+  await assertSucceeds(setDoc(doc(db(ALICE), 'decks', 'legacy', 'cards', 'seed-764'), card({ rank: 551370, tier: 4, tags: ['b1', 'adj'] })))
+  await denied(setDoc(doc(db(ALICE), 'decks', 'legacy', 'cards', 'seed-765'), card({ tier: 5 })), 'card tier 5')
   await assertSucceeds(setDoc(doc(db(ALICE), 'decks', 'legacy', 'cards', SEED), card({ deletedAt: 60 })))
   const tombstone = await assertSucceeds(getDoc(doc(db(BOB), 'decks', 'legacy', 'cards', SEED)))
   assert(tombstone.data().deletedAt === 60, 'a member can write a deletion timestamp')

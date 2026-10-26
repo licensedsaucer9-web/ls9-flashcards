@@ -35,7 +35,7 @@ The private [ls9-flashcards-data](https://github.com/licensedsaucer9-web/ls9-fla
 
 ## Available language decks
 
-German–English has 514 cards. **Decks → Starter decks** explicitly adds and selects
+German–English has 764 cards. **Decks → Starter decks** explicitly adds and selects
 French–English or Spanish–English, each with **567 cards** (356 nouns, 121 verbs,
 90 adjectives), examples and independent frequency tiers. Repeated addition keeps
 edits, deleted cards and progress. New accounts continue to start with German only.
@@ -48,7 +48,7 @@ French/Spanish deck content is CC BY-SA 4.0; application code remains MIT.
 
 ## Deck tiers
 
-The 514 German built-in words are split into three tiers by how common they are, and you pick the
+The 764 German built-in words are split into four tiers by how common they are, and you pick the
 tier you want to study. Each Review pill selects only that tier and reads `T<n>: <due>` (`T1: 23` means 23 tier 1 cards are due now). Select multiple pills to combine their cards.
 
 | Tier | Words | Cumulative |
@@ -56,9 +56,11 @@ tier you want to study. Each Review pill selects only that tier and reads `T<n>:
 | 1 | 100 | 100 |
 | 2 | 150 | 250 |
 | 3 | 264 | 514 |
+| 4 | 250 | 764 |
 
-The split is not hand-picked. Each word carries a `rank`: its position in a 50,000-word
-German frequency list, and the tiers are the deck's own first 100, next 150, and the rest.
+The split is not hand-picked. Each word carries a `rank`: its position in a German frequency
+list, and tiers 1-3 are the original deck's own first 100, next 150, and remaining 264.
+Tier 4 adds 250 words that are all less frequent than every tier 1-3 word.
 The rank is *not* used as a tier boundary directly, because the corpus list is dominated by
 function words (`ich`, `sie`, `das`, `und`) that this deck deliberately leaves out — so the
 deck's 100th word sits at corpus rank 455, not 100. Tier 1 therefore opens with
@@ -66,21 +68,24 @@ deck's 100th word sits at corpus rank 455, not 100. Tier 1 therefore opens with
 ends at `groß` and `Hand`.
 
 The list is [hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords)
-(OpenSubtitles 2018, German). To rebuild it after editing the vocabulary:
+(OpenSubtitles 2018, German): the 50,000-word list for tiers 1-3 and the untruncated
+list for tier 4. To check every baked rank and the tier 4 cut-off against the corpus:
 
 ```bash
-curl -O https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/de/de_50k.txt
-node scripts/rank-words.mjs de_50k.txt src/seed.ts > ranks.tsv
-node scripts/apply-ranks.mjs ranks.tsv src/seed.ts
+revision=525f9b560de45753a5ea01069454e72e9aa541c6
+curl -fLO "https://raw.githubusercontent.com/hermitdave/FrequencyWords/$revision/content/2018/de/de_full.txt"
+node scripts/rank-words.mjs de_full.txt --check > ranks.tsv
 ```
 
 `scripts/tiers-test.mjs` then checks the boundaries against the real seed, including that
-every tier 1 word is more common than every tier 2 word.
+every tier 1 word is more common than every tier 2 word, and `scripts/seed-tier4-test.mjs`
+checks tier 4's content, IDs, ranks and that it does not overlap tiers 1-3. See
+[the tier 4 notes](docs/starter-decks.md#german-tier-4) for its source and cut-off.
 
 The tier and word-type choices sit on Review's home screen and are saved per deck, so decks and accounts can study different sizes. Decks keeps deck management, review direction and the per-deck Articles, Word types and Tiers switches.
-Tier 3 alone excludes tiers 1 and 2. Turning the last selected tier off returns to all three. Existing cumulative preferences retain their scope on upgrade (old Tier 2 becomes tiers 1 + 2; old Tier 3 becomes all three). The exact selection syncs per deck. Cards keeps its separate cumulative browse filter.
+Tier 3 alone excludes tiers 1 and 2, and Tier 4 alone is only the 250 rarer words. Turning the last selected tier off returns to all four. Existing preferences retain their scope on upgrade (old Tier 2 becomes tiers 1 + 2; old Tier 3, or all three pills, becomes tiers 1 + 2 + 3), so tier 4 is opt-in for existing decks: tap `T4` to add it. French and Spanish have no tier 4 words, so their `T4` pill is hidden. The exact selection syncs per deck. Cards keeps its separate cumulative browse filter.
 
-Cards you add yourself have no rank and start in tier 3; the card editor has a tier box to move one.
+Cards you add yourself have no rank and start in tier 3, so a Tier 3 selection keeps them; the card editor has a tier box to move one, including to tier 4.
 
 You can review a tier even when it has zero cards due. **Review ahead** selects
 the matching cards soonest due, up to your session-size limit. Your word-type

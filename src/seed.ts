@@ -1,11 +1,12 @@
 import type { Article, Card, Tier } from './types.ts'
 import { newSrs } from './srs.ts'
+import { TIER_4_SEED } from './seed-tier4.ts'
 
-type Seed = {
+export type Seed = {
   id: string
   /** Corpus frequency rank from scripts/rank-words.mjs; lower is more common. */
   rank: number
-  /** Tier this word belongs to, by its position among the deck's own words. */
+  /** Tier this word belongs to: 1-3 by its position among the original 514 words, 4 for the rarer words added after them. */
   tier: Tier
   de: string
   en: string
@@ -15,7 +16,7 @@ type Seed = {
   tags: string[]
 }
 
-const SEED: Seed[] = [
+const CORE_SEED: Seed[] = [
   { id: 'seed-01', rank: 102, tier: 1, de: 'Mann', en: 'man', article: 'der', example_de: 'Der Mann liest ein Buch.', example_en: 'The man is reading a book.', tags: ['a1', 'noun'] },
   { id: 'seed-02', rank: 153, tier: 1, de: 'Frau', en: 'woman', article: 'die', example_de: 'Die Frau trinkt Kaffee.', example_en: 'The woman is drinking coffee.', tags: ['a1', 'noun'] },
   { id: 'seed-03', rank: 282, tier: 1, de: 'Kind', en: 'child', article: 'das', example_de: 'Das Kind spielt im Garten.', example_en: 'The child is playing in the garden.', tags: ['a1', 'noun'] },
@@ -531,6 +532,8 @@ const SEED: Seed[] = [
   { id: 'seed-513', rank: 932, tier: 2, de: 'gefährlich', en: 'dangerous', article: 'none', example_de: 'Die Straße ist gefährlich.', example_en: 'The street is dangerous.', tags: ['a2', 'adj'] },
   { id: 'seed-514', rank: 151, tier: 1, de: 'sicher', en: 'safe / sure', article: 'none', example_de: 'Bist du sicher?', example_en: 'Are you sure?', tags: ['a1', 'adj'] },
 ]
+
+const SEED: Seed[] = [...CORE_SEED, ...TIER_4_SEED]
 
 export function seedCards(now = Date.now()): Card[] {
   return SEED.map((row) => ({

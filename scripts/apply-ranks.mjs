@@ -1,5 +1,7 @@
 // Rewrites src/seed.ts so every seed row carries its corpus rank and the tier that
 // rank puts it in. Run: node scripts/apply-ranks.mjs <ranks.tsv> [seed.ts]
+// Historical: it baked tiers 1-3 into rows that had no tier yet. Tier 4 rows live in
+// src/seed-tier4.ts and are checked with scripts/rank-words.mjs --check instead.
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const ranksPath = process.argv[2]
