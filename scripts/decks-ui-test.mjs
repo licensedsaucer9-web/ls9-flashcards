@@ -300,7 +300,7 @@ try {
   })
   assert.equal(isolation.unchanged, true, 'foreign fixture leaves German cards and schedules unchanged')
   assert.equal(isolation.afterDue, isolation.due, 'foreign due card is absent from due counts')
-  assert.equal(isolation.count, 514)
+  assert.equal(isolation.count, 764)
   assert.equal(isolation.foreign, undefined)
   assert.equal(isolation.foreignReview, null)
   assert.equal(isolation.seedAdded, 1)
@@ -312,7 +312,7 @@ try {
   assert.equal(isolation.preservedForeign, true, 'sync merges preserve foreign cards and schedules')
   assert.equal(isolation.originalTombstone, undefined, 'deletion stays with its own deck')
   const before = await snapshot()
-  assert.equal(before.cards.length, 514)
+  assert.equal(before.cards.length, 764)
   assert.equal(Object.keys(before.activity).length, 1)
   assert.deepEqual(await page.locator('#tabbar .tab').allTextContents(), ['Review', 'Decks', 'Cards', 'Settings'])
   async function tab(name, hash, heading) {
@@ -420,7 +420,7 @@ try {
     assert.equal(await page.locator('[data-session], #session-custom, #session-size').count(), 0, 'Decks has no session-size control')
   }
   await tab('Decks', '#/decks', 'Decks')
-  await assertDeckCount(514)
+  await assertDeckCount(764)
   async function renameFixtureDeck(name) {
     await page.evaluate(async name => {
       const { dbNameForUser, activeUserSlug } = await import('/src/user.ts')
@@ -469,7 +469,7 @@ try {
   async function assertReviewQueue(typeLabel) {
     await tab('Review', '#/', 'LS9 Flashcards')
     assert.equal(await page.locator('[data-word-type]').count(), 4, 'Review has the word-type picker')
-    assert.equal(await page.locator('[data-tier]').count(), 3, 'Review has the tier picker')
+    assert.equal(await page.locator('[data-tier]').count(), 4, 'Review has the tier picker')
     assert.equal(await page.locator('[data-dir]').count(), 0, 'direction remains in Decks')
     assert.equal(await page.locator('#session-custom').isVisible(), true)
     if (typeLabel) assert.match(await page.locator('.due-hero > .kicker').textContent(), new RegExp(typeLabel))
@@ -563,8 +563,9 @@ try {
       await reviewHome()
       // These existing queue tests exercise the legacy cumulative scopes.
       // Toggle exact buckets to reproduce each scope through the real UI.
-      for (const t of [1, 2, 3]) {
+      for (const t of [1, 2, 3, 4]) {
         const chip = page.locator(`[data-tier="${t}"]`)
+        if (!await chip.count()) continue // decks without tier 4 words hide its pill
         if ((await chip.getAttribute('aria-pressed') === 'true') !== (t <= patch.tier)) {
           await chip.click()
           await page.waitForFunction(({t, on}) => document.querySelector(`[data-tier="${t}"]`)?.getAttribute('aria-pressed') === String(on), { t, on: t <= patch.tier })
@@ -596,6 +597,8 @@ try {
   await page.click('[data-tier="3"]')
   assert.equal(await page.locator('.card-list .card-row').count(), 514, 'Cards can browse beyond the saved tier')
   assert(tierOneCards < 514)
+  await page.click('[data-tier="4"]')
+  assert.equal(await page.locator('.card-list .card-row').count(), 764, 'Cards tier 4 browses the whole deck')
   await page.locator('#search').fill('Haus')
   await page.click('[data-tier="2"]')
   assert.deepEqual(await page.evaluate(async () => (await import('/src/db.ts')).getSettings()), savedBeforeBrowse,
@@ -639,16 +642,17 @@ try {
   await page.locator('#run').click()
   await page.waitForFunction(() => document.querySelector('#result')?.textContent.includes('1 new cards'))
   await tab('Decks', '#/decks', 'Decks')
-  await assertDeckCount(515)
+  await assertDeckCount(765)
   await page.reload()
   await page.waitForSelector('#main .card-row')
-  await assertDeckCount(515)
+  await assertDeckCount(765)
   const after = await snapshot()
   const allCount = await assertReviewQueue()
   const eligible = await page.evaluate(async () => {
     const db = await import('/src/db.ts')
     const { inSelectedWordTypes } = await import('/src/word-types.ts')
-    const cards = (await db.getAllCards()).filter(card => card.srs.due <= Date.now())
+    // The saved scope is tiers 1-3; untyped imports land in tier 3.
+    const cards = (await db.getAllCards()).filter(card => card.srs.due <= Date.now() && card.tier !== 4)
     return { all: cards.length, typed: cards.filter(card => inSelectedWordTypes(card, ['noun', 'verb', 'adj'])).length }
   })
   assert.equal(allCount, eligible.all, 'All includes every due card, including the imported untyped fixture')
@@ -701,7 +705,7 @@ try {
   await page.fill('#new-deck [name="targetLang"]', 'French')
   await page.click('#new-deck [type="submit"]')
   await page.waitForSelector('#session-custom')
-  assert.deepEqual(await settings(), { direction: 'de-en', sessionSize: 20, tier: 3, wordTypes: [] })
+  assert.deepEqual(await settings(), { direction: 'de-en', sessionSize: 20, tier: 4, wordTypes: [] })
   // Exercise actual editor and import writes on the second deck using a German pair.
   const sharedPair = untypedFixture.cards[0]
   await tab('Cards', '#/deck', 'Cards')

@@ -1,6 +1,7 @@
 import { reviewTiers, validSelectedTiers } from './tiers.ts'
 import { legacyToFiles, parseRemoteDeck } from './merge.ts'
 import type { CardContent, DeckFile, Direction, PublicSettings, Srs, Tier, UserFile, WordType } from './types.ts'
+import { isTier } from './types.ts'
 import { normalizeWordTypes } from './word-types.ts'
 import { parseReviewActivity, type ReviewEvent } from './streak.ts'
 
@@ -98,7 +99,7 @@ export function cardToDoc(card: CardContent, deletedAt = 0): CardDoc {
     deletedAt: deletedAt > 0 ? deletedAt : 0,
   }
   if (typeof card.rank === 'number') doc.rank = card.rank
-  if (card.tier === 1 || card.tier === 2 || card.tier === 3) doc.tier = card.tier
+  if (isTier(card.tier)) doc.tier = card.tier
   return doc
 }
 

@@ -1,5 +1,6 @@
 import { reviewTiers, validSelectedTiers } from './tiers.ts'
 import type { Card, CardContent, DeckFile, PublicSettings, Snapshot, Srs, UserFile } from './types.ts'
+import { isTier } from './types.ts'
 import { normalizeWordTypes } from './word-types.ts'
 import { parseStoredReviewActivity } from './streak.ts'
 
@@ -47,7 +48,7 @@ export function parseDeckFile(raw: unknown): DeckFile | null {
       example_en: typeof c.example_en === 'string' ? c.example_en : '',
       tags: Array.isArray(c.tags) ? (c.tags as string[]) : [],
       rank: typeof c.rank === 'number' ? c.rank : undefined,
-      tier: c.tier === 1 || c.tier === 2 || c.tier === 3 ? c.tier : undefined,
+      tier: isTier(c.tier) ? c.tier : undefined,
       created_at: int(c.created_at, 0),
       updated_at: int(c.updated_at, 0),
     })
@@ -74,8 +75,8 @@ export function parseUserFile(raw: unknown): UserFile | null {
     settings: {
       direction: settings.direction === 'en-de' ? 'en-de' : 'de-en',
       sessionSize: Math.max(0, int(settings.sessionSize, 20)),
-      tier: tier === 1 || tier === 2 || tier === 3 ? tier : 1,
-      ...(validSelectedTiers(settings.selectedTiers) ? { selectedTiers: reviewTiers({ tier: 3, selectedTiers: settings.selectedTiers }) } : {}),
+      tier: isTier(tier) ? tier : 1,
+      ...(validSelectedTiers(settings.selectedTiers) ? { selectedTiers: reviewTiers({ tier: 4, selectedTiers: settings.selectedTiers }) } : {}),
       wordTypes: normalizeWordTypes(settings.wordTypes),
     },
     settings_updated_at: typeof o.settings_updated_at === 'number' ? o.settings_updated_at : undefined,

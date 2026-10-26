@@ -176,11 +176,13 @@ function showDatabaseNotice(event: 'versionchange' | 'blocked'): void {
 /** Review toggles exact buckets; Cards retains its cumulative browse filter. */
 function tierChips(selected: Tier | readonly Tier[], dueByTier: Record<Tier, { due: number; total: number }>): string {
   let due = 0
-  return TIERS.map((tier) => {
+  return TIERS.flatMap((tier) => {
     due = typeof selected === 'number' ? due + dueByTier[tier].due : dueByTier[tier].due
     const pressed = typeof selected === 'number' ? selected === tier : selected.includes(tier)
+    // French and Spanish stop at tier 3, so an empty, unselected tier 4 is not offered.
+    if (tier === 4 && dueByTier[4].total === 0 && !pressed) return []
     const on = pressed ? ' is-on' : ''
-    return `<button type="button" class="chip tier-chip${on}" data-tier="${tier}" aria-pressed="${pressed}" aria-label="${tierPillName(tier, due)}" title="${typeof selected === 'number' ? esc(TIER_NOTES[tier]) : `Only Tier ${tier} cards`}">${tierPillLabel(tier, due)}</button>`
+    return [`<button type="button" class="chip tier-chip${on}" data-tier="${tier}" aria-pressed="${pressed}" aria-label="${tierPillName(tier, due)}" title="${typeof selected === 'number' ? esc(TIER_NOTES[tier]) : `Only Tier ${tier} cards`}">${tierPillLabel(tier, due)}</button>`]
   }).join('')
 }
 
@@ -850,7 +852,7 @@ async function renderDeck() {
   const now = Date.now()
   // The deck list is a browser, not a review queue, so it starts on the chosen
   // tier and can be widened with the filter.
-  let maxTier: Tier = activeDeck.tiers ? settings.tier : 3
+  let maxTier: Tier = activeDeck.tiers ? settings.tier : 4
   const list = (filter: string) => {
     const q = filter.trim().toLowerCase()
     return all
@@ -995,7 +997,7 @@ async function renderEdit(id: string | null) {
         </label>
         <p class="note">${
           typeof c?.rank === 'number'
-            ? `Corpus rank ${c.rank} of 50,000, so this card sits in tier ${tierOf(c)} by default. The tier box overrides that.`
+            ? `Corpus rank ${c.rank}, so this card sits in tier ${tierOf(c)} by default. The tier box overrides that.`
             : 'A card of your own has no corpus rank, so it lives in the tier you pick here.'
         }</p>` : ''}
         <button class="primary" type="submit">Save</button>
@@ -1016,7 +1018,7 @@ async function renderEdit(id: string | null) {
     const tags = activeDeck.supportsWordTypes
       ? tagsWithWordType(tagsField, String(fd.get('wordType') ?? 'other'), c?.tags ?? [])
       : tagsWithoutTypeEdit(tagsField, c?.tags ?? [])
-    const tier = activeDeck.tiers ? Math.min(3, Math.max(1, Number(fd.get('tier')) || 3)) as Tier : c?.tier
+    const tier = activeDeck.tiers ? Math.min(4, Math.max(1, Number(fd.get('tier')) || 3)) as Tier : c?.tier
     if (!de || !en) {
       toast(`${targetLang} and ${baseLang} are required`)
       return

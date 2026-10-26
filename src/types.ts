@@ -3,13 +3,20 @@ import type { ReviewActivity } from './streak.ts'
 export type Article = 'der' | 'die' | 'das' | 'le' | 'la' | 'l_m' | 'l_f' | 'el' | 'el_f' | 'los' | 'las' | 'les_m' | 'les_f' | 'none'
 export type Grade = 'again' | 'wrong_gender' | 'hard' | 'good' | 'easy'
 export type Direction = 'de-en' | 'en-de'
-export type Tier = 1 | 2 | 3
+export type Tier = 1 | 2 | 3 | 4
 /** Classes a review can be limited to. An empty list means every class, including untyped cards. */
 export type WordType = 'noun' | 'verb' | 'adj'
 
-/** Nominal cumulative deck sizes. Tier 1 is the first 100 words, tier 2 the first 250, tier 3 the rest. */
-export const TIER_CUMULATIVE: Record<Tier, number> = { 1: 100, 2: 250, 3: Number.MAX_SAFE_INTEGER }
-export const TIERS: Tier[] = [1, 2, 3]
+/**
+ * Nominal cumulative deck sizes. Tier 1 is the first 100 words, tier 2 the first 250,
+ * tier 3 the rest of the original 514-word deck, and tier 4 the rarer words added after it.
+ */
+export const TIER_CUMULATIVE: Record<Tier, number> = { 1: 100, 2: 250, 3: 514, 4: Number.MAX_SAFE_INTEGER }
+export const TIERS: Tier[] = [1, 2, 3, 4]
+
+export function isTier(value: unknown): value is Tier {
+  return value === 1 || value === 2 || value === 3 || value === 4
+}
 
 export interface Srs {
   ease: number

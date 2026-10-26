@@ -1,6 +1,7 @@
 # Built-in language decks
 
-German–English has 514 cards. French–English and Spanish–English each have **567**:
+German–English has **764** cards: the original 514 in tiers 1-3 and 250 rarer words in
+tier 4 (see [German tier 4](#german-tier-4)). French–English and Spanish–English each have **567**:
 356 nouns, 121 verbs and 90 adjectives. These are curated beginner content-word
 sets covering people, home, food, clothing, travel, nature, time, work, school,
 communication and everyday actions. They are not a translation of the German
@@ -19,7 +20,8 @@ Built-ins, including German, are protected from whole-deck deletion to retain
 their identity and history; individual cards can be deleted normally.
 
 Each new deck has 100 cards in tier 1, another 150 in tier 2, and 317 in tier 3.
-Higher tiers include lower tiers. The numbers are deck positions after sorting
+They have no tier 4 for now: their tiers already cover all 567 words, so Review hides
+their empty `T4` pill. Higher tiers include lower tiers. The numbers are deck positions after sorting
 by that language's corpus ranks, not raw corpus-rank cutoffs.
 
 ## Content and ranking provenance
@@ -70,6 +72,66 @@ NFC/Unicode integrity, word classes, language article sets and all cumulative
 tier positions. Editorial choices include feminine `la mano`, masculine
 `le problème` / `el problema`, and French elision retaining its gender.
 Automated structural checks do not constitute independent native-speaker review.
+
+## German tier 4
+
+Tier 4 adds 250 German words (165 nouns, 40 verbs, 45 adjectives), each less frequent
+than every word in tiers 1-3. They live in `src/seed-tier4.ts`, appended to the deck by
+`src/seed.ts`, with the same fields as the original seeds: article, German and English
+example, and `['b1', <type>]` tags so word-type filters, gender grading and Hard mode
+work unchanged. The archived `ls9-flashcards-data` repository is not involved.
+
+**Source.** The same corpus and inflection heuristic as tiers 1-3:
+`scripts/rank-words.mjs` against Hermit Dave's FrequencyWords German **OpenSubtitles 2018**
+lists at the revision pinned above. Tiers 1-3 were ranked on `de_50k.txt`; tier 4 words
+are all past that list, so they are ranked on `de_full.txt` (1,157,685 lines), whose first
+50,000 lines are exactly `de_50k.txt`. Both therefore share one rank scale.
+
+**Cut-off.** Three original compounds (`Nachrichtensendung`, `Terminplaner`,
+`Platzkarte`) are not in the 50k list and carry 900000+ placeholder ranks. In the full
+list the rarest tier 1-3 word is `Platzkarte`, via `platzkarten`, at rank **100,105**
+(`TIER_3_MAX_RANK`). Every tier 4 rank is above it; tier 4 spans ranks 100,138 to
+551,370, within the 1,000,000 rank limit in `firestore.rules`. Inflected forms are
+included in a word's rank exactly as for tiers 1-3, so a word with a common inflection
+was not eligible. The existing rows, including their placeholders, are unchanged.
+
+**No overlap.** No tier 4 word is a tiers 1-3 word, compared by lower-cased lemma, and
+none is a duplicate or an inflected form (the same endings as the ranker) of another
+deck word; English glosses and front/back pairs are unique too. Compounds of existing
+words (`Winterjacke` beside `Jacke`) are separate lemmas and allowed.
+
+**IDs and sync.** IDs are `seed-515` to `seed-764`, after the existing `seed-01` …
+`seed-514` and disjoint from the `seed-fr-`/`seed-es-` starters. Seed content clocks
+are zero. Opening the app runs the normal original-deck seed update, which inserts
+only absent IDs without a tombstone: existing accounts receive the 250 cards (queued
+for upload with fresh, unstudied schedules) without touching existing cards, edits,
+schedules, tiers or deletions, and a deleted tier 4 seed stays deleted. Fresh accounts
+seed all 764. Existing study scopes keep their meaning, so tier 4 is opt-in on
+existing decks; see [architecture](architecture.md).
+
+Verify from the repository root (network only to download the pinned list):
+
+```sh
+revision=525f9b560de45753a5ea01069454e72e9aa541c6
+curl -fL "https://raw.githubusercontent.com/hermitdave/FrequencyWords/$revision/content/2018/de/de_full.txt" -o /tmp/de_full.txt
+node scripts/rank-words.mjs /tmp/de_full.txt --check > /dev/null
+node --experimental-strip-types scripts/seed-tier4-test.mjs
+```
+
+`--check` recomputes every rank, confirms `TIER_3_MAX_RANK` and that every tier 4 word
+is rarer. `seed-tier4-test.mjs` (in `npm test`) checks the checked-in data: count, IDs,
+no overlap or near-duplicates, fields and limits, Hard-mode answers and the cut-off.
+Tier selection and the seed update for a pre-tier-4 database are covered by
+`scripts/tier-selection-ui-test.mjs`. As with the other built-ins, automated checks are
+not a native-speaker review.
+
+**Deployment prerequisite.** `firestore.rules` now accepts tier 4 on cards and in the
+`tier` and `selectedTiers` settings fields. The currently recorded production rules
+reject them. Every existing account uploads the new cards on its next open, and
+rejected writes stay pending and keep the sync status red, so deploy the updated rules through the
+normal operator procedure **before** this client is published (master publishes Pages;
+Pages does not deploy rules). The change is additive, so older clients keep working
+under the new rules.
 
 ## Compatibility, seeds and sync
 

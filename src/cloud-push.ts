@@ -73,7 +73,7 @@ export async function pullCloud(db: Firestore, uid: string, deckId: string, extr
   const settings = asSettings(settingsSnap.exists() ? settingsSnap.data() : null) ?? {
     direction: 'de-en' as const,
     sessionSize: 20,
-    tier: extra ? 3 as const : 1 as const,
+    tier: extra ? 4 as const : 1 as const,
     settingsUpdatedAt: 0,
   }
   const { activity, skipped } = filterReviewEvents(activitySnap.docs.map((item) => ({ id: item.id, data: item.data() })))

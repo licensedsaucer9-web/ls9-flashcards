@@ -112,6 +112,7 @@ assert(parseUserFile({ version: 2, kind: 'user' }) === null, 'user file without 
 const u = parseUserFile({ version: 2, kind: 'user', user: 'anna', updated_at: 5, settings: { direction: 'en-de', sessionSize: 7, tier: 2 }, progress: { a: srsAt(1) } })
 assert(u.user === 'anna', 'user slug read')
 assert(u.settings.tier === 2, 'tier read')
+assert(parseUserFile({ version: 2, kind: 'user', progress: {}, settings: { tier: 4, selectedTiers: [4, 1] } }).settings.selectedTiers.join() === '1,4', 'tier 4 selection read')
 assert(parseUserFile({ version: 2, kind: 'user', progress: {}, settings: { tier: 9 } }).settings.tier === 1, 'bad tier -> 1')
 assert(parseUserFile({ version: 2, kind: 'user', progress: {}, settings: { tier: 'x' } }).settings.tier === 1, 'non-numeric tier -> 1')
 assert(parseUserFile({ version: 2, kind: 'user', progress: {} }).settings.direction === 'de-en', 'missing direction -> de-en')
@@ -209,10 +210,12 @@ normalizeSettings(input)
 assert(!('id' in input), 'input not mutated by normalize')
 assert(normalizeSettings(input).deletedIds !== input.deletedIds, 'deletedIds is a copy')
 
-// tier defaults to 1 so a migrated profile starts small rather than on all 514 words
+// tier defaults to 1 so a migrated profile starts small rather than on all 764 words
 assert(normalizeSettings().tier === 1, 'defaults: tier 1')
 assert(normalizeSettings({ tier: 3 }).tier === 3, 'tier 3 kept')
 assert(normalizeSettings({ tier: 2 }).tier === 2, 'tier 2 kept')
+assert(normalizeSettings({ tier: 4 }).tier === 4, 'tier 4 kept')
+assert(normalizeSettings({ tier: 5 }).tier === 1, 'tier 5 -> 1')
 assert(normalizeSettings({ tier: 0 }).tier === 1, 'tier 0 -> 1')
 assert(normalizeSettings({ tier: 'x' }).tier === 1, 'non-numeric tier -> 1')
 assert(normalizeSettings().wordTypes.length === 0, 'missing word types mean all')

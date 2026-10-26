@@ -1,5 +1,6 @@
 import { STARTERS, starterCards, starterDeckId, type StarterLanguage } from './starter-decks.ts'
 import type { Card, CardContent, DeckFile, Grade, LocalDeck, PublicSettings, RecordMark, Settings, Srs, Tier, UserFile, WordType } from './types.ts'
+import { isTier } from './types.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
 import {
   applyAck,
@@ -78,7 +79,7 @@ function revision(value: unknown): number {
 }
 
 function tier(value: unknown): Tier {
-  return value === 1 || value === 2 || value === 3 ? value : 1
+  return isTier(value) ? value : 1
 }
 
 function stagedProgress(value: unknown): Record<string, Srs> | undefined {
@@ -197,7 +198,7 @@ function openDb(name: string, upgrade = true, assignedDeckId?: string): Promise<
               ...deck,
               supportsWordTypes: deck.supportsWordTypes ?? (deck as unknown as { wordTypes: unknown }).wordTypes === true,
               ...(deck.origin === 'original' ? publicSettings(normalizeSettings(stored))
-                : { direction: 'de-en', sessionSize: 20, tier: 3, wordTypes: [] }),
+                : { direction: 'de-en', sessionSize: 20, tier: 4, wordTypes: [] }),
             })
           }
           if (!stored) return
@@ -295,7 +296,7 @@ export async function createLocalDeck(name: string, targetLang: string): Promise
     const deck: LocalDeck = {
       id: crypto.randomUUID(), name, targetLang, baseLang: 'English',
       articles: false, supportsWordTypes: false, tiers: false, origin: 'local',
-      direction: 'de-en', sessionSize: 20, tier: 3, wordTypes: [],
+      direction: 'de-en', sessionSize: 20, tier: 4, wordTypes: [],
     }
     tx.objectStore('decks').add(deck)
     tx.objectStore('settings').put({ ...normalizeSettings(stored), activeDeckId: deck.id })
@@ -1027,7 +1028,7 @@ export type DueByTier = Record<Tier, { due: number; total: number }>
 /** One pass for the whole deck: how many cards sit in each tier and how many are due. */
 export async function getDueByTier(now = Date.now()): Promise<DueByTier> {
   const cards = await getAllCards()
-  const out: DueByTier = { 1: { due: 0, total: 0 }, 2: { due: 0, total: 0 }, 3: { due: 0, total: 0 } }
+  const out: DueByTier = { 1: { due: 0, total: 0 }, 2: { due: 0, total: 0 }, 3: { due: 0, total: 0 }, 4: { due: 0, total: 0 } }
   for (const card of cards) {
     const bucket = out[tierOf(card)]
     bucket.total += 1
@@ -1087,7 +1088,7 @@ export async function putSettings(next: Partial<PublicSettings>): Promise<void> 
       direction: next.direction ?? deck.direction,
       sessionSize: next.sessionSize === undefined ? deck.sessionSize : normalizeSettings(next).sessionSize,
       tier: tier(next.tier ?? deck.tier),
-      ...(validSelectedTiers(selectedTiers) ? { selectedTiers: reviewTiers({ tier: 3, selectedTiers }) } : {}),
+      ...(validSelectedTiers(selectedTiers) ? { selectedTiers: reviewTiers({ tier: 4, selectedTiers }) } : {}),
       wordTypes: next.wordTypes === undefined ? deck.wordTypes : normalizeWordTypes(next.wordTypes),
     }
     tx.objectStore('decks').put(replacePreferences({ ...deck }, preferences))
