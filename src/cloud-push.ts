@@ -126,7 +126,7 @@ export async function commitProgress(
   const ref = extraDeckId ? doc(db, 'users', uid, 'decks', extraDeckId, 'progress', id) : doc(db, 'users', uid, 'progress', id)
   // Editor/CSV creation stamps updated_at too. The initial schedule, rather
   // than that clock, identifies an unstudied card. Again/Gender lower ease
-  // even though they also leave reps and interval at zero.
+  // even when they also leave reps and interval at zero.
   if (extraDeckId && local && local.ease === newSrs(0).ease && local.reps === 0 && local.interval === 0) return 'noop'
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(ref)

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { importCsv } from '../src/csv.ts'
 import { cardContentProblem, clampSrs, MAX_EASE, MAX_EXAMPLE_LENGTH, MAX_INTERVAL_DAYS, MAX_TAGS, MAX_TERM_LENGTH } from '../src/limits.ts'
-import { newSrs, review } from '../src/srs.ts'
+import { MAX_SCHEDULE_DAYS, newSrs, review } from '../src/srs.ts'
 
 // 1. The constants are the rules' numbers, so they cannot drift apart unnoticed.
 const rules = readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8')
@@ -25,14 +25,16 @@ assert.ok(srs.interval <= MAX_INTERVAL_DAYS && srs.ease <= MAX_EASE, 'early Easy
 assert.equal(srs.interval, 400, 'reviewing ahead never lengthens the interval')
 srs = { ...newSrs(0), reps: 3, interval: 400, ease: 2.5 }
 for (let i = 0; i < 60; i++) srs = review(srs, 'easy', srs.due) // always on time
-assert.equal(srs.interval, MAX_INTERVAL_DAYS, 'on-time Easy grades saturate at the cap')
+assert.equal(srs.interval, MAX_SCHEDULE_DAYS, 'on-time Easy grades saturate at the practical ceiling, below the cap')
+assert.ok(MAX_SCHEDULE_DAYS <= MAX_INTERVAL_DAYS)
 assert.equal(srs.ease, MAX_EASE, 'ease saturates at the cap')
 const legacy = review({ ease: 11.2, interval: 51809, reps: 9, due: 0 }, 'good', 1)
 assert.ok(legacy.interval <= MAX_INTERVAL_DAYS && legacy.ease <= MAX_EASE, 'a schedule already past the caps is repaired by the next review')
 assert.deepEqual(clampSrs({ ease: 2.5, interval: 5, reps: 1, due: 9 }), { ease: 2.5, interval: 5, reps: 1, due: 9 }, 'valid schedules are untouched')
 assert.deepEqual(clampSrs({ ease: 99, interval: 1e9, reps: 1, due: 9 }), { ease: MAX_EASE, interval: MAX_INTERVAL_DAYS, reps: 1, due: 9 })
 // Hard mode: a card missed twice comes back now (Again), not later (Hard lengthens a learned card's interval).
-assert.equal(review({ ease: 2.5, interval: 100, reps: 5, due: 0 }, 'again', 1).interval, 0)
+const missed = review({ ease: 2.5, interval: 100, reps: 5, due: 0 }, 'again', 1)
+assert.ok(missed.due === 1 && missed.interval < 100, 'Again is due now and shortens the interval')
 assert.ok(review({ ease: 2.5, interval: 100, reps: 5, due: 0 }, 'hard', 1).interval > 100, 'the old second-miss grade lengthened it')
 
 // 3. Content limits.
