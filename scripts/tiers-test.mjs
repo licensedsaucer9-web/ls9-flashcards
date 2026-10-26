@@ -101,6 +101,8 @@ assert(tierLabel([1, 2, 3]) === 'Tiers 1 + 2 + 3', 'three tiers are no longer al
 assert(tierLabel([4]) === 'Tier 4' && tierLabel([2, 4]) === 'Tiers 2 + 4', 'exact tier 4 labels')
 assert(tierPillLabel(4, 7) === 'T4: 7' && tierPillName(4, 7) === 'Tier 4, 7 due', 'tier 4 pill')
 for (const tier of TIERS) assert(typeof TIER_NOTES[tier] === 'string' && TIER_NOTES[tier].length > 0, `tier ${tier} has a note`)
+// The core deck differs per language (German 514, French and Spanish 567), so the tier 3 note names no size.
+assert(!/\d/.test(TIER_NOTES[3]), `tier 3 note names no deck size, got ${TIER_NOTES[3]}`)
 
 // --- profile identity ---
 

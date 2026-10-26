@@ -68,7 +68,7 @@ export function tierPillName(tier: Tier, due: number): string {
 export const TIER_NOTES: Record<Tier, string> = {
   1: 'The 100 most common words. Start here.',
   2: 'Adds the next 150, so 250 words in total.',
-  3: 'Adds the rest of the core deck, 514 words in total, and your own cards.',
+  3: 'Adds the rest of the core deck and your own cards.',
   4: 'Adds 250 less common words, so everything in the deck.',
 }
 
