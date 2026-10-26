@@ -1,6 +1,6 @@
 // Tier boundaries and profile identity. Both are pure logic, so they run in node
 // against the real seed data rather than only through the browser.
-import { tierOf, inTier, inSelectedTier, tierCounts, tierLabel, reviewTiers, toggleTier, validSelectedTiers } from '../src/tiers.ts'
+import { tierOf, inTier, inSelectedTier, tierCounts, tierLabel, tierPillLabel, tierPillName, reviewTiers, toggleTier, validSelectedTiers } from '../src/tiers.ts'
 import { slugify, dbNameForUser, LEGACY_DB_NAME, DEFAULT_USER } from '../src/user.ts'
 import { seedCards } from '../src/seed.ts'
 import { TIER_CUMULATIVE } from '../src/types.ts'
@@ -70,6 +70,8 @@ assert(tierOf(byDe.get('Weg')) === 1, 'Weg is one of the 100 most common')
 assert(tierOf(byDe.get('Schule')) === 2, 'Schule falls in tier 2')
 assert(tierOf(byDe.get('Kühlschrank')) === 3, 'Kühlschrank falls in tier 3')
 
+assert(tierPillLabel(1, 23) === 'T1: 23' && tierPillLabel(2, 0) === 'T2: 0', 'pill is T<n>: <due>')
+assert(tierPillName(1, 23) === 'Tier 1, 23 due', 'pill accessible name')
 assert(tierLabel(1) === 'Tier 1 · 100 words', `tier 1 label, got ${tierLabel(1)}`)
 assert(tierLabel(2, counts) === `Tier 2 · ${counts[1] + counts[2]} words`, 'tier 2 label counts cumulatively')
 assert(tierLabel(3, counts).endsWith(`${seed.length} words`), 'tier 3 label counts everything')

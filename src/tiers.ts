@@ -55,6 +55,16 @@ export function tierLabel(tier: Tier | readonly Tier[], counts?: Record<Tier, nu
   return counts ? `Tier 3 · ${counts[1] + counts[2] + counts[3]} words` : 'Tier 3 · all'
 }
 
+/** Compact pill text: `T1: 23`, the cards of that tier due now. */
+export function tierPillLabel(tier: Tier, due: number): string {
+  return `T${tier}: ${due}`
+}
+
+/** Spoken name for the pill, since `T1: 23` alone says neither "tier" nor "due". */
+export function tierPillName(tier: Tier, due: number): string {
+  return `Tier ${tier}, ${due} due`
+}
+
 export const TIER_NOTES: Record<Tier, string> = {
   1: 'The 100 most common words. Start here.',
   2: 'Adds the next 150, so 250 words in total.',

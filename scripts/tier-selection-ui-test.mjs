@@ -39,7 +39,11 @@ try {
   }
   await pick(1, [2, 3]); await pick(2, [3])
   assert.equal(await page.locator('[data-due-count]').textContent(), '264', 'Tier 3 excludes the first 250 words')
-  assert.match(await page.locator('[data-tier="3"]').textContent(), /264 · 264 due/)
+  assert.equal(await page.locator('[data-tier="3"]').textContent(), 'T3: 264', 'pill reads T<n>: <due>')
+  assert.equal(await page.locator('[data-tier="3"]').getAttribute('aria-label'), 'Tier 3, 264 due')
+  assert.equal(await page.locator('[data-tier="1"]').textContent(), 'T1: 100')
+  const rows = await page.locator('[data-tier]').evaluateAll(nodes => new Set(nodes.map(n => Math.round(n.getBoundingClientRect().top))).size)
+  assert.equal(rows, 1, 'pills share one row at mobile width')
   await page.reload(); await page.waitForSelector('#start')
   assert.deepEqual(await pressed(), [3], 'exact selection survives reload')
   await page.click('#start'); await page.waitForSelector('#card')

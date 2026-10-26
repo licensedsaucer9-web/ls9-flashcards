@@ -243,6 +243,11 @@ remains the highest selected tier for older clients and Cards browsing. A newer
 legacy settings write replaces an exact selection with its cumulative scope.
 The additive field is validated in rules and preserved in sync, copy and backup/restore.
 
+Tier pills read exactly `T<n>: <due>` (`tierPillLabel()` in `src/tiers.ts`), where the
+number is the count of that tier's cards with `due <= now`, the same rule as the review
+queue; on Cards, whose browse filter is cumulative, it is the cumulative due count. Each
+pill's accessible name is `Tier <n>, <due> due` (`tierPillName()`). Presentation only.
+
 A review session starts from a captured queue within the selected exact
 tier buckets and word-type filter. It uses only due cards when any match. When none
 are due, it selects future cards in ascending due-time order and applies the
