@@ -223,10 +223,41 @@ switch tabs. Mouse navigation remains click-only.
 
 ## Scheduling and recovery limits
 
-The scheduler is SM-2-style: first Hard/Good = 1 day, second Good = 6 days,
-first Easy = 4 days. Again and Gender requeue immediately, with a smaller ease
-penalty for Gender. The account stores the latest SRS state per card, with
-no interval multiplier, detailed review history, or FSRS.
+The scheduler (`src/srs.ts`, #132) is a hybrid: a short SM-2 ladder for the
+first steps, then multiplicative growth by each card's ease. The account stores
+only the latest `ease`, `interval` (days), `reps` and `due` per card, with no
+interval multiplier, detailed review history, or FSRS.
+
+- **New card:** Hard/Good = 1 day, Easy = 4 days. Second Good is at least 6 days,
+  second Easy at least 8.
+- **Later:** Good = interval × ease (at least one day longer); Easy = interval ×
+  ease × 1.3 (at least one day longer than Good) and raises ease by 0.15; Hard =
+  interval × 1.2 (holds or grows slightly) and lowers ease by 0.15. Ease stays
+  within 1.3–10, so consecutive Easy grades always lengthen the interval, by
+  more than 3× each time: 4 → 15 → 58 → 234 → 989 → 3650 days.
+- **Ceiling:** new growth stops at 3650 days (ten years, `MAX_SCHEDULE_DAYS`),
+  well under the server's 36,500. A longer interval stored by an older build is
+  held by a passing grade, not shortened.
+- **Lapses:** Again requeues now, lowers ease by 0.2 and keeps a quarter of the
+  interval; Gender keeps half and lowers ease by 0.1. `reps` returns to 0, so the
+  card is relearning: Good resumes the kept interval, Hard halves it, Easy
+  multiplies it by 1.3, and growth continues from there. Repeated lapses wear
+  the kept interval down to 0, which is a new card.
+- **Early reviews** never lengthen an interval.
+- There is no random fuzz, so cards graded alike on the same day stay together.
+
+Why this method: it keeps the stored fields and Firestore rules unchanged, so
+there is no migration and older clients keep working, and it is easy to test.
+Pure SM-2 restarted a lapsed card at day one; a fixed ladder or Leitner boxes
+ignore how hard each word is; FSRS has the best evidence base but needs new
+per-card state, a rules change, a migration, fitted parameters and ideally a
+review history that the app does not keep. Ease can still drift down after many
+Hard grades ("ease hell"); only Easy raises it.
+
+Existing schedules need no conversion: each card continues from its stored
+interval and ease. Older clients write the same shape; one that reviews a
+relearning card (interval above 0 with `reps` 0) treats it as new, which only
+shortens that card's next interval.
 
 Review saves the active deck's tier, word-type selection, and session size.
 Its compact size row offers 10 / 20 / 30 / All and a Custom dialog in increments

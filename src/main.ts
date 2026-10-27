@@ -1189,7 +1189,7 @@ async function renderCloudSettings() {
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">SRS</p>
-        <p class="note">SM-2 with Again / Gender / Hard / Good / Easy. Gender is for nouns: you knew the word but missed its grammatical gender. It requeues the card now with a smaller ease penalty than Again. Cards without an article hide that button.</p>
+        <p class="note" id="srs-note">SM-2 with Again / Gender / Hard / Good / Easy. Each Easy multiplies the interval (4, 15, 58, 234 days and so on, up to ten years); Good grows it a little less and Hard holds it or grows it slightly. Again requeues the card now and keeps a quarter of its interval. Gender is for nouns: you knew the word but missed its grammatical gender. It requeues the card now, keeps half the interval and has a smaller ease penalty than Again. Cards without an article hide that button.</p>
       </div>
     </section>
   `
