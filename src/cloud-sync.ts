@@ -15,7 +15,7 @@ import {
 } from './db.ts'
 import { docsToFiles } from './firestore-docs.ts'
 import { cardContentProblem, clampSrs } from './limits.ts'
-import { deckSyncs, hasDirty, listPushItems, runDirtyQueue, type PushItem } from './record-sync.ts'
+import { deckSyncs, hasDirty, listPushItems, runDirtyQueue, type NeedsFixing, type PushItem } from './record-sync.ts'
 import { seedCards } from './seed.ts'
 import { captureStudyLock, studyLockCurrent } from './study-lock.ts'
 import type { Card, CardContent, PublicSettings } from './types.ts'
@@ -70,7 +70,7 @@ async function pushLoaded(
 
 export const cloudTransport = true
 
-export async function cloudSyncPass(control: { requestAgain: () => void }): Promise<'synced' | 'pending' | 'idle' | 'local' | { state: 'rejected'; message: string }> {
+export async function cloudSyncPass(control: { requestAgain: () => void }): Promise<'synced' | 'pending' | 'idle' | 'local' | { state: 'rejected'; message: string; items: NeedsFixing[] }> {
   const lock = captureStudyLock()
   if (!lock.uid) return 'idle'
   const db = cloudFirestore()
@@ -126,15 +126,21 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     }
     const dirty = hasDirty(after.settings.pending)
     if (result.rejected.length) {
-      const first = result.rejected[0]
-      const card = first.item.kind === 'card' ? snapshot.cards.get(first.item.id) : undefined
-      const problem = card ? cardContentProblem(card) : null
-      const more = result.rejected.length > 1 ? ` (+${result.rejected.length - 1} more)` : ''
+      const items: NeedsFixing[] = result.rejected.map(({ item, code }) => {
+        const card = item.kind === 'card' || item.kind === 'progress' ? snapshot.cards.get(item.id) : undefined
+        const label = card ? card.de.slice(0, 40)
+          : item.kind === 'settings' ? 'Deck settings'
+          : item.kind === 'activity' ? `Review activity ${item.id}`
+          : item.id
+        return { item, code, label, problem: card && item.kind === 'card' ? cardContentProblem(card) : null }
+      })
+      const first = items[0]
+      const more = items.length > 1 ? ` (+${items.length - 1} more)` : ''
       // Name the card and say what to fix; editing it queues it again.
-      const message = card && problem
-        ? `Saved on this device · “${card.de.slice(0, 40)}” can’t sync: ${problem}. Edit it to fix${more}`
+      const message = first.problem
+        ? `Saved on this device · “${first.label}” can’t sync: ${first.problem}. Edit it to fix${more}`
         : `Saved on this device · ${first.item.kind === 'settings' ? 'settings' : first.item.id} rejected (${first.code})${more}`
-      return { state: 'rejected', message }
+      return { state: 'rejected', message, items }
     }
     if (!result.clean || dirty) {
       if (result.clean && dirty && studyLockCurrent(lock)) control.requestAgain()

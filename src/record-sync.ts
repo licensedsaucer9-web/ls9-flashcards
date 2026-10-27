@@ -157,6 +157,12 @@ export function chunkItems<T>(items: T[], size = WRITE_CHUNK): T[][] {
 
 export type RejectedPush = { item: PushItem; code: string }
 
+/**
+ * A record the server refused. It stays dirty, so it is listed until an edit
+ * fixes it or the person keeps that revision on this device only.
+ */
+export type NeedsFixing = RejectedPush & { label: string; problem: string | null }
+
 function rejectionCode(error: unknown): string | null {
   const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : ''
   const reason = code.split('/').at(-1)

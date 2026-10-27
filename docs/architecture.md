@@ -463,4 +463,9 @@ and the emulator suite checks both sides of each boundary):
   interval.
 - **Rejections.** When a card is rejected anyway (for example one saved before these limits),
   the status names the card and says what to fix; saving an edit queues it again. The rest of
-  the queue keeps syncing past it. There is no separate list of rejected cards yet.
+  the queue keeps syncing past it. Settings → Account lists every refused record under
+  **Needs fixing**, with a link to edit a card and **Keep on this device only**, which
+  acknowledges just the refused revision so the account can report synced again; that change
+  then never reaches other devices, and a later edit is queued as usual. The list is rebuilt
+  by each pass that reaches the queue and cleared on a deck switch. While records are listed,
+  the sign-out confirmation offers the list instead of Sync now, which cannot clear them.

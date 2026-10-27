@@ -22,12 +22,13 @@ import { copyAlreadyDecided, rememberCopyDecision, sessionCopyMode, type CopyDec
 import { includeGuestVocabulary } from './guest-copy.ts'
 import { setCloudFirestore } from './cloud-handle.ts'
 import { publicFirebaseWeb } from './firebase-web.ts'
-import { copyGuestDatabase, recordAssignedDeck, getSettings, importLegacyData, localDatabaseHasWork } from './db.ts'
+import { acknowledgePending, copyGuestDatabase, recordAssignedDeck, getSettings, importLegacyData, localDatabaseHasWork } from './db.ts'
 import { esc } from './dom.ts'
 import { provisionAccount } from './provision.ts'
 import { cancelPopupWhenPageReturns, deckOpenFailure, retryableDeckOpen } from './sign-in-flow.ts'
 import { bindStudyDatabase, captureStudyLock } from './study-lock.ts'
-import { getSyncStatus, syncNow } from './sync.ts'
+import type { NeedsFixing } from './record-sync.ts'
+import { forgetNeedsFixing, getSyncStatus, onSyncStatus, syncNow } from './sync.ts'
 import { bindMigrationPanel, migrationPanelHtml } from './migration-panel.ts'
 import { accountDatabaseName, currentLocalDatabaseName } from './user.ts'
 import { recoveryBridge, rehearsalNote, rehearsalPreview, storagePrefix } from './rehearsal.ts'
@@ -523,14 +524,23 @@ async function confirmSignOut(): Promise<void> {
   const signedIn = Boolean(captureStudyLock().uid)
   const settings = signedIn ? await getSettings() : null
   if (settings && settings.localRevision > settings.acknowledgedRevision) {
+    const stuck = getSyncStatus().needsFixing.length
+    // Sync now cannot clear records the server refused, so point at the list instead.
     const choice = await presentChoice(
-      'Your latest changes stay on this device for this account. They are not deleted and they are not uploaded as the next account.',
+      stuck
+        ? `${stuck === 1 ? '1 change' : `${stuck} changes`} can’t sync until fixed or kept on this device; see Needs fixing under Account. Your latest changes stay on this device for this account. They are not deleted and they are not uploaded as the next account.`
+        : 'Your latest changes stay on this device for this account. They are not deleted and they are not uploaded as the next account.',
       [
-        ['sync', 'Sync now', 'secondary'],
+        stuck ? ['fix', 'Review what needs fixing', 'secondary'] : ['sync', 'Sync now', 'secondary'],
         ['sign-out', 'Sign out', 'danger'],
         ['stay', 'Stay signed in', 'secondary'],
       ],
     )
+    if (choice === 'fix') {
+      location.hash = '#/settings'
+      hooks?.onIdentityChanged()
+      return
+    }
     if (choice === 'sync') {
       await syncAccountNow()
       hooks?.onIdentityChanged()
@@ -626,12 +636,67 @@ export function accountPanelHtml(): string {
       <p class="kicker" style="margin:0">Account</p>
       <p class="note">${esc(label)}</p>
       <p class="note" id="sync-line">${esc(accountSyncText())}</p>
+      <div id="needs-fixing">${needsFixingHtml()}</div>
       <button class="secondary" type="button" id="sync-now-account">Sync now</button>
       <button class="danger" type="button" id="sign-out-account">Sign out</button>
       <p class="note" id="auth-error">${esc(pendingError)}</p>
     </div>
     ${migrationPanelHtml()}
   `
+}
+
+function needsFixingHtml(): string {
+  const items = getSyncStatus().needsFixing
+  if (!items.length) return ''
+  const rows = items.map((entry, index) => {
+    const name = entry.item.kind === 'card' || entry.item.kind === 'progress'
+      ? `<a href="#/card/${encodeURIComponent(entry.item.id)}">${esc(entry.label)}</a>`
+      : esc(entry.label)
+    const why = entry.problem ? `${entry.problem}. Edit it to fix` : `refused by the server (${entry.code})`
+    return `<li>${name}${entry.item.kind === 'progress' ? ' (schedule)' : ''}: ${esc(why)}
+      <button class="secondary" type="button" data-keep-local="${index}">Keep on this device only</button></li>`
+  }).join('')
+  return `
+    <p class="kicker" style="margin:0">Needs fixing</p>
+    <p class="note">These changes can’t sync, so the account stays unsynced. Edit a card to queue it again, or keep a change on this device only; other devices won’t get it.</p>
+    <ul class="needs-fixing">${rows}</ul>
+  `
+}
+
+/** Stop retrying one refused revision. A later edit of the same record is queued as usual. */
+async function keepOnDevice(entry: NeedsFixing): Promise<void> {
+  const lock = captureStudyLock()
+  if (!lock.uid) return
+  const applied = await acknowledgePending(entry.item, { uid: lock.uid, generation: lock.generation })
+  if (!applied) {
+    hooks?.toast('Not changed: the deck or account changed. Try again.')
+    return
+  }
+  forgetNeedsFixing(entry)
+  await syncAccountNow()
+}
+
+function bindNeedsFixing(): void {
+  const box = document.getElementById('needs-fixing')
+  if (!box) return
+  box.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-keep-local]')
+    const entry = button ? getSyncStatus().needsFixing[Number(button.dataset.keepLocal)] : undefined
+    if (!button || !entry) return
+    button.disabled = true
+    void keepOnDevice(entry).catch(() => {
+      hooks?.toast('Not changed. Try again.')
+    }).finally(() => { button.disabled = false })
+  })
+  let painted = needsFixingHtml()
+  const stop = onSyncStatus(() => {
+    if (!box.isConnected) {
+      stop()
+      return
+    }
+    const html = needsFixingHtml()
+    if (html !== painted) box.innerHTML = painted = html
+  })
 }
 
 export function bindAccountPanel(panelHooks: AccountHooks): void {
@@ -645,6 +710,7 @@ export function bindAccountPanel(panelHooks: AccountHooks): void {
     void syncAccountNow()
   })
   bindSignOutButton()
+  bindNeedsFixing()
 }
 
 export async function syncAccountNow(): Promise<void> {

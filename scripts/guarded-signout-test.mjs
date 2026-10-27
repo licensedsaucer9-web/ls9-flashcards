@@ -63,6 +63,12 @@ try {
       resolveId(id) { if (id === 'firebase/auth') return authModule },
       load(id) {
         if (id === authModule) return fakeAuth
+        // A page can script one pass's outcome; otherwise the real Firestore pass runs.
+        if (id.endsWith('/src/cloud-sync.ts')) return `
+          import * as real from '/src/cloud-sync.ts?real';
+          export const cloudTransport = real.cloudTransport;
+          export function cloudSyncPass(control) { return window.syncOutcome ? window.syncOutcome() : real.cloudSyncPass(control) }
+        `
         if (id.endsWith('/src/provision.ts')) return `
           export async function provisionAccount(_db, _uid, options) {
             window.provisionCalls = (window.provisionCalls || 0) + 1;
@@ -270,6 +276,50 @@ try {
   await account.click('#choice-sign-out')
   await account.waitForFunction((key) => !localStorage.getItem(key), authKey)
   assert.deepEqual(await snapshot(account, accountDb), accountBefore, 'confirmed account sign-out preserves pending account data')
+
+  // A record the server refuses is listed with a repair path, and sign-out says Sync now cannot clear it (#113).
+  const refused = await newPage(true, true, true)
+  await refused.evaluate(async () => {
+    document.body.innerHTML = '<main id="main"></main>'
+    const cloud = await import('/src/cloud-on.ts')
+    function render() {
+      document.getElementById('main').innerHTML = cloud.accountPanelHtml()
+      cloud.bindAccountPanel(hooks)
+    }
+    const hooks = { setTabs() {}, toast() {}, ensureSeed: async () => 0, onIdentityChanged: render }
+    await cloud.prepareAccount(hooks)
+    render()
+  })
+  await seedLocalWork(refused)
+  const refusedMark = await refused.evaluate(async () => {
+    const settings = await (await import('/src/db.ts')).getSettings()
+    const mark = settings.pending.cards['sign-out-card']
+    window.syncOutcome = () => ({ state: 'rejected', message: 'Saved on this device · “sign-out-card” can’t sync', items: [{
+      item: { kind: 'card', id: 'sign-out-card', contentRevision: mark.revision, tombstoneRevision: 0, deckId: settings.activeDeckId },
+      code: 'invalid-argument', label: 'Synthetic card', problem: 'the translation is over 200 characters',
+    }] })
+    return mark
+  })
+  assert(refusedMark.revision > refusedMark.acked, 'the seeded card is pending')
+  await refused.click('#sync-now-account')
+  await refused.waitForSelector('#needs-fixing li')
+  assert.equal(await refused.locator('#needs-fixing a').getAttribute('href'), '#/card/sign-out-card')
+  assert.match(await refused.locator('#needs-fixing li').textContent(), /translation is over 200 characters\. Edit it to fix/)
+  await refused.click('#sign-out-account')
+  await refused.waitForSelector('#choice-fix')
+  assert.equal(await refused.locator('#choice-sync').count(), 0, 'Sync now cannot clear a refused record')
+  assert.match(await refused.locator('.due-label').textContent(), /1 change can’t sync until fixed/)
+  await refused.click('#choice-fix')
+  await refused.waitForSelector('#needs-fixing li')
+  assert.equal(await refused.evaluate(() => location.hash), '#/settings')
+  await refused.evaluate(() => { window.syncOutcome = () => 'pending' })
+  await refused.click('[data-keep-local="0"]')
+  await refused.waitForFunction(() => !document.querySelector('#needs-fixing li'))
+  const keptMark = await refused.evaluate(async () => (await (await import('/src/db.ts')).getSettings()).pending.cards['sign-out-card'])
+  assert.equal(keptMark.acked, refusedMark.revision, 'keeping it on this device stops retrying that revision')
+  await refused.click('#sign-out-account')
+  await refused.waitForSelector('#choice-stay')
+  await refused.click('#choice-stay')
 
   // Caught-up review uses real IndexedDB and the regular grading UI (#56).
   const ahead = await newPage()
