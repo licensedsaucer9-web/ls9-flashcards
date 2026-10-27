@@ -446,6 +446,22 @@ export async function switchActiveDeck(deckId: string): Promise<boolean> {
   } finally { db.close() }
 }
 
+/** Point a local deck at a different cloud deck; its local ID, cards and pending marks stay as they are. */
+export async function recordCloudDeckId(deckId: string, cloudId: string): Promise<boolean> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return false
+    const tx = db.transaction('decks', 'readwrite')
+    const done = txDone(tx)
+    const deck = await value(tx.objectStore('decks').get(deckId)) as LocalDeck | undefined
+    if (!deck || deck.origin !== 'local' || !studyLockCurrent(lock)) { await done; return false }
+    tx.objectStore('decks').put({ ...deck, cloudId })
+    await done
+    return studyLockCurrent(lock)
+  } finally { db.close() }
+}
+
 /** Attach the known assignment to this account's sole deck, including offline fallback upgrades. */
 export async function recordAssignedDeck(deckId: string): Promise<void> {
   const { lock, name } = namesFor()

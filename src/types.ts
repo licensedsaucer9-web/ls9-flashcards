@@ -64,6 +64,8 @@ export interface LocalDeck extends PublicSettings {
   /** The German deck mirrors the account's cloud deck. Created decks use deck-scoped progress and settings. */
   origin: 'original' | 'local'
   settingsUpdatedAt?: number
+  /** Cloud deck to sync instead of `id`, set when another account already held `id`. */
+  cloudId?: string
 }
 
 export interface Settings {
