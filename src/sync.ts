@@ -1,4 +1,4 @@
-import { captureStudyLock, studyLockCurrent } from './study-lock.ts'
+import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import type { NeedsFixing } from './record-sync.ts'
 import { cloudSyncPass, cloudTransport } from './sync-backend.ts'
 
@@ -11,6 +11,8 @@ export type SyncStatus = {
 }
 
 let status: SyncStatus = { state: 'off', message: '', at: null, needsFixing: [] }
+/** The account and deck binding the needs-fixing list was built against. */
+let needsFixingLock: StudyLock | null = null
 let timer = 0
 let activeSync: Promise<void> | null = null
 let syncAgain = false
@@ -18,6 +20,8 @@ const listeners = new Set<() => void>()
 
 export function getSyncStatus(): SyncStatus {
   if (!cloudTransport) return { state: 'off', message: '', at: null, needsFixing: [] }
+  // Sign-out or an account switch may not start a pass; never show another binding's list.
+  if (status.needsFixing.length && !(needsFixingLock && studyLockCurrent(needsFixingLock))) return { ...status, needsFixing: [] }
   return status
 }
 
@@ -37,7 +41,8 @@ async function syncPass(): Promise<void> {
     setStatus({ state: 'idle', message: 'Saved on this device', at: null, needsFixing: [] })
     return
   }
-  setStatus({ state: 'syncing', message: 'Syncing', at: null })
+  // Drop a list left over from another account or deck before this pass reports.
+  setStatus({ state: 'syncing', message: 'Syncing', at: null, needsFixing: getSyncStatus().needsFixing })
   const outcome = await cloudSyncPass({
     requestAgain: () => {
       syncAgain = true
@@ -50,8 +55,10 @@ async function syncPass(): Promise<void> {
     return
   }
   // A pass that stopped early ('pending') keeps the last list; it may not have retried those records.
-  if (typeof outcome === 'object') setStatus({ state: 'error', message: outcome.message, at: null, needsFixing: outcome.items })
-  else if (outcome === 'synced') setStatus({ state: 'ok', message: 'Synced', at: Date.now(), needsFixing: [] })
+  if (typeof outcome === 'object') {
+    needsFixingLock = lock
+    setStatus({ state: 'error', message: outcome.message, at: null, needsFixing: outcome.items })
+  } else if (outcome === 'synced') setStatus({ state: 'ok', message: 'Synced', at: Date.now(), needsFixing: [] })
   else if (outcome === 'local') setStatus({ state: 'idle', message: 'On this device', at: null, needsFixing: [] })
   else setStatus({ state: 'waiting', message: 'Saved on this device', at: null })
 }

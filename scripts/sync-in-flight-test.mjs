@@ -74,3 +74,22 @@ deckSelectionChanged(true)
 pauseSync()
 assert.deepEqual(getSyncStatus().needsFixing, [], 'a deck switch clears the previous deck list')
 console.log('needs-fixing list: ok')
+
+// Signing out or switching account starts no pass, but the old account's list must not stay (#113 review).
+globalThis.__syncPassStub = async () => ({ state: 'rejected', message: 'long rejected', items: refused })
+await syncNow()
+assert.deepEqual(getSyncStatus().needsFixing, refused)
+const { clearStudyBinding } = await import('../src/study-lock.ts')
+clearStudyBinding()
+assert.deepEqual(getSyncStatus().needsFixing, [], 'signing out hides the previous account list')
+bindStudyDatabase({ uid: 'user-2', dbName: 'deck-a' })
+assert.deepEqual(getSyncStatus().needsFixing, [], 'the next account does not see the previous account list')
+let listedDuringPass
+globalThis.__syncPassStub = async () => {
+  listedDuringPass = getSyncStatus().needsFixing
+  return 'pending'
+}
+await syncNow()
+assert.deepEqual(listedDuringPass, [], 'a pass for the new account does not carry the old list')
+assert.deepEqual(getSyncStatus().needsFixing, [], 'a pass that stops early does not revive the old list')
+console.log('needs-fixing list across accounts: ok')
