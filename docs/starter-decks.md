@@ -155,7 +155,9 @@ Firestore collection, document field or IndexedDB schema version is needed.
 Because the ID is derived from the UID, another signed-in account could create
 that deck document first. Sync detects a deck it can neither create nor read and
 records a fresh random `cloudId` on the local deck row; Firestore paths then use
-that ID while local cards and pending marks keep the starter ID. A device that
+that ID while local cards and pending marks keep the starter ID. The first
+recorded `cloudId` wins: a tab that falls back concurrently adopts it rather
+than overwriting it. A device that
 falls back this way does not converge with the account's other devices for that
 starter.
 

@@ -30,6 +30,7 @@ try {
         export async function accountDeckId() { return 'fixture-original' }
         export async function ensureExtraDeck(_db, _uid, deckId) {
           globalThis.ensured?.push(deckId)
+          await globalThis.beforeEnsure?.(deckId)
           return globalThis.takenDecks?.includes(deckId) ? 'taken' : 'ok'
         }
         export async function pullDeckCards() { return [] }
@@ -344,6 +345,28 @@ try {
   assert.deepEqual(claimed.secondEnsured, [cloudId], 'the recorded cloud ID is reused without retrying the claimed one')
   assert(claimed.secondPushes.some(args => args[1] === cloudId && args[2] === 'fixture-claimed-2'), 'later passes keep the fresh cloud deck')
   assert.equal(claimed.card.deckId, localId, 'local records keep the local deck ID')
+  // Two tabs fall back concurrently: the later one adopts the first recorded cloud ID.
+  const raced = await a.evaluate(async () => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    const deck = await api.createLocalDeck('Raced', 'fr')
+    await api.switchActiveDeck(deck.id)
+    await api.putCard({ ...globalThis.sample, id: 'fixture-raced' })
+    globalThis.takenDecks = [deck.id]; globalThis.ensured = []; globalThis.pushes = []
+    // The other tab records its own fallback after this pass minted one but before it is stored.
+    globalThis.beforeEnsure = async (id) => {
+      if (id !== deck.id) await api.recordCloudDeckId(deck.id, 'fixture-other-tab-cloud')
+    }
+    const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
+    const ensured = globalThis.ensured
+    globalThis.beforeEnsure = undefined; globalThis.takenDecks = undefined; globalThis.ensured = undefined
+    const stored = (await api.getDecks()).find(item => item.id === deck.id)
+    return { outcome, ensured, cloudId: stored.cloudId, pushes: globalThis.pushes }
+  })
+  assert.equal(raced.outcome, 'synced')
+  assert.equal(raced.cloudId, 'fixture-other-tab-cloud', 'the first recorded fallback is not overwritten')
+  assert(raced.pushes.some(args => args[1] === 'fixture-other-tab-cloud' && args[2] === 'fixture-raced'), 'the later tab uploads to the recorded cloud deck')
+  assert.equal(raced.ensured.length, 2)
+  assert(!raced.pushes.some(args => args.includes(raced.ensured[1])), 'nothing is written to the abandoned fallback')
   assert(resumed.ids.includes('fixture-remote'))
   assert(!resumed.ids.includes('fixture-local'))
   assert.deepEqual(external, [])

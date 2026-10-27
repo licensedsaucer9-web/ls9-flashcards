@@ -90,9 +90,12 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     if (original) await recordAssignedDeck(deckId)
     else if (await ensureExtraDeck(db, uid, cloudId) === 'taken') {
       // Another account created this predictable starter ID first: sync under a fresh random one.
-      cloudId = crypto.randomUUID()
-      if (await ensureExtraDeck(db, uid, cloudId) === 'taken') return 'pending'
-      if (!await recordCloudDeckId(deckId, cloudId)) return 'idle'
+      const fresh = crypto.randomUUID()
+      if (await ensureExtraDeck(db, uid, fresh) === 'taken') return 'pending'
+      // Another tab may have fallen back first; adopt its ID so neither cloud deck is abandoned.
+      const recorded = await recordCloudDeckId(deckId, fresh)
+      if (!recorded) return 'idle'
+      cloudId = recorded
     }
     if (!studyLockCurrent(lock)) return 'idle'
     const scope = { lock, deckId }

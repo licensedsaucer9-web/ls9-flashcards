@@ -446,19 +446,23 @@ export async function switchActiveDeck(deckId: string): Promise<boolean> {
   } finally { db.close() }
 }
 
-/** Point a local deck at a different cloud deck; its local ID, cards and pending marks stay as they are. */
-export async function recordCloudDeckId(deckId: string, cloudId: string): Promise<boolean> {
+/** Point a local deck at a different cloud deck; its local ID, cards and pending marks stay as they are.
+ * Only the first fallback is kept: when another tab already recorded a cloud ID, that one is
+ * returned instead so every tab syncs to the same cloud deck. Undefined means refused.
+ */
+export async function recordCloudDeckId(deckId: string, cloudId: string): Promise<string | undefined> {
   const { lock, name } = namesFor()
   const db = await openDb(name)
   try {
-    if (!studyLockCurrent(lock)) return false
+    if (!studyLockCurrent(lock)) return undefined
     const tx = db.transaction('decks', 'readwrite')
     const done = txDone(tx)
     const deck = await value(tx.objectStore('decks').get(deckId)) as LocalDeck | undefined
-    if (!deck || deck.origin !== 'local' || !studyLockCurrent(lock)) { await done; return false }
-    tx.objectStore('decks').put({ ...deck, cloudId })
+    if (!deck || deck.origin !== 'local' || !studyLockCurrent(lock)) { await done; return undefined }
+    const recorded = deck.cloudId ?? cloudId
+    if (!deck.cloudId) tx.objectStore('decks').put({ ...deck, cloudId })
     await done
-    return studyLockCurrent(lock)
+    return studyLockCurrent(lock) ? recorded : undefined
   } finally { db.close() }
 }
 
