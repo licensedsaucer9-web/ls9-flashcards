@@ -787,6 +787,23 @@ select:focus {
   line-height: 1.45;
 }
 
+.needs-fixing {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.needs-fixing li {
+  margin-bottom: 0.5rem;
+}
+
+.needs-fixing button {
+  display: block;
+  margin-top: 0.3rem;
+}
+
 .note code,
 p code {
   font-size: 0.85em;

@@ -49,9 +49,47 @@ console.log('sync in-flight deck switch: ok')
 // A selection made after sync has completed must immediately clear the old badge.
 const { deckSelectionChanged, pauseSync } = await import('../src/sync.ts')
 deckSelectionChanged(false)
-assert.deepEqual(getSyncStatus(), { state: 'idle', message: 'On this device', at: null })
+assert.deepEqual(getSyncStatus(), { state: 'idle', message: 'On this device', at: null, needsFixing: [] })
 assert.equal(passes.length, 2, 'selecting a local deck does not start cloud work')
 deckSelectionChanged(true)
 assert.equal(getSyncStatus().state, 'waiting', 'returning to German schedules pending sync')
 pauseSync()
 console.log('idle deck selection status: ok')
+
+// Refused records are listed until a pass syncs them, and a deck switch drops the old deck's list (#113).
+const refused = [{ item: { kind: 'card', id: 'long', contentRevision: 3, tombstoneRevision: 0 }, code: 'permission-denied', label: 'long', problem: null }]
+globalThis.__syncPassStub = async () => ({ state: 'rejected', message: 'long rejected', items: refused })
+await syncNow()
+assert.equal(getSyncStatus().state, 'error')
+assert.deepEqual(getSyncStatus().needsFixing, refused, 'the rejected records are listed')
+globalThis.__syncPassStub = async () => 'pending'
+await syncNow()
+assert.deepEqual(getSyncStatus().needsFixing, refused, 'a pass that stopped early keeps the list')
+globalThis.__syncPassStub = async () => 'synced'
+await syncNow()
+assert.deepEqual(getSyncStatus().needsFixing, [], 'a synced pass clears the list')
+globalThis.__syncPassStub = async () => ({ state: 'rejected', message: 'long rejected', items: refused })
+await syncNow()
+deckSelectionChanged(true)
+pauseSync()
+assert.deepEqual(getSyncStatus().needsFixing, [], 'a deck switch clears the previous deck list')
+console.log('needs-fixing list: ok')
+
+// Signing out or switching account starts no pass, but the old account's list must not stay (#113 review).
+globalThis.__syncPassStub = async () => ({ state: 'rejected', message: 'long rejected', items: refused })
+await syncNow()
+assert.deepEqual(getSyncStatus().needsFixing, refused)
+const { clearStudyBinding } = await import('../src/study-lock.ts')
+clearStudyBinding()
+assert.deepEqual(getSyncStatus().needsFixing, [], 'signing out hides the previous account list')
+bindStudyDatabase({ uid: 'user-2', dbName: 'deck-a' })
+assert.deepEqual(getSyncStatus().needsFixing, [], 'the next account does not see the previous account list')
+let listedDuringPass
+globalThis.__syncPassStub = async () => {
+  listedDuringPass = getSyncStatus().needsFixing
+  return 'pending'
+}
+await syncNow()
+assert.deepEqual(listedDuringPass, [], 'a pass for the new account does not carry the old list')
+assert.deepEqual(getSyncStatus().needsFixing, [], 'a pass that stops early does not revive the old list')
+console.log('needs-fixing list across accounts: ok')

@@ -1,20 +1,27 @@
-import { captureStudyLock, studyLockCurrent } from './study-lock.ts'
+import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
+import type { NeedsFixing } from './record-sync.ts'
 import { cloudSyncPass, cloudTransport } from './sync-backend.ts'
 
 export type SyncStatus = {
   state: 'off' | 'idle' | 'waiting' | 'syncing' | 'ok' | 'error'
   message: string
   at: number | null
+  /** Records the server refused in the last pass that reached the queue. */
+  needsFixing: NeedsFixing[]
 }
 
-let status: SyncStatus = { state: 'off', message: '', at: null }
+let status: SyncStatus = { state: 'off', message: '', at: null, needsFixing: [] }
+/** The account and deck binding the needs-fixing list was built against. */
+let needsFixingLock: StudyLock | null = null
 let timer = 0
 let activeSync: Promise<void> | null = null
 let syncAgain = false
 const listeners = new Set<() => void>()
 
 export function getSyncStatus(): SyncStatus {
-  if (!cloudTransport) return { state: 'off', message: '', at: null }
+  if (!cloudTransport) return { state: 'off', message: '', at: null, needsFixing: [] }
+  // Sign-out or an account switch may not start a pass; never show another binding's list.
+  if (status.needsFixing.length && !(needsFixingLock && studyLockCurrent(needsFixingLock))) return { ...status, needsFixing: [] }
   return status
 }
 
@@ -31,10 +38,11 @@ function setStatus(patch: Partial<SyncStatus>) {
 async function syncPass(): Promise<void> {
   const lock = captureStudyLock()
   if (!cloudTransport || !lock.uid) {
-    setStatus({ state: 'idle', message: 'Saved on this device', at: null })
+    setStatus({ state: 'idle', message: 'Saved on this device', at: null, needsFixing: [] })
     return
   }
-  setStatus({ state: 'syncing', message: 'Syncing', at: null })
+  // Drop a list left over from another account or deck before this pass reports.
+  setStatus({ state: 'syncing', message: 'Syncing', at: null, needsFixing: getSyncStatus().needsFixing })
   const outcome = await cloudSyncPass({
     requestAgain: () => {
       syncAgain = true
@@ -46,10 +54,18 @@ async function syncPass(): Promise<void> {
     setStatus({ state: 'waiting', message: 'Saved on this device', at: null })
     return
   }
-  if (typeof outcome === 'object') setStatus({ state: 'error', message: outcome.message, at: null })
-  else if (outcome === 'synced') setStatus({ state: 'ok', message: 'Synced', at: Date.now() })
-  else if (outcome === 'local') setStatus({ state: 'idle', message: 'On this device', at: null })
+  // A pass that stopped early ('pending') keeps the last list; it may not have retried those records.
+  if (typeof outcome === 'object') {
+    needsFixingLock = lock
+    setStatus({ state: 'error', message: outcome.message, at: null, needsFixing: outcome.items })
+  } else if (outcome === 'synced') setStatus({ state: 'ok', message: 'Synced', at: Date.now(), needsFixing: [] })
+  else if (outcome === 'local') setStatus({ state: 'idle', message: 'On this device', at: null, needsFixing: [] })
   else setStatus({ state: 'waiting', message: 'Saved on this device', at: null })
+}
+
+/** Drop one listed record once it has been dealt with locally, without waiting for a pass. */
+export function forgetNeedsFixing(entry: NeedsFixing): void {
+  setStatus({ needsFixing: status.needsFixing.filter((other) => other !== entry) })
 }
 
 /** All foreground triggers share one serialized pull/merge/push loop. */
@@ -72,6 +88,8 @@ export function syncNow(): Promise<void> {
 
 /** Refresh selection status even when no cloud pass is currently running. */
 export function deckSelectionChanged(syncs: boolean): void {
+  // The list belongs to the previous deck; the next pass rebuilds it.
+  status = { ...status, needsFixing: [] }
   if (syncs) {
     schedulePush()
   } else {
