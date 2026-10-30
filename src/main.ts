@@ -207,7 +207,7 @@ function wordTypeChips(selected: readonly WordType[], counts: WordTypeCounts): s
   return WORD_TYPE_CHIPS.map((chip) => {
     const on = chip.id === 'all' ? chosen.length === 0 : chosen.includes(chip.id)
     const count = counts[chip.id]
-    return `<button type="button" class="chip type-chip${on ? ' is-on' : ''}" data-word-type="${chip.id}" aria-pressed="${on ? 'true' : 'false'}">${chip.label}<small>${count.words} · ${count.due} due</small></button>`
+    return `<button type="button" class="chip type-chip${on ? ' is-on' : ''}" data-word-type="${chip.id}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${chip.label}, ${count.due} due">${chip.label}<small>${count.due}</small></button>`
   }).join('')
 }
 
