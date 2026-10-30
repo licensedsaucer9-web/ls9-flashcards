@@ -59,9 +59,9 @@ try {
   await page.reload(); await select.waitFor()
   assert.equal(await select.inputValue(), 'dark', 'switching back persists too')
   assert.deepEqual(await select.locator('option').evaluateAll(options => options.map(o => [o.value, o.textContent])), [
-    ['dark', 'Dark'], ['light', 'Light'], ['halloween', 'Halloween'], ['christmas', 'Christmas'], ['neopunk', 'NeoPunk'], ['nature', 'Nature'],
+    ['dark', 'Dark'], ['light', 'Light'], ['halloween', 'Halloween'], ['christmas', 'Christmas'], ['neopunk', 'NeoPunk'], ['nature', 'Nature'], ['coffee', 'Coffee'],
   ], 'picker lists every theme')
-  const seasonal = { halloween: ['#120b1a', 'dark'], christmas: ['#0d2618', 'dark'], neopunk: ['#06081a', 'dark'], nature: ['#f2f0e1', 'light'] }
+  const seasonal = { halloween: ['#120b1a', 'dark'], christmas: ['#0d2618', 'dark'], neopunk: ['#07060d', 'dark'], nature: ['#f2f0e1', 'light'], coffee: ['#1c120b', 'dark'] }
   for (const [theme, [bg, scheme]] of Object.entries(seasonal)) {
     await select.selectOption(theme)
     assert.deepEqual(await palette(), { bg, scheme, meta: bg }, `${theme} palette and theme-color`)
@@ -88,7 +88,36 @@ try {
     await page.reload(); await select.waitFor()
     assert.equal(await select.inputValue(), theme, `${theme} survives reload`)
   }
+  // NeoPunk effects: animated glitch normally, nothing moving under reduced motion,
+  // and the scanline layer never intercepts pointer input.
+  await select.selectOption('neopunk')
+  const effects = () => page.evaluate(() => {
+    const h1 = getComputedStyle(document.querySelector('.topbar h1'))
+    const scan = getComputedStyle(document.body, '::before')
+    const control = document.querySelector('#theme').getBoundingClientRect()
+    return {
+      glitch: h1.animationName, upper: h1.textTransform, glow: h1.textShadow !== 'none',
+      running: document.getAnimations().length,
+      scanPointer: scan.pointerEvents, scanBehind: Number(scan.zIndex) < 0, scanPosition: scan.position,
+      hit: document.elementFromPoint(control.x + control.width / 2, control.y + control.height / 2)?.id,
+    }
+  })
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  const moving = await effects()
+  assert.equal(moving.glitch, 'neopunk-glitch', 'NeoPunk headings glitch')
+  assert.ok(moving.running > 0, 'glitch animation runs')
+  assert.equal(moving.upper, 'uppercase'); assert.ok(moving.glow, 'headings glow')
+  assert.deepEqual([moving.scanPointer, moving.scanBehind, moving.scanPosition, moving.hit], ['none', true, 'fixed', 'theme'], 'scanlines stay behind content and pass pointer events')
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const still = await effects()
+  assert.equal(still.glitch, 'none', 'reduced motion disables the glitch')
+  assert.equal(still.running, 0, 'reduced motion leaves no running animations')
+  assert.ok(still.glow, 'static glow remains under reduced motion')
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.primary, .secondary, select')).transitionDuration), '0s')
+  if (process.env.THEME_SCREENSHOTS) await page.screenshot({ path: '/tmp/flashcards-theme-neopunk-reduced.png', fullPage: true })
+  await page.emulateMedia({ reducedMotion: null })
   await select.selectOption('dark')
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar h1')).animationName), 'none', 'other themes do not glitch')
   const after = await page.evaluate(async () => {
     const db = await import('/src/db.ts')
     return { cards: await db.getAllCards(), settings: await db.getSettings(), activity: await db.getReviewActivity() }
@@ -115,7 +144,7 @@ try {
   assert.equal(await blockedPage.locator('#theme').inputValue(), 'dark', 'blocked storage does not prevent startup')
   await blocked.close()
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('themes UI: keyboard switching, all six palettes and contrast, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
+  console.log('themes UI: keyboard switching, all seven palettes and contrast, NeoPunk effects and reduced motion, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()
