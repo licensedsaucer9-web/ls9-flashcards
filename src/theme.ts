@@ -1,9 +1,9 @@
 import { storagePrefix } from './rehearsal.ts'
 
-export const themes = ['dark', 'light', 'halloween', 'christmas', 'neopunk', 'nature'] as const
+export const themes = ['dark', 'light', 'halloween', 'christmas', 'neopunk', 'nature', 'coffee'] as const
 export type Theme = typeof themes[number]
 export const themeLabels: Record<Theme, string> = {
-  dark: 'Dark', light: 'Light', halloween: 'Halloween', christmas: 'Christmas', neopunk: 'NeoPunk', nature: 'Nature',
+  dark: 'Dark', light: 'Light', halloween: 'Halloween', christmas: 'Christmas', neopunk: 'NeoPunk', nature: 'Nature', coffee: 'Coffee',
 }
 const storageKey = `${storagePrefix}.theme`
 
