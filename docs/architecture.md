@@ -72,7 +72,7 @@ Ordinary builds remove the obsolete `german-flashcards.github` and
 GitHub data transport, and the published Firebase app has no GitHub writer.
 The archived legacy repository is a frozen pre-Firebase recovery snapshot.
 
-Theme selection (Dark or Light) is stored in the browser’s localStorage under
+Theme selection (Dark, Light, Halloween, Christmas, NeoPunk or Nature) is stored in the browser’s localStorage under
 the build’s storage prefix, independently of accounts, decks, and Firestore.
 Startup restores it before rendering the app; missing or invalid choices use
 the original Dark palette. If storage is blocked, switching still works for

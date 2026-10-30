@@ -48,6 +48,94 @@
   --backdrop: rgb(24 35 51 / 40%);
 }
 
+:root[data-theme='halloween'] {
+  color-scheme: dark;
+  --bg: #120b1a;
+  --bg-elev: #1a1124;
+  --surface: #22172f;
+  --surface-2: #2c1f3c;
+  --line: #4a3320;
+  --text: #f2e9d8;
+  --muted: #b4a6c2;
+  --der: #8cb4ff;
+  --die: #ff85ad;
+  --das: #9ee07a;
+  --none: #cdc2d8;
+  --again: #ff6f61;
+  --hard: #ff9a2e;
+  --good: #9ee07a;
+  --easy: #8cb4ff;
+  --gender: #d495ff;
+  --shadow: rgb(0 0 0 / 35%);
+  --backdrop: rgb(8 4 12 / 70%);
+}
+
+:root[data-theme='christmas'] {
+  color-scheme: dark;
+  --bg: #0d2618;
+  --bg-elev: #112e1e;
+  --surface: #163724;
+  --surface-2: #1d422d;
+  --line: #5a4a24;
+  --text: #f8f5ec;
+  --muted: #bdd0c1;
+  --der: #a3cbff;
+  --die: #ff9aa8;
+  --das: #b8e88c;
+  --none: #d3dcd4;
+  --again: #ff8a92;
+  --hard: #f2c54f;
+  --good: #b8e88c;
+  --easy: #a3cbff;
+  --gender: #e3b0ff;
+  --shadow: rgb(0 0 0 / 30%);
+  --backdrop: rgb(4 16 10 / 65%);
+}
+
+:root[data-theme='neopunk'] {
+  color-scheme: dark;
+  --bg: #06081a;
+  --bg-elev: #0b0f25;
+  --surface: #111632;
+  --surface-2: #181f44;
+  --line: #4a2470;
+  --text: #eaf2ff;
+  --muted: #9aa6cc;
+  --der: #2fe0ff;
+  --die: #ff45cf;
+  --das: #6dff9e;
+  --none: #bcc5e3;
+  --again: #ff5c84;
+  --hard: #ffd23f;
+  --good: #6dff9e;
+  --easy: #2fe0ff;
+  --gender: #c08cff;
+  --shadow: rgb(255 69 207 / 14%);
+  --backdrop: rgb(2 3 12 / 72%);
+}
+
+:root[data-theme='nature'] {
+  color-scheme: light;
+  --bg: #f2f0e1;
+  --bg-elev: #e7e9d2;
+  --surface: #fbfaf3;
+  --surface-2: #dfe4ca;
+  --line: #b9c39a;
+  --text: #3a2817;
+  --muted: #5e4e36;
+  --der: #1d5c99;
+  --die: #9f2449;
+  --das: #2c6728;
+  --none: #5e4e36;
+  --again: #a3301c;
+  --hard: #764e00;
+  --good: #2c6728;
+  --easy: #1d5c99;
+  --gender: #703d99;
+  --shadow: rgb(58 40 23 / 12%);
+  --backdrop: rgb(58 40 23 / 40%);
+}
+
 #theme:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 3px;
