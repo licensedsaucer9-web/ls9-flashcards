@@ -1,4 +1,5 @@
 import { validSelectedTiers } from './tiers.ts'
+import { MAX_EXAMPLE_LENGTH, MAX_INTERVAL_DAYS, MAX_RANK, MAX_REPS, MAX_SESSION_SIZE, MAX_TERM_LENGTH } from './limits.ts'
 import { legacyToFiles, mergeProgress, parseDeckFile, parseSnapshot, parseUserFile } from './merge.ts'
 import type { CardContent, DeckFile, PublicSettings, Srs, UserFile } from './types.ts'
 import { isTier } from './types.ts'
@@ -53,7 +54,7 @@ export function validateMapping(raw: unknown): MigrationMapping {
 export function validateSettings(raw: unknown): asserts raw is PublicSettings {
   requireValue(object(raw), 'missing settings')
   requireValue(raw.direction === 'de-en' || raw.direction === 'en-de', 'invalid direction')
-  requireValue(clock(raw.sessionSize) && (raw.sessionSize as number) <= 500, 'invalid sessionSize')
+  requireValue(clock(raw.sessionSize) && (raw.sessionSize as number) <= MAX_SESSION_SIZE, 'invalid sessionSize')
   requireValue(raw.tier === undefined || isTier(raw.tier), 'invalid tier')
   requireValue(raw.selectedTiers === undefined || validSelectedTiers(raw.selectedTiers), 'invalid selectedTiers')
   requireValue(raw.wordTypes === undefined || validWordTypeList(raw.wordTypes), 'invalid wordTypes')
@@ -62,20 +63,20 @@ export function validateSettings(raw: unknown): asserts raw is PublicSettings {
 export function validateSrs(raw: unknown, id: string): asserts raw is Srs {
   requireValue(validMigrationId(id) && object(raw), `invalid progress ${id}`)
   requireValue(typeof raw.ease === 'number' && Number.isFinite(raw.ease) && raw.ease > 0 && raw.ease <= 10, `invalid ease ${id}`)
-  requireValue(clock(raw.interval) && (raw.interval as number) <= 36500, `invalid interval ${id}`)
-  requireValue(clock(raw.reps) && (raw.reps as number) <= 100000, `invalid reps ${id}`)
+  requireValue(clock(raw.interval) && (raw.interval as number) <= MAX_INTERVAL_DAYS, `invalid interval ${id}`)
+  requireValue(clock(raw.reps) && (raw.reps as number) <= MAX_REPS, `invalid reps ${id}`)
   requireValue(clock(raw.due) && (raw.updated_at === undefined || clock(raw.updated_at)), `invalid progress clock ${id}`)
 }
 
 export function validateCard(raw: unknown): asserts raw is CardContent {
   requireValue(object(raw) && validMigrationId(raw.id), 'invalid card id')
-  for (const [field, max] of [['de', 200], ['en', 200], ['example_de', 1000], ['example_en', 1000]] as const) {
+  for (const [field, max] of [['de', MAX_TERM_LENGTH], ['en', MAX_TERM_LENGTH], ['example_de', MAX_EXAMPLE_LENGTH], ['example_en', MAX_EXAMPLE_LENGTH]] as const) {
     requireValue(typeof raw[field] === 'string' && (raw[field] as string).length <= max, `invalid ${field} ${raw.id}`)
   }
   requireValue(['der', 'die', 'das', 'le', 'la', 'l_m', 'l_f', 'el', 'el_f', 'los', 'las', 'les_m', 'les_f', 'none'].includes(raw.article as string), `invalid article ${raw.id}`)
   requireValue(Array.isArray(raw.tags) && raw.tags.length <= 12 && raw.tags.every((tag) => typeof tag === 'string'), `invalid tags ${raw.id}`)
   requireValue(clock(raw.created_at) && clock(raw.updated_at), `invalid content clock ${raw.id}`)
-  requireValue(raw.rank === undefined || (clock(raw.rank) && (raw.rank as number) <= 1000000), `invalid rank ${raw.id}`)
+  requireValue(raw.rank === undefined || (clock(raw.rank) && (raw.rank as number) <= MAX_RANK), `invalid rank ${raw.id}`)
   requireValue(raw.tier === undefined || isTier(raw.tier), `invalid card tier ${raw.id}`)
 }
 

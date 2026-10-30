@@ -1,4 +1,5 @@
 import { validSelectedTiers } from '../src/tiers.ts'
+import { MAX_EASE, MAX_EXAMPLE_LENGTH, MAX_INTERVAL_DAYS, MAX_RANK, MAX_REPS, MAX_SESSION_SIZE, MAX_TAGS, MAX_TERM_LENGTH } from '../src/limits.ts'
 import { isTier } from '../src/types.ts'
 import { validReviewEvent } from '../src/streak.ts'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -90,13 +91,13 @@ function settingsDoc(uid, value) {
   if (Object.hasOwn(value, 'selectedTiers') && !validSelectedTiers(value.selectedTiers)) fail(`invalid settings ${uid}`)
   if (Object.hasOwn(value, 'wordTypes') && !validWordTypeList(value.wordTypes)) fail(`invalid settings ${uid}`)
   if (value.direction !== 'de-en' && value.direction !== 'en-de') fail(`invalid settings ${uid}`)
-  if (!clock(value.sessionSize, 500) || !isTier(value.tier) || !clock(value.settingsUpdatedAt)) fail(`invalid settings ${uid}`)
+  if (!clock(value.sessionSize, MAX_SESSION_SIZE) || !isTier(value.tier) || !clock(value.settingsUpdatedAt)) fail(`invalid settings ${uid}`)
 }
 
 function progressDoc(uid, id, value) {
   if (!validMigrationId(id) || !object(value) || !keysExactly(value, PROGRESS_KEYS)) fail(`invalid progress ${uid}/${id}`)
-  if (typeof value.ease !== 'number' || !Number.isFinite(value.ease) || value.ease <= 0 || value.ease > 10) fail(`invalid progress ${uid}/${id}`)
-  if (!clock(value.interval, 36500) || !clock(value.reps, 100000) || !clock(value.due) || !clock(value.updated_at)) {
+  if (typeof value.ease !== 'number' || !Number.isFinite(value.ease) || value.ease <= 0 || value.ease > MAX_EASE) fail(`invalid progress ${uid}/${id}`)
+  if (!clock(value.interval, MAX_INTERVAL_DAYS) || !clock(value.reps, MAX_REPS) || !clock(value.due) || !clock(value.updated_at)) {
     fail(`invalid progress ${uid}/${id}`)
   }
 }
@@ -106,13 +107,13 @@ function cardDoc(deckId, id, value) {
   const keys = Object.keys(value)
   if (keys.some((key) => !CARD_KEYS.includes(key) && !CARD_OPTIONAL.includes(key))) fail(`invalid card ${deckId}/${id}`)
   if (CARD_KEYS.some((key) => !Object.hasOwn(value, key))) fail(`invalid card ${deckId}/${id}`)
-  if (!text(value.de, 200) || !text(value.en, 200) || !text(value.example_de, 1000) || !text(value.example_en, 1000)) {
+  if (!text(value.de, MAX_TERM_LENGTH) || !text(value.en, MAX_TERM_LENGTH) || !text(value.example_de, MAX_EXAMPLE_LENGTH) || !text(value.example_en, MAX_EXAMPLE_LENGTH)) {
     fail(`invalid card ${deckId}/${id}`)
   }
   if (!['der', 'die', 'das', 'le', 'la', 'l_m', 'l_f', 'el', 'el_f', 'los', 'las', 'les_m', 'les_f', 'none'].includes(value.article)) fail(`invalid card ${deckId}/${id}`)
-  if (!Array.isArray(value.tags) || value.tags.length > 12 || value.tags.some((tag) => typeof tag !== 'string')) fail(`invalid card ${deckId}/${id}`)
+  if (!Array.isArray(value.tags) || value.tags.length > MAX_TAGS || value.tags.some((tag) => typeof tag !== 'string')) fail(`invalid card ${deckId}/${id}`)
   if (!clock(value.created_at) || !clock(value.updated_at) || !clock(value.deletedAt)) fail(`invalid card ${deckId}/${id}`)
-  if (Object.hasOwn(value, 'rank') && !clock(value.rank, 1000000)) fail(`invalid card ${deckId}/${id}`)
+  if (Object.hasOwn(value, 'rank') && !clock(value.rank, MAX_RANK)) fail(`invalid card ${deckId}/${id}`)
   if (Object.hasOwn(value, 'tier') && !isTier(value.tier)) fail(`invalid card ${deckId}/${id}`)
 }
 
