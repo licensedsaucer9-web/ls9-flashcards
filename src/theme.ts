@@ -1,10 +1,18 @@
 import { storagePrefix } from './rehearsal.ts'
 
-export type Theme = 'dark' | 'light'
+export const themes = ['dark', 'light', 'halloween', 'christmas', 'neopunk', 'nature'] as const
+export type Theme = typeof themes[number]
+export const themeLabels: Record<Theme, string> = {
+  dark: 'Dark', light: 'Light', halloween: 'Halloween', christmas: 'Christmas', neopunk: 'NeoPunk', nature: 'Nature',
+}
 const storageKey = `${storagePrefix}.theme`
 
 export function currentTheme(): Theme {
-  return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+  return validTheme(document.documentElement.dataset.theme)
+}
+
+function validTheme(value: string | null | undefined): Theme {
+  return themes.find((theme) => theme === value) ?? 'dark'
 }
 
 function applyTheme(theme: Theme): void {
@@ -17,7 +25,7 @@ function applyTheme(theme: Theme): void {
 export function initializeTheme(): void {
   let theme: Theme = 'dark'
   try {
-    if (localStorage.getItem(storageKey) === 'light') theme = 'light'
+    theme = validTheme(localStorage.getItem(storageKey))
   } catch { /* Appearance still works when browser storage is unavailable. */ }
   applyTheme(theme)
 }

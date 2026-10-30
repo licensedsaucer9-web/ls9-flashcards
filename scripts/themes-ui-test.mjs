@@ -58,6 +58,37 @@ try {
   if (process.env.THEME_SCREENSHOTS) await page.screenshot({ path: '/tmp/flashcards-theme-dark.png', fullPage: true })
   await page.reload(); await select.waitFor()
   assert.equal(await select.inputValue(), 'dark', 'switching back persists too')
+  assert.deepEqual(await select.locator('option').evaluateAll(options => options.map(o => [o.value, o.textContent])), [
+    ['dark', 'Dark'], ['light', 'Light'], ['halloween', 'Halloween'], ['christmas', 'Christmas'], ['neopunk', 'NeoPunk'], ['nature', 'Nature'],
+  ], 'picker lists every theme')
+  const seasonal = { halloween: ['#120b1a', 'dark'], christmas: ['#0d2618', 'dark'], neopunk: ['#06081a', 'dark'], nature: ['#f2f0e1', 'light'] }
+  for (const [theme, [bg, scheme]] of Object.entries(seasonal)) {
+    await select.selectOption(theme)
+    assert.deepEqual(await palette(), { bg, scheme, meta: bg }, `${theme} palette and theme-color`)
+    const worst = await page.evaluate(() => {
+      const css = getComputedStyle(document.documentElement)
+      const lum = name => {
+        const hex = css.getPropertyValue(`--${name}`).trim()
+        const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+          .map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+      }
+      let min = Infinity, pair = ''
+      for (const fg of ['text', 'muted', 'der', 'die', 'das', 'none', 'again', 'hard', 'good', 'easy', 'gender']) {
+        for (const bg of ['bg', 'bg-elev', 'surface', 'surface-2']) {
+          const [hi, lo] = [lum(fg), lum(bg)].sort((a, b) => b - a)
+          const ratio = (hi + 0.05) / (lo + 0.05)
+          if (ratio < min) { min = ratio; pair = `${fg} on ${bg}` }
+        }
+      }
+      return { min, pair }
+    })
+    assert.ok(worst.min >= 4.5, `${theme} text contrast ${worst.min.toFixed(2)} (${worst.pair}) meets WCAG AA`)
+    if (process.env.THEME_SCREENSHOTS) await page.screenshot({ path: `/tmp/flashcards-theme-${theme}.png`, fullPage: true })
+    await page.reload(); await select.waitFor()
+    assert.equal(await select.inputValue(), theme, `${theme} survives reload`)
+  }
+  await select.selectOption('dark')
   const after = await page.evaluate(async () => {
     const db = await import('/src/db.ts')
     return { cards: await db.getAllCards(), settings: await db.getSettings(), activity: await db.getReviewActivity() }
@@ -84,7 +115,7 @@ try {
   assert.equal(await blockedPage.locator('#theme').inputValue(), 'dark', 'blocked storage does not prevent startup')
   await blocked.close()
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('themes UI: keyboard switching, palettes, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
+  console.log('themes UI: keyboard switching, all six palettes and contrast, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()

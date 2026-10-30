@@ -1,7 +1,7 @@
 import './style.css'
 import { automaticGrade, matchAnswer } from './hard-mode.ts'
 import { chooseHardMode, hardModeEnabled } from './review-mode.ts'
-import { chooseTheme, currentTheme, initializeTheme, type Theme } from './theme.ts'
+import { chooseTheme, currentTheme, initializeTheme, themeLabels, themes, type Theme } from './theme.ts'
 import { registerSW } from 'virtual:pwa-register'
 import type { Article, Card, Direction, Grade, LocalDeck, PublicSettings, Tier, WordType } from './types.ts'
 import { articleGender, articleLabel, articlesFor } from './articles.ts'
@@ -1166,8 +1166,7 @@ async function renderCloudSettings() {
       <div class="setting">
         <label for="theme">Theme</label>
         <select id="theme" aria-describedby="theme-note">
-          <option value="dark" ${currentTheme() === 'dark' ? 'selected' : ''}>Dark</option>
-          <option value="light" ${currentTheme() === 'light' ? 'selected' : ''}>Light</option>
+          ${themes.map((theme) => `<option value="${theme}" ${currentTheme() === theme ? 'selected' : ''}>${themeLabels[theme]}</option>`).join('')}
         </select>
         <p class="note" id="theme-note">Colors for every deck and account on this device.</p>
       </div>
