@@ -4,6 +4,7 @@ import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettin
 import {
   getActiveDeck,
   recordAssignedDeck,
+  recordCloudDeckId,
   acknowledgePending,
   applyStagedProgress,
   acknowledgeRevision,
@@ -84,11 +85,21 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     if (!studyLockCurrent(lock)) return 'idle'
     const deckId = original ? await accountDeckId(db, uid) : active!.id
     if (!studyLockCurrent(lock)) return 'idle'
+    // Local records keep `deckId`; only Firestore paths use `cloudId`.
+    let cloudId = original ? deckId : active!.cloudId ?? deckId
     if (original) await recordAssignedDeck(deckId)
-    else await ensureExtraDeck(db, uid, deckId)
+    else if (await ensureExtraDeck(db, uid, cloudId) === 'taken') {
+      // Another account created this predictable starter ID first: sync under a fresh random one.
+      const fresh = crypto.randomUUID()
+      if (await ensureExtraDeck(db, uid, fresh) === 'taken') return 'pending'
+      // Another tab may have fallen back first; adopt its ID so neither cloud deck is abandoned.
+      const recorded = await recordCloudDeckId(deckId, fresh)
+      if (!recorded) return 'idle'
+      cloudId = recorded
+    }
     if (!studyLockCurrent(lock)) return 'idle'
     const scope = { lock, deckId }
-    const docs = await pullCloud(db, uid, deckId, !original)
+    const docs = await pullCloud(db, uid, cloudId, !original)
     if (!studyLockCurrent(lock)) return 'idle'
     const files = docsToFiles(docs, uid, 0)
     await mergeDeckIntoDb(files.deck, undefined, scope)
@@ -112,7 +123,7 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
         const live = captureStudyLock()
         return live.uid === uid && live.generation === lock.generation
       },
-      push: (item) => pushLoaded(db, uid, deckId, snapshot, item, original ? undefined : deckId),
+      push: (item) => pushLoaded(db, uid, cloudId, snapshot, item, original ? undefined : cloudId),
       ack: async (item) => {
         const applied = await acknowledgePending(item, { uid, generation: lock.generation, scope })
         if (!applied) throw new Error('acknowledgement refused')

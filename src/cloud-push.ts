@@ -34,16 +34,32 @@ export async function accountDeckId(db: Firestore, uid: string): Promise<string>
   return deckId
 }
 
-/** Creation is allowed without a read; rules deny reads of a missing deck. */
-export async function ensureExtraDeck(db: Firestore, uid: string, deckId: string): Promise<void> {
+/** Creation is allowed without a read; rules deny reads of a missing deck.
+ * 'taken' means another account already holds this ID (starter IDs are predictable), so the
+ * caller must sync this deck under a fresh random ID instead.
+ */
+export async function ensureExtraDeck(db: Firestore, uid: string, deckId: string): Promise<'ok' | 'taken'> {
   const ref = doc(db, 'decks', deckId)
   try {
     await setDoc(ref, { ownerUid: uid, memberUids: [uid] })
+    return 'ok'
   } catch (error) {
     // Existing decks are immutable. Verify access without replacing their metadata.
-    const existing = await getDoc(ref)
+    let existing
+    try {
+      existing = await getDoc(ref)
+    } catch (readError) {
+      // Creation and read were both refused: a deck we are not a member of holds the ID.
+      if (denied(error) && denied(readError)) return 'taken'
+      throw readError
+    }
     if (!existing.exists() || existing.data().ownerUid !== uid) throw error
+    return 'ok'
   }
+}
+
+function denied(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === 'permission-denied'
 }
 
 export async function pullDeckCards(db: Firestore, deckId: string): Promise<CloudDocs['cards']> {

@@ -376,8 +376,13 @@ try {
   // Two independent clients for one account: extra vocabulary never enters German.
   const germanBefore = await pullDeckCards(alice, ALICE)
   const extraId = randomUUID()
-  await ensureExtraDeck(alice, ALICE, extraId)
-  await ensureExtraDeck(aliceSecond, ALICE, extraId)
+  assert(await ensureExtraDeck(alice, ALICE, extraId) === 'ok', 'owner creates the extra deck')
+  assert(await ensureExtraDeck(aliceSecond, ALICE, extraId) === 'ok', 'owner second device reuses the extra deck')
+  // A predictable starter ID pre-claimed by another account is reported, not silently unusable.
+  const claimedId = randomUUID()
+  assert(await ensureExtraDeck(bob, BOB, claimedId) === 'ok', 'bob claims an ID first')
+  assert(await ensureExtraDeck(alice, ALICE, claimedId) === 'taken', 'a foreign-owned deck ID is taken')
+  assert((await getDoc(doc(bob, 'decks', claimedId))).data().ownerUid === BOB, 'the claimed deck is unchanged')
   await commitCard(alice, extraId, 'extra-card', content('extra-card', { de: 'bonjour' }), 0)
   const extraPulled = await pullDeckCards(aliceSecond, extraId)
   assert(extraPulled.length === 1 && extraPulled[0].data.de === 'bonjour', 'second client pulls the extra-deck card')

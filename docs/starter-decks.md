@@ -152,6 +152,15 @@ database and language. Addition and selection commit atomically with cards and
 pending upload marks. Local metadata carries a `starter` catalog key. No new
 Firestore collection, document field or IndexedDB schema version is needed.
 
+Because the ID is derived from the UID, another signed-in account could create
+that deck document first. Sync detects a deck it can neither create nor read and
+records a fresh random `cloudId` on the local deck row; Firestore paths then use
+that ID while local cards and pending marks keep the starter ID. The first
+recorded `cloudId` wins: a tab that falls back concurrently adopts it rather
+than overwriting it. A device that
+falls back this way does not converge with the account's other devices for that
+starter.
+
 French article tokens are `le`, `la`, `l_m`, `l_f`, `les_m`, `les_f` and `none`.
 Spanish uses `el`, `la`, `el_f`, `los`, `las` and `none`. The elided French tokens
 display `l’` without a space and retain masculine/feminine information; Spanish
