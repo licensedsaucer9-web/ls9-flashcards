@@ -3,13 +3,17 @@ import type { Srs } from './types.ts'
 /**
  * Limits that firestore.rules enforces on cloud documents. A value past one is rejected by the
  * server, stays pending forever and keeps the sync status red, so the client keeps within them.
- * scripts/limits-test.mjs compares these with the rules text.
+ * scripts/limits-test.mjs compares these with the rules text. The migration and restore validators import
+ * them from here instead of repeating the numbers.
  */
 export const MAX_TERM_LENGTH = 200 // de and en
 export const MAX_EXAMPLE_LENGTH = 1000 // example_de and example_en
 export const MAX_TAGS = 12
 export const MAX_INTERVAL_DAYS = 36500
 export const MAX_EASE = 10
+export const MAX_REPS = 100000
+export const MAX_RANK = 1000000
+export const MAX_SESSION_SIZE = 500
 
 export interface CardText {
   de: string

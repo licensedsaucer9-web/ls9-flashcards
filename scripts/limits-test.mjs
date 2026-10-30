@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { importCsv } from '../src/csv.ts'
-import { cardContentProblem, clampSrs, MAX_EASE, MAX_EXAMPLE_LENGTH, MAX_INTERVAL_DAYS, MAX_TAGS, MAX_TERM_LENGTH } from '../src/limits.ts'
+import {
+  cardContentProblem, clampSrs, MAX_EASE, MAX_EXAMPLE_LENGTH, MAX_INTERVAL_DAYS, MAX_RANK, MAX_REPS, MAX_SESSION_SIZE, MAX_TAGS, MAX_TERM_LENGTH,
+} from '../src/limits.ts'
 import { MAX_SCHEDULE_DAYS, newSrs, review } from '../src/srs.ts'
 
 // 1. The constants are the rules' numbers, so they cannot drift apart unnoticed.
@@ -15,6 +17,9 @@ assert.equal(number(/text\(data\.example_en, (\d+)\)/), MAX_EXAMPLE_LENGTH)
 assert.equal(number(/tags\.size\(\) <= (\d+)/), MAX_TAGS)
 assert.equal(number(/interval <= (\d+)/), MAX_INTERVAL_DAYS)
 assert.equal(number(/ease <= (\d+)/), MAX_EASE)
+assert.equal(number(/reps <= (\d+)/), MAX_REPS)
+assert.equal(number(/rank <= (\d+)/), MAX_RANK)
+assert.equal(number(/sessionSize <= (\d+)/), MAX_SESSION_SIZE)
 
 // 2. Schedules: grading never leaves the caps, even from a stored schedule already past them, and
 // reviewing ahead of schedule never lengthens an interval.
