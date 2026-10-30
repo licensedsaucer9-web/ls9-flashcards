@@ -469,6 +469,11 @@ try {
   async function assertReviewQueue(typeLabel) {
     await tab('Review', '#/', 'LS9 Flashcards')
     assert.equal(await page.locator('[data-word-type]').count(), 4, 'Review has the word-type picker')
+    for (const pill of await page.locator('[data-word-type]').all()) {
+      const [text, name] = [(await pill.textContent()).trim(), await pill.getAttribute('aria-label')]
+      const [, label, due] = text.match(/^(All|Nouns|Verbs|Adjectives)(\d+)$/) ?? assert.fail(`word-type pill shows only type and due count: ${text}`)
+      assert.equal(name, `${label}, ${due} due`, 'word-type pill name says the number is due cards')
+    }
     assert.equal(await page.locator('[data-tier]').count(), 4, 'Review has the tier picker')
     assert.equal(await page.locator('[data-dir]').count(), 0, 'direction remains in Decks')
     assert.equal(await page.locator('#session-custom').isVisible(), true)

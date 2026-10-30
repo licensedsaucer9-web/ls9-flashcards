@@ -297,6 +297,8 @@ Tier pills read exactly `T<n>: <due>` (`tierPillLabel()` in `src/tiers.ts`), whe
 number is the count of that tier's cards with `due <= now`, the same rule as the review
 queue; on Cards, whose browse filter is cumulative, it is the cumulative due count. Each
 pill's accessible name is `Tier <n>, <due> due` (`tierPillName()`). Presentation only.
+Word-type pills read the type and its due count (`Nouns 5`), with the accessible name
+`Nouns, 5 due`.
 
 A review session starts from a captured queue within the selected exact
 tier buckets and word-type filter. It uses only due cards when any match. When none
