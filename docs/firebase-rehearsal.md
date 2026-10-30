@@ -21,7 +21,7 @@ The environment (#23), real import (#24), and real second-device verification
 app revision `10d48ab`. Account UI fixes from #28–#29 are merged in current
 source, but those PRs did not publish them or record a physical iPhone check.
 The rename release published the test preview at `bdf9b15`; its automated
-live checks are recorded in [the rename record](rename.md). No new physical
+live checks are recorded in [the rename record](archive/rename.md). No new physical
 iPhone or real Google sign-in result is claimed for that revision.
 Always compare the visible deployed revision with the revision under test.
 The [rollout plan](firebase-rollout-plan.md) owns remaining production work.
@@ -145,7 +145,7 @@ After preview checks, rerun the read-only preflight and compare account/deck
 assignment with the expected imported state. Guest/guarded-session checks must
 not create a personal deck or alter legacy membership. Record aggregate
 results; keep exact state private. The completed real-data result is in
-[the import record](issue-24-status.md) and
+[the import record](archive/issue-24-status.md) and
 [the final #25 verification](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235).
 Reviews on a mapped account are real test-project writes; they are not a
 read-only preview check or authorization for production operations.

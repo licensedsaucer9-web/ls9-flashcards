@@ -609,11 +609,6 @@ export function accountSyncText(): string {
   return getSyncStatus().message || 'Saved on this device'
 }
 
-export function onAccountSync(fn: () => void): () => void {
-  void fn
-  return () => {}
-}
-
 export function accountPanelHtml(): string {
   const signedIn = Boolean(captureStudyLock().uid)
   if (!signedIn) {
@@ -721,5 +716,3 @@ export async function syncAccountNow(): Promise<void> {
     /* Status stays on this device until the records are acknowledged. */
   }
 }
-
-export function noteLocalChange(): void {}

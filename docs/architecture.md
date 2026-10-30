@@ -48,7 +48,7 @@ commit. Production data/device acceptance remains separate.
 
 The LS9 product/package rename keeps the original `german-flashcards`
 storage prefixes and `GERMAN_FLASHCARDS_PRIVATE_DIR` variable. Repository and
-URL names are separate from data identity; see [the rename record](rename.md).
+URL names are separate from data identity; see [the rename record](archive/rename.md).
 
 Google Authentication uses browser-local persistence. Firebase UID selects
 the account's IndexedDB database and Firestore ownership; a name or email

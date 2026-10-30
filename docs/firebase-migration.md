@@ -6,7 +6,7 @@ studied-data import and old-device recovery waived by the owner. The old Pages
 URL was retired on 2026-10-17. The procedures below are retained for explicitly
 authorized future recovery and isolated rehearsals, not pending release steps.
 See current operations in the [single rollout plan](firebase-rollout-plan.md).
-Use [the saved import record](issue-24-status.md) and
+Use [the saved import record](archive/issue-24-status.md) and
 [the final second-device result](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235)
 when reviewing completed work; do not rerun `--apply` just to inspect evidence.
 
@@ -186,7 +186,7 @@ repository. The old-scope bridge below is unpublished and has no live hosting
 route; using it would require separate authorization to restore that hosting
 and review the artifact. References to retained compatibility clients and
 pending release gates below describe the original rehearsal plan, not current
-requirements. See the [retirement record](rename.md#old-site-retirement-2026-10-17).
+requirements. See the [retirement record](archive/rename.md#old-site-retirement-2026-10-17).
 
 Use a Firebase recovery client **on the same browser origin and storage context
 as the old app**, with the mapped account preassigned and restrictive rules

@@ -100,7 +100,7 @@ branding at their corresponding new and compatibility paths. Authorized
 Firebase domains use the unchanged `licensedsaucer9-web.github.io` hostname;
 no project/UID reassignment is part of this rename.
 
-The [rollout plan](firebase-rollout-plan.md) owns later production cutover,
+The [rollout plan](../firebase-rollout-plan.md) owns later production cutover,
 device recovery, token retirement, and retirement of the compatibility site.
 
 ## Deployment and verification, 2026-10-04

@@ -25,7 +25,7 @@ and [Prod v1 milestone](https://github.com/licensedsaucer9-web/ls9-flashcards/mi
 link the original seven delivery gates. Multi-deck support shipped afterward;
 interval controls, detailed review history, and FSRS remain outside the current app.
 
-The project is named **LS9 Flashcards**. The [rename record](docs/rename.md)
+The project is named **LS9 Flashcards**. The [rename record](docs/archive/rename.md)
 lists the new repositories and URLs. Original storage/configuration identifiers
 remain in use so existing progress is preserved.
 
@@ -190,7 +190,7 @@ The current app is the Firebase client at the new public URL. The old
 and redirect were replaced by a 404-only deployment and its repository is
 archived. It no longer supplies a supported redirect.
 Use bookmarks and Home Screen icons created from the current URL. Studied
-progress from the old client is not imported. See the [retirement record](docs/rename.md#old-site-retirement-2026-10-17).
+progress from the old client is not imported. See the [retirement record](docs/archive/rename.md#old-site-retirement-2026-10-17).
 
 1. Open the new public URL in Safari and confirm the Firebase build under Settings → Install. Choose **Continue with Google** or **Study on this device**. A new account starts with an unstudied personal deck; no legacy schedule is imported.
 2. Add the new URL to the Home Screen. An old icon targets the retired scope and can retain separate installed-app storage or a cached offline client; opening it does not upgrade it to the new Firebase client. Keep any old installation/data you still want to preserve until you deliberately retire it.
@@ -216,11 +216,11 @@ A private Firestore export is described in [Firebase setup](docs/firebase-setup.
 - [Design collaboration](docs/design-workflow.md): using Penpot to sketch and discuss changes before implementation; the app and repository remain the source of truth.
 - [Rollout plan](docs/firebase-rollout-plan.md): completed milestones, remaining production gates, and later product direction.
 - [Architecture](docs/architecture.md): account/deck boundaries, persistence, merge rules, and current limits.
-- [Rename record](docs/rename.md): repository/URL mapping and compatibility for old installations.
+- [Rename record](docs/archive/rename.md): repository/URL mapping and compatibility for old installations.
 - [Firebase setup](docs/firebase-setup.md): projects, build configuration, rules, private operator files, and backup command.
 - [Migration runbook](docs/firebase-migration.md): immutable snapshot export, baseline, Admin import, and confirmed device recovery.
 - [Rehearsal runbook](docs/firebase-rehearsal.md): isolated test preview, preflight, and preview checks.
-- [Live import evidence](docs/issue-24-status.md): saved aggregate #24 readback and zero-write repeat results.
+- [Live import evidence](docs/archive/issue-24-status.md): saved aggregate #24 readback and zero-write repeat results.
 - [TEST.md](TEST.md): manual acceptance and automated check commands.
 
 The [archived multi-deck proposal](docs/archive/multi-deck-proposal-20261010.md) and [mobile-store proposal](docs/archive/mobile-store-proposal-20261010.md) retain dated, unadopted designs. They are not active implementation plans. The rollout plan remains the operational plan; the archive preserves evidence without reopening completed or waived migration work.

@@ -7,7 +7,7 @@ acceptance checks passed. The separate
 also passed later on 2026-10-04. This document retains the October 4 import
 evidence and its then-held publication state. Production Firebase went live
 on October 7 with legacy import/device recovery waived; current operations are
-in the [rollout plan](firebase-rollout-plan.md). Reviewing this historical record
+in the [rollout plan](../firebase-rollout-plan.md). Reviewing this historical record
 does not require another import.
 
 ## Reviewed inputs and revisions

@@ -121,7 +121,7 @@ master-only/non-PR conditions kept together. The workflow retains `auth-spike/`
 and `auth-spike-prod/` during root cleanup for the historical previews. The separate old
 Pages URL was retired by owner decision on 2026-10-17; its repository is archived
 and its application/redirect replaced by a 404-only deployment. The unpublished bridge build/test remains historical
-tooling, not an active recovery route. See the [retirement record](rename.md#old-site-retirement-2026-10-17). Pages does not deploy rules;
+tooling, not an active recovery route. See the [retirement record](archive/rename.md#old-site-retirement-2026-10-17). Pages does not deploy rules;
 a local candidate build does not itself publish, deploy rules or migrate data.
 
 After the candidate is actually served, keep the matching local artifact and
@@ -323,8 +323,9 @@ Git. For a live throwaway project, pass that project's credential and omit
 
 ## OAuth spike reference
 
-The isolated auth-only spike remains in `spikes/firebase-auth`. It imports
-Authentication only and does not read/write flashcards or Firestore.
+The isolated auth-only spike imported Authentication only and did not read/write
+flashcards or Firestore. Its source was removed from the tree (#122) and is kept at
+the git tag `archive/firebase-auth-spike`.
 
 - Test identity preview: <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/>
 - Production identity preview: <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike-prod/>
@@ -337,18 +338,10 @@ headless blocked-popup check passed; Safari's popup setting did not intercept
 the installed preview's synthetic-link flow. These are dated spike results,
 not proof of every current full-app release.
 
-If the auth-only tool is needed again, copy
-`spikes/firebase-auth/config.example` to the ignored root `.env.local`,
-fill all four test web values, then run `npm run auth-spike:dev` or:
-
-```bash
-BASE=/ls9-flashcards-site/auth-spike/ npm run auth-spike:build
-```
-
-Output is `dist-auth-spike`. Operator publication of this unlinked preview
-must preserve the root site and its `rehearsal/` child. Preview workers exclude
-nested preview paths. Keep old study storage intact; clearing Safari website
-data can erase reviews.
+If the auth-only tool is needed again, check out that tag. The published preview
+builds under `auth-spike/` stay on the site; the deploy workflow leaves them
+touched, and preview workers exclude nested preview paths. Keep old study storage
+intact; clearing Safari website data can erase reviews.
 
 GitHub Pages cannot proxy Firebase's sign-in helper. If login requires a hosting
 change, use [Firebase's redirect guidance](https://firebase.google.com/docs/auth/web/redirect-best-practices)
