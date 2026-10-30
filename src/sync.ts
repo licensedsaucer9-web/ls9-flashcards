@@ -16,6 +16,8 @@ let needsFixingLock: StudyLock | null = null
 let timer = 0
 let activeSync: Promise<void> | null = null
 let syncAgain = false
+/** A caller that needs the latest cloud state (launch, foreground, reconnect, Sync now) asked since the last pass began. */
+let fullRequested = false
 const listeners = new Set<() => void>()
 
 export function getSyncStatus(): SyncStatus {
@@ -35,7 +37,7 @@ function setStatus(patch: Partial<SyncStatus>) {
   for (const fn of listeners) fn()
 }
 
-async function syncPass(): Promise<void> {
+async function syncPass(light: boolean): Promise<void> {
   const lock = captureStudyLock()
   if (!cloudTransport || !lock.uid) {
     setStatus({ state: 'idle', message: 'Saved on this device', at: null, needsFixing: [] })
@@ -44,6 +46,7 @@ async function syncPass(): Promise<void> {
   // Drop a list left over from another account or deck before this pass reports.
   setStatus({ state: 'syncing', message: 'Syncing', at: null, needsFixing: getSyncStatus().needsFixing })
   const outcome = await cloudSyncPass({
+    light,
     requestAgain: () => {
       syncAgain = true
     },
@@ -69,8 +72,9 @@ export function forgetNeedsFixing(entry: NeedsFixing): void {
 }
 
 /** All foreground triggers share one serialized pull/merge/push loop. */
-export function syncNow(): Promise<void> {
+export function syncNow(options: { light?: boolean } = {}): Promise<void> {
   window.clearTimeout(timer)
+  if (!options.light) fullRequested = true
   if (activeSync) {
     syncAgain = true
     return activeSync
@@ -78,7 +82,9 @@ export function syncNow(): Promise<void> {
   activeSync = (async () => {
     do {
       syncAgain = false
-      await syncPass()
+      const light = !fullRequested
+      fullRequested = false
+      await syncPass(light)
     } while (syncAgain)
   })().finally(() => {
     activeSync = null
@@ -105,7 +111,7 @@ export function schedulePush(): void {
   window.clearTimeout(timer)
   if (document.visibilityState === 'hidden') return
   timer = window.setTimeout(() => {
-    void syncNow().catch(() => {
+    void syncNow({ light: true }).catch(() => {
       /* The pending revision and status remain for the next foreground retry. */
     })
   }, 1200)

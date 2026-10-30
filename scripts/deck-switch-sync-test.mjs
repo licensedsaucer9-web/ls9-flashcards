@@ -36,6 +36,7 @@ try {
         export async function pullDeckCards() { return [] }
         export async function pullCloud(_db, _uid, _deckId, extra) {
           globalThis.pullStarted = true
+          globalThis.pulls = (globalThis.pulls ?? 0) + 1
           if (globalThis.waitForPull) await new Promise(resolve => { globalThis.releasePull = resolve })
           return extra ? (globalThis.extraDocs ?? { cards: [], progress: [], activity: [], settings: { direction: 'de-en', sessionSize: 20, tier: 3, settingsUpdatedAt: 0 } }) : globalThis.cloudDocs
         }
@@ -367,6 +368,29 @@ try {
   assert(raced.pushes.some(args => args[1] === 'fixture-other-tab-cloud' && args[2] === 'fixture-raced'), 'the later tab uploads to the recorded cloud deck')
   assert.equal(raced.ensured.length, 2)
   assert(!raced.pushes.some(args => args.includes(raced.ensured[1])), 'nothing is written to the abandoned fallback')
+  // Passes after a local change (light) skip the full-account pull while a recent one is fresh; everything else pulls.
+  const light = await a.evaluate(async () => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    await api.switchActiveDeck('fixture-original')
+    cloud.resetSyncMemory()
+    globalThis.pulls = 0; globalThis.pushes = []
+    const T = 1_000_000, steps = []
+    const run = async (label, control, add) => {
+      if (add) await api.putCard({ ...globalThis.sample, id: add })
+      globalThis.pushes = []
+      const outcome = await cloud.cloudSyncPass({ requestAgain() {}, ...control })
+      steps.push({ label, outcome, pulls: globalThis.pulls, pushed: globalThis.pushes.map(args => args[2]) })
+    }
+    await run('first light pass has nothing fresh', { light: true, now: () => T })
+    await run('light pass inside the interval', { light: true, now: () => T + 60_000 }, 'fixture-light-1')
+    await run('light pass after the interval', { light: true, now: () => T + cloud.PULL_INTERVAL_MS + 1 }, 'fixture-light-2')
+    await run('full pass inside the interval', { now: () => T + cloud.PULL_INTERVAL_MS + 2 }, 'fixture-light-3')
+    return steps
+  })
+  assert.deepEqual(light.map(step => step.pulls), [1, 1, 2, 3], 'only light passes inside the interval skip the pull')
+  assert(light.every(step => step.outcome === 'synced'))
+  assert(light[1].pushed.includes('fixture-light-1'), 'a light pass still uploads the changed record')
+  assert(light[2].pushed.includes('fixture-light-2') && light[3].pushed.includes('fixture-light-3'))
   assert(resumed.ids.includes('fixture-remote'))
   assert(!resumed.ids.includes('fixture-local'))
   assert.deepEqual(external, [])

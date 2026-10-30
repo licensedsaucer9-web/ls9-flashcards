@@ -180,7 +180,14 @@ blocked upgrades surface an actionable notice.
 
 All foreground triggers share a serialized pull/merge/push loop. Sync runs
 on launch, return to foreground, connectivity return, **Sync now**, and after
-a debounced local change. Hiding or leaving the app pauses the timer; it
+a debounced local change. A full pull reads every card, progress record and
+review event of the active deck/account, so a pass after a local change (a
+*light* pass) skips it while a pull for that deck finished less than five
+minutes ago and only pushes the dirty records; each push already reads and
+merges the record it writes. Launch, foreground, reconnect and **Sync now**
+always pull. Another device's changes can therefore take up to five minutes
+to appear while you keep grading; the extra-deck creation check is also
+skipped by light passes once it succeeded. Hiding or leaving the app pauses the timer; it
 does not attempt a full background upload. There is no realtime listener or
 background polling. Two clients kept visible may need **Sync now** to see
 one another's latest work.

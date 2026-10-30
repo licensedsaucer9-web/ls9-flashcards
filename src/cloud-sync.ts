@@ -71,7 +71,18 @@ async function pushLoaded(
 
 export const cloudTransport = true
 
-export async function cloudSyncPass(control: { requestAgain: () => void }): Promise<'synced' | 'pending' | 'idle' | 'local' | { state: 'rejected'; message: string; items: NeedsFixing[] }> {
+/** A "light" pass (after a local change) skips the full-account pull if one finished this recently. */
+export const PULL_INTERVAL_MS = 5 * 60 * 1000
+const lastPull = new Map<string, number>()
+const ensuredDecks = new Set<string>()
+
+/** Forget what the light passes remember (tests, and account changes). */
+export function resetSyncMemory(): void {
+  lastPull.clear()
+  ensuredDecks.clear()
+}
+
+export async function cloudSyncPass(control: { requestAgain: () => void; light?: boolean; now?: () => number }): Promise<'synced' | 'pending' | 'idle' | 'local' | { state: 'rejected'; message: string; items: NeedsFixing[] }> {
   const lock = captureStudyLock()
   if (!lock.uid) return 'idle'
   const db = cloudFirestore()
@@ -88,7 +99,7 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
     // Local records keep `deckId`; only Firestore paths use `cloudId`.
     let cloudId = original ? deckId : active!.cloudId ?? deckId
     if (original) await recordAssignedDeck(deckId)
-    else if (await ensureExtraDeck(db, uid, cloudId) === 'taken') {
+    else if (!(control.light && ensuredDecks.has(`${uid}/${cloudId}`)) && await ensureExtraDeck(db, uid, cloudId) === 'taken') {
       // Another account created this predictable starter ID first: sync under a fresh random one.
       const fresh = crypto.randomUUID()
       if (await ensureExtraDeck(db, uid, fresh) === 'taken') return 'pending'
@@ -98,18 +109,28 @@ export async function cloudSyncPass(control: { requestAgain: () => void }): Prom
       cloudId = recorded
     }
     if (!studyLockCurrent(lock)) return 'idle'
+    if (!original) ensuredDecks.add(`${uid}/${cloudId}`)
     const scope = { lock, deckId }
-    const docs = await pullCloud(db, uid, cloudId, !original)
-    if (!studyLockCurrent(lock)) return 'idle'
-    const files = docsToFiles(docs, uid, 0)
-    await mergeDeckIntoDb(files.deck, undefined, scope)
-    if (!studyLockCurrent(lock)) return 'idle'
-    await mergeProgressIntoDb(files.user, undefined, scope)
-    if (!studyLockCurrent(lock)) return 'idle'
-    if (original) await insertMissingSeeds(seedCards())
-    if (!studyLockCurrent(lock)) return 'idle'
-    if (original) await applyStagedProgress(scope)
-    if (!studyLockCurrent(lock)) return 'idle'
+    const now = control.now ?? Date.now
+    const pullKey = `${uid}/${cloudId}`
+    // Every card, progress record and review event is read by a full pull, so after a local change (a light pass)
+    // only the dirty records are pushed (each push reads and merges the record it writes) while a recent pull is fresh.
+    // Launch, return to foreground, reconnecting and Sync now always pull.
+    const skipPull = control.light === true && now() - (lastPull.get(pullKey) ?? -Infinity) < PULL_INTERVAL_MS
+    if (!skipPull) {
+      const docs = await pullCloud(db, uid, cloudId, !original)
+      if (!studyLockCurrent(lock)) return 'idle'
+      const files = docsToFiles(docs, uid, 0)
+      await mergeDeckIntoDb(files.deck, undefined, scope)
+      if (!studyLockCurrent(lock)) return 'idle'
+      await mergeProgressIntoDb(files.user, undefined, scope)
+      if (!studyLockCurrent(lock)) return 'idle'
+      if (original) await insertMissingSeeds(seedCards())
+      if (!studyLockCurrent(lock)) return 'idle'
+      if (original) await applyStagedProgress(scope)
+      if (!studyLockCurrent(lock)) return 'idle'
+      lastPull.set(pullKey, now())
+    }
     const snapshot = await readCloudSnapshot(scope)
     if (!studyLockCurrent(lock)) return 'idle'
     if (!snapshot) {
