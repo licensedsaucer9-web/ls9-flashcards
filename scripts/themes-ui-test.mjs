@@ -115,6 +115,17 @@ try {
   assert.ok(still.glow, 'static glow remains under reduced motion')
   assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.primary, .secondary, select')).transitionDuration), '0s')
   if (process.env.THEME_SCREENSHOTS) await page.screenshot({ path: '/tmp/flashcards-theme-neopunk-reduced.png', fullPage: true })
+  // The NeoPunk card glow must not hide the der/die/das ring on noun cards.
+  const rings = await page.evaluate(() => ['der', 'die', 'das', ''].map(gender => {
+    const face = document.createElement('div')
+    face.className = gender ? `face gender-${gender}` : 'face'
+    document.body.append(face)
+    const shadow = getComputedStyle(face).boxShadow
+    face.remove()
+    return shadow
+  }))
+  assert.deepEqual(rings.map(shadow => shadow.includes('inset')), [true, true, true, false], 'NeoPunk keeps gender rings on noun cards')
+  assert.equal(new Set(rings).size, 4, 'each gender ring has its own colour')
   await page.emulateMedia({ reducedMotion: null })
   await select.selectOption('dark')
   assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar h1')).animationName), 'none', 'other themes do not glitch')
@@ -144,7 +155,7 @@ try {
   assert.equal(await blockedPage.locator('#theme').inputValue(), 'dark', 'blocked storage does not prevent startup')
   await blocked.close()
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('themes UI: keyboard switching, all seven palettes and contrast, NeoPunk effects and reduced motion, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
+  console.log('themes UI: keyboard switching, all seven palettes and contrast, NeoPunk effects, gender rings and reduced motion, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()
