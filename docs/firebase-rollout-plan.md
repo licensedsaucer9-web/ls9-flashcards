@@ -20,11 +20,11 @@ they are not a new implementation queue or a requirement to repeat live imports.
 | Live import (#24) | 514 cards, 514 progress records, one settings record, zero tombstones; exact server readback and unchanged repeat with zero writes. |
 | Real second-device rehearsal (#25) | Google restoration on fresh iPhone Home Screen and Mac Safari clients; matching settings/due counts; 10 newer reviews and one settings change survived repeat import and client reopening. |
 | Guarded account UI (#28–#29) | Sign-out and authenticated welcome state merged and covered by synthetic browser checks. Published in the test preview during the rename; no new physical-device verification was performed. |
-| Project rename (2026-10-04) | LS9 Flashcards is the accepted product name. App/package/icons, GitHub repository names, and the public URL are renamed. The former compatibility URL was retired on 2026-10-17; legacy device recovery was waived. See [the rename record](rename.md). |
+| Project rename (2026-10-04) | LS9 Flashcards is the accepted product name. App/package/icons, GitHub repository names, and the public URL are renamed. The former compatibility URL was retired on 2026-10-17; legacy device recovery was waived. See [the rename record](archive/rename.md). |
 
 Evidence: [snapshot/baseline](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/22#issuecomment-5972398972),
 [test environment](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/23#issuecomment-5977823891),
-[import record](issue-24-status.md), and
+[import record](archive/issue-24-status.md), and
 [final second-device result](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235).
 The second-device check used app revision `10d48ab` and importer `4cf6092`
 on 2026-10-04. Devices: iPhone 17, iOS 26.6, Home Screen app; Mac Safari,
@@ -57,7 +57,7 @@ The published redirect/app was replaced by a 404-only deployment and that
 repository is archived with its history retained. The current app remains at `ls9-flashcards-site`. Historical bridge
 build/tests remain available locally; they are not an active hosted recovery
 route. This records an owner decision rather than device inspection or proof
-of legacy progress recovery. See the [retirement record](rename.md#old-site-retirement-2026-10-17).
+of legacy progress recovery. See the [retirement record](archive/rename.md#old-site-retirement-2026-10-17).
 
 ## Current operations — 2026-10-17
 
@@ -352,7 +352,7 @@ Firebase project IDs, card IDs, and the private operator-directory variable
 retain their original values for compatibility. The old public URL was retired
 on 2026-10-17 and now has only a 404 deployment. Legacy studied-data import and recovery
 of old storage contexts were waived on 2026-10-07; retention is a separate
-owner decision, not an outstanding recovery gate. See [the rename record](rename.md).
+owner decision, not an outstanding recovery gate. See [the rename record](archive/rename.md).
 
 Retained optional ideas from the earlier proposal are an interval multiplier,
 clearer session-exit wording, and eventual review-history/FSRS evaluation.

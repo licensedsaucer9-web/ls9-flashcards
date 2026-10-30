@@ -15,8 +15,6 @@ import {
   accountSyncText,
   bindAccountPanel,
   markAccountBooted,
-  noteLocalChange,
-  onAccountSync,
   prepareAccount,
   takeFreshPersonalDeck,
 } from './account.ts'
@@ -130,10 +128,7 @@ function toast(msg: string) {
 }
 
 function pushSoon(): void {
-  if (accountSignIn && !captureStudyLock().uid) {
-    noteLocalChange()
-    return
-  }
+  if (accountSignIn && !captureStudyLock().uid) return
   schedulePush()
 }
 
@@ -1324,7 +1319,6 @@ async function boot() {
     quietlyRefreshStreak()
   }
   onSyncStatus(paintSyncLine)
-  onAccountSync(paintSyncLine)
   // Refresh the passive date-dependent text while open; this never starts sync.
   window.setInterval(() => {
     if (document.visibilityState === 'visible') refreshStreakDay()
