@@ -72,6 +72,7 @@ import { reviewTiers, toggleTier, tierOf, tierLabel, tierPillLabel, tierPillName
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
 import { recoveryBridge, rehearsalPreview } from './rehearsal.ts'
 import { buildInfo } from './build-info.ts'
+import { applyUpdate, checkForUpdate, clearUpdateParam } from './app-update.ts'
 import {
   bootSync,
   deckSelectionChanged,
@@ -82,6 +83,7 @@ import {
 } from './sync.ts'
 
 initializeTheme()
+clearUpdateParam()
 registerSW({ immediate: true })
 
 type Route =
@@ -1201,8 +1203,13 @@ async function renderCloudSettings() {
         <p class="note">French/Spanish vocabulary and examples © 2026 LS9 Flashcards. Frequency ranks adapted from <a href="https://github.com/hermitdave/FrequencyWords" target="_blank" rel="noopener noreferrer">Hermit Dave’s FrequencyWords</a>, OpenSubtitles 2018 via OPUS. Curated content and derived rankings are licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>.</p>
       </div>
       <div class="setting">
-        <p class="kicker" style="margin:0">Install</p>
+        <p class="kicker" style="margin:0">App version</p>
         <p class="note" id="app-version" data-version="${esc(buildInfo.version)}" data-source="${esc(buildInfo.sourceCommit)}">Version ${esc(buildInfo.version)} · ${esc(buildInfo.sourceCommit.slice(0, 7))}${buildInfo.sourceDirty ? ' (local changes)' : ''}</p>
+        <button type="button" class="secondary" id="check-update">Check for update</button>
+        <p class="note" id="update-status" role="status" aria-live="polite"></p>
+      </div>
+      <div class="setting">
+        <p class="kicker" style="margin:0">Install</p>
         <p class="note">PWA: Chrome/Edge install, iPhone Safari share → Add to Home Screen. The app itself must be served over HTTPS for iPhone. Progress stays in this browser when you are signed out, and with the account when you are signed in.</p>
         <p class="note" id="sw-status"></p>
       </div>
@@ -1219,6 +1226,31 @@ async function renderCloudSettings() {
   })
   $('#speech').addEventListener('change', (event) => {
     if (!chooseSpeech((event.target as HTMLInputElement).checked)) toast('Speech changed, but browser storage is unavailable. This choice may not survive a reload.')
+  })
+  $('#check-update').addEventListener('click', async (event) => {
+    const button = event.currentTarget as HTMLButtonElement
+    const status = $('#update-status')
+    button.disabled = true
+    status.textContent = 'Checking…'
+    const result = await checkForUpdate()
+    if (result.status === 'error') {
+      status.textContent = result.message
+      button.disabled = false
+      return
+    }
+    const latest = `${result.version} · ${result.sourceCommit.slice(0, 7)}`
+    if (result.status === 'current') {
+      status.textContent = `You're up to date (latest ${latest}).`
+      button.disabled = false
+      return
+    }
+    status.textContent = `Updating to ${latest}…`
+    try {
+      await applyUpdate()
+    } catch {
+      status.textContent = 'Could not install the update. Try again later.'
+      button.disabled = false
+    }
   })
   const sw = 'serviceWorker' in navigator
   $('#sw-status').textContent = sw

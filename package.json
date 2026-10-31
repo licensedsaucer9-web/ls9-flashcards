@@ -23,7 +23,8 @@
     "test:starter-ui": "node scripts/starter-decks-ui-test.mjs",
     "test:hard-mode-ui": "node scripts/hard-mode-ui-test.mjs",
     "test:speech-ui": "node scripts/speech-ui-test.mjs",
-    "test:speech-page": "node scripts/speech-test-page-test.mjs"
+    "test:speech-page": "node scripts/speech-test-page-test.mjs",
+    "test:update-ui": "node scripts/update-ui-test.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
