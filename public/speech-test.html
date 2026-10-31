@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<!-- Lets this page itself be added to the Home Screen as a standalone app. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Speech test">
+<title>Speech recognition device test</title>
+<style>
+  :root { color-scheme: light dark; --bg: #0e1116; --fg: #e8ebf0; --mute: #9aa3b0; --line: #2a313c; --accent: #4da3ff; --bad: #ff6b6b; --ok: #59d18a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: max(12px, env(safe-area-inset-top)) 14px 40px; background: var(--bg); color: var(--fg); font: 15px/1.4 -apple-system, system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 4px 0 12px; }
+  h2 { font-size: 16px; margin: 20px 0 8px; }
+  section { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 10px 0; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 0; }
+  dt { color: var(--mute); }
+  dd { margin: 0; word-break: break-word; }
+  .yes { color: var(--ok); } .no { color: var(--bad); }
+  label { display: inline-flex; align-items: center; gap: 6px; margin: 4px 12px 4px 0; }
+  select, input[type=text], input[type=number] { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: #161b22; color: var(--fg); }
+  input[type=text] { width: 100%; }
+  input[type=number] { width: 4.5em; }
+  .phrases { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .phrases button { font: inherit; font-size: 14px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: #161b22; color: var(--fg); }
+  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+  .controls button { font: inherit; font-weight: 600; padding: 14px; border-radius: 10px; border: 0; color: #fff; }
+  #start { grid-column: 1 / -1; font-size: 22px; padding: 22px; background: var(--accent); }
+  #stop { background: #6b7280; } #abort { background: #8b3a3a; }
+  #ttsStart { grid-column: 1 / -1; background: #6a4dbf; }
+  button:disabled { opacity: .45; }
+  #status { font-weight: 600; }
+  #live { min-height: 3em; font-size: 20px; }
+  #live .interim { color: var(--mute); font-style: italic; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  td, th { border-bottom: 1px solid var(--line); padding: 3px 4px; text-align: left; vertical-align: top; }
+  #log { font: 12px/1.35 ui-monospace, Menlo, monospace; max-height: 40vh; overflow: auto; white-space: pre-wrap; margin: 0; }
+  #report { width: 100%; min-height: 14em; font: 12px/1.35 ui-monospace, Menlo, monospace; background: #161b22; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row button { font: inherit; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line); background: #161b22; color: var(--fg); }
+  small { color: var(--mute); }
+</style>
+</head>
+<body>
+<h1>Speech recognition device test</h1>
+<small>Diagnostics for the speech input plan. Not part of the flashcards app; nothing is stored or sent anywhere.</small>
+
+<section aria-labelledby="env-h">
+  <h2 id="env-h">Environment</h2>
+  <dl id="env"></dl>
+</section>
+
+<section aria-labelledby="set-h">
+  <h2 id="set-h">Settings</h2>
+  <label>Language
+    <select id="lang">
+      <option value="de-DE">de-DE German</option>
+      <option value="es-ES">es-ES Spanish</option>
+      <option value="nb-NO">nb-NO Norwegian</option>
+      <option value="en-GB">en-GB English</option>
+    </select>
+  </label>
+  <div class="phrases" id="phrases" aria-label="Suggested phrases"></div>
+  <label style="display:block">Expected phrase (used for the match score and the speak-then-listen test)
+    <input type="text" id="expected" autocomplete="off" autocapitalize="off" spellcheck="false">
+  </label>
+  <div>
+    <label><input type="checkbox" id="continuous"> continuous</label>
+    <label><input type="checkbox" id="interim" checked> interimResults</label>
+    <label>maxAlternatives <input type="number" id="maxAlt" min="1" max="10" value="5"></label>
+  </div>
+</section>
+
+<div class="controls">
+  <button id="start" type="button">Start listening</button>
+  <button id="stop" type="button" disabled>Stop</button>
+  <button id="abort" type="button" disabled>Abort</button>
+  <button id="ttsStart" type="button">Speak phrase, then listen</button>
+</div>
+
+<section aria-labelledby="live-h">
+  <h2 id="live-h">Current attempt <span id="status">idle</span></h2>
+  <div id="live" aria-live="polite"></div>
+  <dl id="timings"></dl>
+  <table id="alts" hidden>
+    <thead><tr><th>#</th><th>final</th><th>alt</th><th>transcript</th><th>confidence</th><th>match</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section aria-labelledby="log-h">
+  <h2 id="log-h">Event log</h2>
+  <pre id="log"></pre>
+</section>
+
+<section aria-labelledby="rep-h">
+  <h2 id="rep-h">Report</h2>
+  <div class="row">
+    <button id="copy" type="button">Copy results</button>
+    <button id="clear" type="button">Clear attempts</button>
+  </div>
+  <p id="copyStatus" aria-live="polite"></p>
+  <textarea id="report" readonly aria-label="Report text"></textarea>
+</section>
+
+<script>
+(() => {
+  'use strict'
+  const $ = id => document.getElementById(id)
+  const PHRASES = {
+    'de-DE': ['der Hund', 'die Katze', 'das Haus', 'Guten Morgen', 'schön', 'Brötchen'],
+    'es-ES': ['el perro', 'la casa', 'buenos días', 'el niño', 'gracias'],
+    'nb-NO': ['hunden', 'en katt', 'god morgen', 'kjøkkenet', 'smør'],
+    'en-GB': ['the dog', 'a cat', 'good morning', 'thorough', 'the weather'],
+  }
+  const EVENTS = ['start', 'audiostart', 'soundstart', 'speechstart', 'result', 'speechend', 'soundend', 'audioend', 'nomatch', 'end', 'error']
+  const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition
+  const synth = window.speechSynthesis
+  const attempts = []
+  let current = null
+  let rec = null
+
+  const now = () => performance.now()
+  const ms = v => v == null ? '-' : Math.round(v) + 'ms'
+  const rel = (a, t) => t == null ? null : t - a.tapAt
+
+  function standaloneInfo() {
+    let dm = 'unknown'
+    try {
+      for (const m of ['standalone', 'fullscreen', 'minimal-ui', 'browser']) {
+        if (matchMedia(`(display-mode: ${m})`).matches) { dm = m; break }
+      }
+    } catch { /* matchMedia unavailable */ }
+    return { navigatorStandalone: 'standalone' in navigator ? String(navigator.standalone) : 'n/a', displayMode: dm }
+  }
+
+  function voicesFor(lang) {
+    if (!synth || !synth.getVoices) return 'n/a'
+    const all = synth.getVoices() || []
+    const base = lang.slice(0, 2).toLowerCase()
+    const match = all.filter(v => (v.lang || '').replace('_', '-').toLowerCase().startsWith(base))
+    return `${match.length}/${all.length}` + (match.length ? ' (' + match.slice(0, 4).map(v => `${v.name} ${v.lang}`).join(', ') + (match.length > 4 ? ', …' : '') + ')' : '')
+  }
+
+  function environment() {
+    const s = standaloneInfo()
+    return {
+      userAgent: navigator.userAgent,
+      'navigator.standalone': s.navigatorStandalone,
+      'display-mode': s.displayMode,
+      SpeechRecognition: typeof window.SpeechRecognition === 'function' ? 'yes' : 'no',
+      webkitSpeechRecognition: typeof window.webkitSpeechRecognition === 'function' ? 'yes' : 'no',
+      using: Ctor ? (window.SpeechRecognition ? 'SpeechRecognition' : 'webkitSpeechRecognition') : 'none',
+      speechSynthesis: synth ? 'yes' : 'no',
+      'voices (lang/all)': voicesFor($('lang').value),
+      secureContext: String(window.isSecureContext),
+      'navigator.language': navigator.language,
+      url: location.href,
+    }
+  }
+
+  function renderEnv() {
+    const env = environment()
+    $('env').replaceChildren(...Object.entries(env).flatMap(([k, v]) => {
+      const dt = document.createElement('dt'); dt.textContent = k
+      const dd = document.createElement('dd'); dd.textContent = v
+      if (v === 'yes') dd.className = 'yes'
+      else if (v === 'no' || v === 'none') dd.className = 'no'
+      return [dt, dd]
+    }))
+  }
+
+  function renderPhrases() {
+    const lang = $('lang').value
+    $('phrases').replaceChildren(...PHRASES[lang].map(p => {
+      const b = document.createElement('button')
+      b.type = 'button'; b.textContent = p
+      b.addEventListener('click', () => { $('expected').value = p; renderReport() })
+      return b
+    }))
+    $('expected').value = PHRASES[lang][0]
+  }
+
+  // Similarity of a transcript to the expected phrase: 1 - edit distance / length.
+  const norm = s => s.toLocaleLowerCase().normalize('NFC').replace(/[\p{P}\p{S}]/gu, ' ').replace(/\s+/g, ' ').trim()
+  function similarity(a, b) {
+    a = norm(a); b = norm(b)
+    if (!a && !b) return 1
+    const d = Array.from({ length: b.length + 1 }, (_, j) => j)
+    for (let i = 1; i <= a.length; i++) {
+      let prev = d[0]; d[0] = i
+      for (let j = 1; j <= b.length; j++) {
+        const tmp = d[j]
+        d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1))
+        prev = tmp
+      }
+    }
+    return 1 - d[b.length] / Math.max(a.length, b.length)
+  }
+
+  function log(a, type, detail) {
+    const t = now()
+    const entry = { t: rel(a, t), type, detail: detail || '' }
+    a.events.push(entry)
+    const line = `#${a.n} +${Math.round(entry.t)}ms ${type}${entry.detail ? ' ' + entry.detail : ''}\n`
+    $('log').textContent += line
+    $('log').scrollTop = $('log').scrollHeight
+    return t
+  }
+
+  function setRunning(running) {
+    $('start').disabled = running || !Ctor
+    $('ttsStart').disabled = running || !Ctor || !synth
+    $('stop').disabled = !running
+    $('abort').disabled = !running
+  }
+
+  function newAttempt(mode) {
+    const a = {
+      n: attempts.length + 1, mode,
+      lang: $('lang').value,
+      continuous: $('continuous').checked,
+      interimResults: $('interim').checked,
+      maxAlternatives: Math.max(1, Math.min(10, Number($('maxAlt').value) || 1)),
+      expected: $('expected').value.trim(),
+      standalone: standaloneInfo(),
+      tapAt: now(), startAt: null, firstResultAt: null, finalAt: null, endAt: null,
+      events: [], results: [], finals: [], errors: [],
+    }
+    attempts.push(a)
+    current = a
+    $('live').textContent = ''
+    $('alts').hidden = true
+    $('alts').tBodies[0].replaceChildren()
+    return a
+  }
+
+  function startRecognition(a) {
+    if (!Ctor) { log(a, 'unsupported', 'no SpeechRecognition'); finish(a); return }
+    let r
+    try {
+      r = new Ctor()
+      r.lang = a.lang
+      r.continuous = a.continuous
+      r.interimResults = a.interimResults
+      r.maxAlternatives = a.maxAlternatives
+    } catch (e) {
+      a.errors.push({ error: 'constructor', message: String(e && e.message || e) })
+      log(a, 'exception', 'constructor: ' + (e && e.message || e)); finish(a); return
+    }
+    rec = r
+    for (const type of EVENTS) {
+      r.addEventListener(type, ev => onEvent(a, r, type, ev))
+    }
+    a.callStartAt = log(a, 'start()', `lang=${a.lang} continuous=${a.continuous} interim=${a.interimResults} maxAlt=${a.maxAlternatives}`)
+    setStatus('starting')
+    setRunning(true)
+    try {
+      r.start()
+    } catch (e) {
+      a.errors.push({ error: 'start-exception', message: String(e && e.message || e) })
+      log(a, 'exception', 'start(): ' + (e && e.name || '') + ' ' + (e && e.message || e))
+      finish(a)
+    }
+  }
+
+  function onEvent(a, r, type, ev) {
+    if (type === 'result') return onResult(a, ev)
+    if (type === 'error') {
+      a.errors.push({ error: ev.error || '', message: ev.message || '' })
+      log(a, 'error', `error=${ev.error || ''} message=${JSON.stringify(ev.message || '')}`)
+      setStatus('error: ' + (ev.error || '?'))
+      return
+    }
+    const t = log(a, type)
+    if (type === 'start') { a.startAt = t; setStatus('listening') }
+    if (type === 'nomatch') setStatus('no match')
+    if (type === 'end') {
+      a.endAt = t
+      if (rec === r) rec = null
+      finish(a)
+    }
+  }
+
+  function onResult(a, ev) {
+    const t = now()
+    if (a.firstResultAt == null) a.firstResultAt = t
+    const list = ev.results
+    const parts = []
+    let finalTxt = '', interimTxt = ''
+    for (let i = 0; i < list.length; i++) {
+      const res = list[i]
+      if (i >= ev.resultIndex) {
+        const alts = []
+        for (let j = 0; j < res.length; j++) alts.push({ transcript: res[j].transcript, confidence: res[j].confidence })
+        const entry = { t: rel(a, t), index: i, isFinal: !!res.isFinal, alts }
+        a.results.push(entry)
+        if (entry.isFinal) {
+          a.finals.push(entry)
+          if (a.finalAt == null) a.finalAt = t
+        }
+        parts.push(`[${i}${entry.isFinal ? ' final' : ''}] ` + alts.map(x => `"${x.transcript}" ${fmtConf(x.confidence)}`).join(' | '))
+      }
+      if (res.isFinal) finalTxt += res[0].transcript
+      else interimTxt += res[0].transcript
+    }
+    log(a, 'result', `resultIndex=${ev.resultIndex} ` + parts.join(' ; '))
+    const live = $('live')
+    live.replaceChildren(document.createTextNode(finalTxt))
+    if (interimTxt) {
+      const s = document.createElement('span'); s.className = 'interim'; s.textContent = interimTxt
+      live.append(s)
+    }
+    renderAlts(a)
+    renderTimings(a)
+  }
+
+  const fmtConf = c => typeof c === 'number' ? c.toFixed(3) : String(c)
+  const fmtMatch = (a, txt) => a.expected ? similarity(txt, a.expected).toFixed(2) : '-'
+
+  function renderAlts(a) {
+    const rows = (a.finals.length ? a.finals : a.results.slice(-1)).flatMap(r => r.alts.map((x, j) => {
+      const tr = document.createElement('tr')
+      for (const v of [r.index, r.isFinal ? 'yes' : 'no', j, x.transcript, fmtConf(x.confidence), fmtMatch(a, x.transcript)]) {
+        const td = document.createElement('td'); td.textContent = v; tr.append(td)
+      }
+      return tr
+    }))
+    $('alts').tBodies[0].replaceChildren(...rows)
+    $('alts').hidden = !rows.length
+  }
+
+  function timings(a) {
+    return {
+      'tap → start()': ms(rel(a, a.callStartAt)),
+      'tap → start event': ms(rel(a, a.startAt)),
+      'tap → first result': ms(rel(a, a.firstResultAt)),
+      'tap → first final': ms(rel(a, a.finalAt)),
+      'total (tap → end)': ms(rel(a, a.endAt)),
+    }
+  }
+
+  function renderTimings(a) {
+    $('timings').replaceChildren(...Object.entries(timings(a)).flatMap(([k, v]) => {
+      const dt = document.createElement('dt'); dt.textContent = k
+      const dd = document.createElement('dd'); dd.textContent = v
+      return [dt, dd]
+    }))
+  }
+
+  function setStatus(s) { $('status').textContent = s }
+
+  function finish(a) {
+    if (a.done) return
+    a.done = true
+    if (a.endAt == null) a.endAt = now()
+    if (current === a) {
+      setRunning(false)
+      if (!/^error|no match/.test($('status').textContent)) setStatus('done')
+      renderTimings(a)
+    }
+    renderReport()
+  }
+
+  function speakThenListen() {
+    const a = newAttempt('speak-then-listen')
+    renderTimings(a)
+    setRunning(true)
+    setStatus('speaking')
+    const text = a.expected || PHRASES[a.lang][0]
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = a.lang
+    const voice = (synth.getVoices() || []).find(v => (v.lang || '').replace('_', '-').toLowerCase() === a.lang.toLowerCase())
+    if (voice) u.voice = voice
+    a.tts = { text, voice: voice ? `${voice.name} ${voice.lang}` : 'default' }
+    let started = false
+    const go = why => {
+      // Stop, Abort and Clear cancel the utterance, which can fire end or error after the attempt closed.
+      if (started || a.done || current !== a) return
+      started = true
+      a.ttsEndAt = log(a, 'tts ' + why)
+      startRecognition(a)
+    }
+    u.onstart = () => { a.ttsStartAt = log(a, 'tts start', `"${text}" voice=${a.tts.voice}`) }
+    u.onend = () => go('end')
+    u.onerror = e => { a.errors.push({ error: 'tts-' + (e.error || 'error'), message: '' }); go('error ' + (e.error || '')) }
+    synth.cancel()
+    // Browsers often drop an utterance queued in the same turn as cancel().
+    pendingSpeech = setTimeout(() => {
+      pendingSpeech = null
+      if (a.done || current !== a) return
+      log(a, 'tts speak()')
+      synth.speak(u)
+    }, 50)
+  }
+
+  let pendingSpeech = null
+  function cancelSpeech() {
+    if (pendingSpeech !== null) clearTimeout(pendingSpeech)
+    pendingSpeech = null
+    if (synth) synth.cancel()
+  }
+
+  function report() {
+    const env = environment()
+    const out = ['LS9 speech recognition device test', `time: ${new Date().toISOString()}`, '', '## Environment']
+    for (const [k, v] of Object.entries(env)) out.push(`${k}: ${v}`)
+    out.push('', `## Attempts (${attempts.length})`)
+    for (const a of attempts) {
+      out.push('', `### #${a.n} ${a.mode} lang=${a.lang} continuous=${a.continuous} interimResults=${a.interimResults} maxAlternatives=${a.maxAlternatives}`)
+      out.push(`standalone=${a.standalone.navigatorStandalone} display-mode=${a.standalone.displayMode} expected=${JSON.stringify(a.expected)}`)
+      if (a.tts) out.push(`tts: ${JSON.stringify(a.tts.text)} voice=${a.tts.voice} tap→ttsStart=${ms(rel(a, a.ttsStartAt))} tap→ttsEnd=${ms(rel(a, a.ttsEndAt))}`)
+      out.push('timings: ' + Object.entries(timings(a)).map(([k, v]) => `${k}=${v}`).join(', '))
+      const finals = a.finals.length ? a.finals : []
+      if (finals.length) {
+        out.push('final:')
+        for (const r of finals) for (const [j, x] of r.alts.entries()) out.push(`  [${r.index}.${j}] ${JSON.stringify(x.transcript)} conf=${fmtConf(x.confidence)} match=${fmtMatch(a, x.transcript)}`)
+      } else out.push('final: none')
+      const interim = a.results.filter(r => !r.isFinal)
+      if (interim.length) out.push(`interim (${interim.length}): ` + interim.map(r => `+${Math.round(r.t)} ${JSON.stringify(r.alts[0] ? r.alts[0].transcript : '')}`).join(', '))
+      out.push('errors: ' + (a.errors.length ? a.errors.map(e => `${e.error}${e.message ? ' ' + JSON.stringify(e.message) : ''}`).join('; ') : 'none'))
+      out.push('events: ' + a.events.filter(e => e.type !== 'result').map(e => `${e.type}@${Math.round(e.t)}`).join(' '))
+    }
+    return out.join('\n') + '\n'
+  }
+
+  function renderReport() { $('report').value = report() }
+
+  async function copy() {
+    const text = report()
+    $('report').value = text
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('clipboard API unavailable')
+      await navigator.clipboard.writeText(text)
+      $('copyStatus').textContent = 'Copied. Paste it back in the issue.'
+    } catch (e) {
+      const ta = $('report')
+      ta.focus(); ta.select(); ta.setSelectionRange(0, text.length)
+      let ok = false
+      try { ok = document.execCommand('copy') } catch { /* ignore */ }
+      $('copyStatus').textContent = ok ? 'Copied.' : `Copy failed (${e.message}). Select the text below and copy it manually.`
+    }
+  }
+
+  $('lang').addEventListener('change', () => { renderPhrases(); renderEnv() })
+  $('expected').addEventListener('input', () => { if (current) renderAlts(current); renderReport() })
+  $('start').addEventListener('click', () => {
+    const a = newAttempt('listen')
+    renderTimings(a)
+    startRecognition(a)
+  })
+  $('ttsStart').addEventListener('click', speakThenListen)
+  // Before recognition exists (still speaking, or the utterance never ended) cancel and close the attempt.
+  const halt = method => {
+    if (current) log(current, method + '()')
+    if (rec) rec[method]()
+    else if (current && !current.done) { cancelSpeech(); finish(current) }
+  }
+  $('stop').addEventListener('click', () => halt('stop'))
+  $('abort').addEventListener('click', () => halt('abort'))
+  $('copy').addEventListener('click', copy)
+  $('clear').addEventListener('click', () => {
+    if (rec) rec.abort()
+    else if (current && !current.done) { current.done = true; cancelSpeech() }
+    attempts.length = 0; current = null; rec = null
+    $('log').textContent = ''; $('live').textContent = ''; $('timings').replaceChildren(); $('alts').hidden = true
+    $('copyStatus').textContent = ''
+    setStatus('idle'); setRunning(false); renderReport()
+  })
+  if (synth && 'onvoiceschanged' in synth) synth.addEventListener('voiceschanged', renderEnv)
+
+  renderPhrases()
+  renderEnv()
+  setRunning(false)
+  renderReport()
+  if (!Ctor) setStatus('speech recognition not supported')
+})()
+</script>
+</body>
+</html>
