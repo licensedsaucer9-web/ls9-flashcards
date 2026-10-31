@@ -146,7 +146,15 @@ try {
     const visible = el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden'
     for (const el of document.querySelectorAll('.screen *, .tabbar *')) {
       if (!visible(el) || ![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue
-      const r = ratio(rgb(getComputedStyle(el).color), surface(el))
+      // Composite the text over its surface, including opacity on the way up to it.
+      const [fr, fg, fb, fa = 1] = rgb(getComputedStyle(el).color), bg = surface(el)
+      let alpha = fa
+      for (let node = el; node; node = node.parentElement) {
+        const css = getComputedStyle(node), c = rgb(css.backgroundColor)
+        if (node !== el && (c.length === 3 || c[3] > 0)) break
+        alpha *= Number(css.opacity)
+      }
+      const r = ratio([fr, fg, fb].map((v, i) => v * alpha + bg[i] * (1 - alpha)), bg)
       if (r < 4.5) failures.push(`${el.tagName.toLowerCase()}.${el.className} "${el.textContent.trim().slice(0, 20)}" ${r.toFixed(2)}`)
     }
     for (const el of document.querySelectorAll('.screen :is(button, input, select, textarea, .grade)')) {

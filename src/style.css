@@ -1454,6 +1454,11 @@ p code {
   border-color: var(--clash-cyan);
 }
 
+/* Faded due counts drop below AA on the magenta fill, so keep them solid. */
+:root[data-theme='dissonant'] .chip.is-on.type-chip small {
+  opacity: 1;
+}
+
 :root[data-theme='dissonant'] .seg button.is-on {
   background: var(--clash-cyan);
   color: var(--bg);
