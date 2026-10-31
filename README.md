@@ -119,11 +119,11 @@ device. It stays separate from account sync and per-deck study preferences.
 
 ## Account
 
-A Firebase build offers **Continue with Google** and **Study on this device**. New accounts get a personal German deck seeded from the bundled list and can create private extra decks. Mapped legacy accounts retain their assigned vocabulary deck. Each account has its own per-deck schedules; streak activity is shared across that account's decks. Signing in does not upload device-study data unless you confirm a copy. Two accounts cannot read each other’s progress. The public root serves the Firebase production build.
+A Firebase build offers **Continue with Google** and **Study on this device**. New accounts get a personal German deck seeded from the bundled list and can create private extra decks. Mapped legacy accounts retain their assigned vocabulary deck. Each account has its own per-deck schedules; streak activity is shared across that account's decks. Signing in does not upload device-study data unless you confirm a copy; mapped legacy profiles use the separate recovery flow below. Two accounts cannot read each other’s progress. The public root serves the Firebase production build.
 
 A profile name on an older install is local data only. It does not select a cloud account. The first launch of this build removes the saved GitHub token (`german-flashcards.github` and `german-flashcards.github.shas`) from this browser.
 
-The in-app legacy profile recovery was retired (#163). After sign-in the app does not read old per-profile databases (`german-flashcards:<profile>`). A profile that was never copied stays on the device untouched but cannot be opened from the app.
+An older device with unsynced legacy work can copy a confirmed local profile after sign-in: **Settings → Recover a legacy profile on this device**. This requires the old app's origin and storage context; the isolated rehearsal uses separate storage. Keep the mapping private. See [the migration runbook](docs/firebase-migration.md).
 
 ## Develop
 
@@ -196,7 +196,7 @@ progress from the old client is not imported. See the [retirement record](docs/a
 2. Add the new URL to the Home Screen. An old icon targets the retired scope and can retain separate installed-app storage or a cached offline client; opening it does not upgrade it to the new Firebase client. Keep any old installation/data you still want to preserve until you deliberately retire it.
 3. Check the current installation's offline save and second-device acknowledgement using the backup check below.
 
-Legacy device recovery and studied-data import were waived for the 2026-10-07 release. The in-app recovery panel and the unpublished same-context bridge were later removed (#163); the migration runbook remains for operator imports. Rollback after production Firebase study must use a Firebase-compatible client and preserve its data.
+Legacy device recovery and studied-data import were waived for the 2026-10-07 release. The migration runbook and unpublished same-context bridge are retained for explicit future recovery work; they are not mandatory upgrade steps. Rollback after production Firebase study must use a Firebase-compatible client and preserve its data.
 
 ## iPhone backup check
 

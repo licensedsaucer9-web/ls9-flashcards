@@ -76,6 +76,19 @@ jobs:
           preview_pid=$!
           trap 'kill "$preview_pid"' EXIT
           node scripts/installable.mjs
+      - name: Build the unpublished same-context recovery bridge
+        run: npm run recovery-bridge:build
+      # The bridge does not seed legacy storage. installable.mjs adds one
+      # synthetic due card in its disposable profile when Start is disabled.
+      - name: Check recovery-bridge installability without publishing it
+        env:
+          BASE: /german-flashcards-site/
+          APP_URL: http://127.0.0.1:4179/german-flashcards-site/
+        run: |
+          npm run preview -- --outDir dist-recovery-bridge --port 4179 --strictPort &
+          preview_pid=$!
+          trap 'kill "$preview_pid"' EXIT
+          node scripts/installable.mjs
       - name: Verify and retain the tested candidate
         run: npm run release:verify
       - uses: actions/upload-artifact@v7

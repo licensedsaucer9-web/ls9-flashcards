@@ -12,7 +12,7 @@ assert.equal(git('status', '--porcelain', '--untracked-files=normal'), '', 'comm
 const sourceCommit = git('rev-parse', 'HEAD')
 const publishMode = publicationMode(readFileSync(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8'))
 const env = { ...process.env, BASE: PUBLIC_BASE, VITE_SYNC_BACKEND: 'firebase',
-  VITE_REHEARSAL_PREVIEW: '', VITE_REHEARSAL_REVISION: '',
+  VITE_REHEARSAL_PREVIEW: '', VITE_RECOVERY_BRIDGE: '', VITE_REHEARSAL_REVISION: '',
   VITE_FIREBASE_API_KEY: publicFirebaseWeb.apiKey, VITE_FIREBASE_AUTH_DOMAIN: publicFirebaseWeb.authDomain,
   VITE_FIREBASE_PROJECT_ID: publicFirebaseWeb.projectId, VITE_FIREBASE_APP_ID: publicFirebaseWeb.appId,
   VITE_FIREBASE_AUTH_EMULATOR: '', VITE_FIREBASE_FIRESTORE_EMULATOR: '', ARTIFACT_DIR: 'dist-firebase',

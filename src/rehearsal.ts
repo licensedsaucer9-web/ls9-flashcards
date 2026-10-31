@@ -1,7 +1,16 @@
+import { bridgeStoragePrefix } from './recovery-context.ts'
+
 /** The isolated operator preview; ordinary builds retain their existing storage. */
 export const rehearsalPreview = import.meta.env?.VITE_REHEARSAL_PREVIEW === 'true'
 
-export const storagePrefix = rehearsalPreview ? 'german-flashcards-rehearsal' : 'german-flashcards'
+/** Old-scope recovery build. It keeps the original database names. */
+export const recoveryBridge = import.meta.env?.VITE_RECOVERY_BRIDGE === 'true'
+
+export const storagePrefix = recoveryBridge
+  ? bridgeStoragePrefix(rehearsalPreview)
+  : rehearsalPreview
+    ? 'german-flashcards-rehearsal'
+    : 'german-flashcards'
 
 export function rehearsalNote(): string {
   if (!rehearsalPreview) return ''

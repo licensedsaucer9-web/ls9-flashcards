@@ -6,7 +6,7 @@ export interface BuildInfo {
   readonly basePath: string
   readonly backend: 'firebase' | 'device'
   readonly firebaseProject: string | null
-  readonly mode: 'production' | 'rehearsal' | 'device'
+  readonly mode: 'production' | 'rehearsal' | 'recovery-bridge' | 'device'
   readonly emulators: boolean
   readonly siteRepository: string
 }

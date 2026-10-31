@@ -312,7 +312,7 @@ export async function load(tx: IDBTransaction): Promise<Loaded> {
 }
 
 /** Newest card/tombstone time — used as a stand-in when a legacy settings row has no clock. */
-function legacySettingsClock(cards: Card[], deletedIds: Record<string, number>): number {
+export function legacySettingsClock(cards: Card[], deletedIds: Record<string, number>): number {
   let t = 0
   for (const card of cards) t = Math.max(t, card.updated_at || card.created_at || 0)
   for (const time of Object.values(deletedIds)) t = Math.max(t, Number(time) || 0)

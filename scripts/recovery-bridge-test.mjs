@@ -5,6 +5,7 @@ import {
   LEGACY_SCOPE,
   LEGACY_STORAGE_PREFIX,
   NEW_SITE_SCOPE,
+  bridgeStoragePrefix,
   plannedRoute,
   publicReadiness,
   unreachedInstallationClasses,
@@ -20,6 +21,8 @@ assert.equal(plannedRoute({ install: 'safari', origin: 'http://127.0.0.1:4173', 
 assert.equal(plannedRoute({ install: 'unknown', origin: LEGACY_ORIGIN, scope: LEGACY_SCOPE, reachable: true }), 'blocker')
 assert.equal(plannedRoute({ install: 'home-screen', origin: LEGACY_ORIGIN, scope: null, reachable: true }), 'blocker')
 
+assert.equal(bridgeStoragePrefix(false), LEGACY_STORAGE_PREFIX)
+assert.throws(() => bridgeStoragePrefix(true), /cannot use rehearsal storage/)
 assert.equal(LEGACY_DB_NAME, LEGACY_STORAGE_PREFIX, 'this test process is not a rehearsal build')
 assert.equal(dbNameForUser('joakim'), `${LEGACY_STORAGE_PREFIX}:joakim`)
 
@@ -48,7 +51,7 @@ assert.equal(unprovenBridge.blockers, 1, 'a route without a saved read stays a b
 
 const complete = { deckId: 'legacy-german', schemaVersion: 1, migrationStatus: 'complete' }
 assert.equal(completedLegacyAssignment(complete, 'legacy-german'), true)
-assert.equal(legacyAssignmentRefusal(complete, 'legacy-german'), null)
+assert.equal(legacyAssignmentRefusal(complete, 'legacy-german', 'bridge'), null)
 for (const row of [
   null,
   { deckId: 'legacy-german', schemaVersion: 1, migrationStatus: 'pending' },
@@ -58,7 +61,11 @@ for (const row of [
   { schemaVersion: 1, migrationStatus: 'complete' },
 ]) {
   assert.equal(completedLegacyAssignment(row, 'legacy-german'), false)
-  assert.equal(legacyAssignmentRefusal(row, 'legacy-german')?.code, 'rehearsal/import-required')
+  const bridge = legacyAssignmentRefusal(row, 'legacy-german', 'bridge')
+  const rehearsal = legacyAssignmentRefusal(row, 'legacy-german', 'rehearsal')
+  assert.equal(bridge?.code, 'recovery/legacy-required')
+  assert.equal(rehearsal?.code, 'rehearsal/import-required')
+  assert.notEqual(bridge?.message, rehearsal?.message)
 }
 
-console.log('recovery context: routes, unpublished aggregate, legacy-account guard: ok')
+console.log('recovery bridge: routes, unpublished aggregate, legacy-account guard: ok')

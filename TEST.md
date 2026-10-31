@@ -180,6 +180,8 @@ cutover. Never use the old public root as evidence of the staged client's sync.
 5. Create, sync, and delete a disposable card; it stays absent after B syncs.
 6. On a normal production build, verify a fresh account gets its own seeded deck
    and cannot see the legacy account's schedule or vocabulary edits.
+7. For old device-only progress, use the confirmed same-context copy procedure
+   in [the migration runbook](docs/firebase-migration.md).
 
 ## Automated checks and evidence
 
@@ -219,7 +221,8 @@ boundaries, merge and backup/restore. `npm run test:account-ui` uses synthetic a
 and real IndexedDB for all counter states, repair, rollover, atomic saves, retry,
 account isolation and device copies. `npm run test:rules` checks immutable activity
 ownership, malformed writes, concurrent clients and offline retry in the emulator.
-Production two-device/installed-app acceptance belongs to release.
+The recovery build also verifies that opening a version-1 source does not upgrade
+or mutate it. Production two-device/installed-app acceptance belongs to release.
 
 ## Themes
 
