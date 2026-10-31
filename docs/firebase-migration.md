@@ -178,96 +178,26 @@ fingerprint are the checkpoints. Do not change the mapping while resuming.
 An Admin `complete` marker verifies the snapshot import; human second-device
 verification and collection of every device's local work are separate steps.
 
-## 4. Recover each device's unsynced local profile
+## 4. Device recovery (retired)
 
-**Historical procedure:** legacy device recovery was waived for the 2026-10-07
-release. On 2026-10-17 the owner retired the old Pages URL and archived its
-repository. The old-scope bridge below is unpublished and has no live hosting
-route; using it would require separate authorization to restore that hosting
-and review the artifact. References to retained compatibility clients and
-pending release gates below describe the original rehearsal plan, not current
-requirements. See the [retirement record](archive/rename.md#old-site-retirement-2026-10-17).
+Legacy device recovery was waived for the 2026-10-07 release. On 2026-10-17
+the owner retired the old Pages URL and archived its repository. See the
+[retirement record](archive/rename.md#old-site-retirement-2026-10-17).
 
-Use a Firebase recovery client **on the same browser origin and storage context
-as the old app**, with the mapped account preassigned and restrictive rules
-deployed before access. A localhost preview cannot read an iPhone's IndexedDB.
-The isolated rehearsal uses the `german-flashcards-rehearsal` prefix and cannot
-recover root-app profiles. Check Safari and the installed Home Screen app
-separately. IndexedDB is per origin, so Safari on
-`licensedsaucer9-web.github.io` can open `german-flashcards` and
-`german-flashcards:<profile>` from either the old or new site path. An
-installed Home Screen app keeps a separate store and only runs pages inside
-`https://licensedsaucer9-web.github.io/german-flashcards-site/`. The new site
-scope cannot enter that store.
+The app no longer contains a device recovery path (#163). The Settings panel
+**Recover a legacy profile on this device**, its mapped-profile copy, and the
+unpublished old-scope recovery bridge build were removed. In a Firebase build,
+normal startup does not read legacy per-user profile databases
+(`german-flashcards:<profile>`). A profile that was never copied stays on the
+device untouched, but the app can no longer reach it. No database or storage
+key is deleted. Device-mode builds still run the one-time import of the
+original single-user `german-flashcards` database into the active profile.
 
-| Context | Route |
-| --- | --- |
-| Safari, same origin, reachable | Existing recovery client. |
-| Home Screen app whose scope is the old site, reachable | Unpublished bridge below. Open the existing icon after the authorized publication. |
-| Other origin, other Home Screen scope, unknown install, or a context this session cannot open | Blocker. Keep it in the inventory. |
-
-Build the bridge locally. This command does not publish it, and Pages does not
-publish `dist-recovery-bridge`:
-
-```bash
-npm run recovery-bridge:build
-```
-
-The artifact is `dist-recovery-bridge/`. Its base, manifest scope, and start URL
-are `/german-flashcards-site/`. The manifest keeps the installed name
-**LS9 Flashcards** / **LS9 Cards** and has no separate `id`. Storage stays
-`german-flashcards`. The bundle names `flashcards-ls9-prod`, refuses
-`flashcards-ls9-auth-test`, and refuses rehearsal storage. Sign-in reads the
-account and does not create a personal deck. A missing, pending, unmapped, or
-wrong-deck account stops with the device records left as they are. The bridge
-also leaves `german-flashcards.github` and `german-flashcards.github.shas`
-untouched. A normal open, before sign-in or **Copy**, only reads the legacy
-database: it does not seed missing cards, import a profile, or change cards,
-settings, revisions, or pending markers. Publishing this directory onto the
-compatibility site is a separate authorized recovery operation. Until that
-operation, the old icon keeps the compatibility client.
-
-When publication is authorized, copy `dist-recovery-bridge/` onto the
-compatibility site so the existing icon loads it. Do not publish it as the new
-public app and do not create a second Home Screen icon. Rollback restores the
-compatibility site's recorded `gh-pages` revision
-`1dbc26214bb3bfe1e132edc94688bd3137c1e996` from the rename record. Neither the
-bridge nor that rollback deletes IndexedDB. Keep the source installation until
-its pending work is acknowledged and compared from a second client.
-
-This preparation does not complete #34. No private device inventory was
-available, and no actual legacy database was read. The published aggregate is
-2 installation classes, 1 existing-client route, 1 bridge route, 2 unreachable,
-0 proven reads, and 2 blockers. Those rows come from
-`unreachedInstallationClasses()` and keep the two public URL classes visible.
-They are a class count, not a census of active installations. These were the
-original #34/#36 blockers; both issues were subsequently closed as not planned
-after the 2026-10-07 waiver. Do not reopen or repeat that work based on this
-historical count. Any newly authorized recovery still needs a private inventory
-and saved same-context read for the installation being recovered.
-
-Sign in as the already mapped account. Shared legacy accounts do not run the
-generic first-login guest copy. In Settings:
-
-1. Open **Recover a legacy profile on this device**.
-2. Choose the reviewed mapping JSON from private device storage. The project must
-   match this build; only registered local profiles mapped to this signed-in UID
-   are offered. Guests and unmapped profiles are skipped.
-3. Check the confirmation that the named profile belongs to this account, then
-   select **Copy local progress and vocabulary**. The server's preassigned deck
-   must also match the mapping. This action never changes account ownership.
-4. Check the normal sync status. An offline copy says **Saved on this device**;
-   reopen/reconnect or use **Sync now**. **Synced** means the copied records have
-   been acknowledged by Firestore.
-
-The source database stays unchanged. Content, schedules, settings, custom cards,
-and tombstones merge with the UID database. Newer account reviews/settings win
-over older source values. Source clocks remain intact. The target revision is
-at least the source revision plus one; copied records get Firestore dirty markers
-in the same IndexedDB transaction. GitHub acknowledgements are not treated as
-Firestore acknowledgements, including rows from before per-record tracking.
-Repeating a copy preserves acknowledged markers and newer account data. Account
-changes before the write refuse the copy.
+`npm run migrate -- preflight` still reports the historical #34 aggregate from
+`unreachedInstallationClasses()`: 2 installation classes, 0 proven reads, and
+2 blockers. It is a class count, not a census of active installations. #34 and
+#36 were closed as not planned after the waiver; do not reopen that work based
+on this count.
 
 ## 5. Record results and preserve the historical release evidence
 
@@ -277,9 +207,9 @@ iPhone Home Screen and Mac Safari clients. Ten newer reviews and a newer
 settings record survived a repeat import with zero writes and client reopening.
 Mac browser/OS versions were not recorded.
 
-For a newly authorized production recovery, use a separately confirmed mapping and credential,
-a fresh final GitHub snapshot, exact server readback, and recovery of every
-active device's local work. Record source/build, date, device/browser, comparison
+For a newly authorized production import, use a separately confirmed mapping and credential,
+a fresh final GitHub snapshot, and exact server readback. Device-local legacy
+work can no longer be copied in the app (section 4). Record source/build, date, device/browser, comparison
 method, aggregate result, and unresolved items. Keep exact values and operator
 files private. A server `migrationStatus: complete` marker does not verify
 device recovery or authorize publication.
@@ -301,11 +231,5 @@ It calls no production service.
 `npm run test:rules` needs Java 21. It also imports synthetic records using the
 Admin SDK into `demo-german-flashcards`, then restores them in clean Chromium
 contexts using the full #13 sync path. It checks schedule isolation, seed
-tombstones, the confirmed Settings copy, source preservation after that copy,
-dirty-marker backfill, retries, and account/deck guards. It uses no service
-account file. The live operator command is never invoked by CI.
-
-`npm run recovery-bridge:build` checks the unpublished artifact, then opens it
-on a synthetic legacy profile with external requests blocked and without
-sign-in or **Copy**. The source cards, settings, revisions, pending markers,
-and token key must match that profile.
+tombstones, the rehearsal account guard, and the Admin export. It uses no
+service account file. The live operator command is never invoked by CI.

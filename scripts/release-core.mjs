@@ -25,9 +25,9 @@ export function publicationMode(workflow) {
 }
 
 export function buildIdentity({ version, sourceCommit, sourceDirty, basePath, backend, firebaseProject,
-  rehearsal = false, recoveryBridge = false, emulators = false }) {
+  rehearsal = false, emulators = false }) {
   const info = { schema: 1, version, sourceCommit, sourceDirty, basePath, backend, firebaseProject,
-    mode: recoveryBridge ? 'recovery-bridge' : rehearsal ? 'rehearsal' : backend === 'firebase' ? 'production' : 'device',
+    mode: rehearsal ? 'rehearsal' : backend === 'firebase' ? 'production' : 'device',
     emulators, siteRepository: SITE_REPOSITORY }
   validateIdentity(info)
   return info
@@ -43,14 +43,14 @@ export function validateIdentity(info, { candidate = false } = {}) {
   assert.equal(typeof info.emulators, 'boolean')
   assert(typeof info.basePath === 'string' && /^\/(?:[A-Za-z0-9_-]+\/)*$/.test(info.basePath), 'invalid build base')
   assert(['firebase', 'device'].includes(info.backend), 'invalid backend')
-  assert(['production', 'rehearsal', 'recovery-bridge', 'device'].includes(info.mode), 'invalid build mode')
+  assert(['production', 'rehearsal', 'device'].includes(info.mode), 'invalid build mode')
   assert.equal(info.siteRepository, SITE_REPOSITORY)
   if (info.backend === 'firebase') assert(typeof info.firebaseProject === 'string' && /^[a-zA-Z0-9-]+$/.test(info.firebaseProject))
   else assert(info.firebaseProject === null && info.mode === 'device', 'device builds cannot claim Firebase')
   if (candidate) {
     assert(/^[1-9]\d*\.\d+\.\d+(?:-rc\.[1-9]\d*)?$/.test(info.version), 'candidate needs a release version (1.0.0 or later)')
     assert(!info.sourceDirty, 'release candidate requires a clean source tree')
-    assert(!info.emulators && info.mode === 'production', 'release candidate cannot use a test, bridge or emulator mode')
+    assert(!info.emulators && info.mode === 'production', 'release candidate cannot use a test or emulator mode')
     assert.equal(info.backend, 'firebase', 'release candidate must use Firebase')
     assert.equal(info.firebaseProject, 'flashcards-ls9-prod', 'release candidate must use the production project')
     assert.equal(info.basePath, PUBLIC_BASE, 'release candidate must use the public root')

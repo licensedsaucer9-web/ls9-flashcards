@@ -15,12 +15,7 @@ Ordinary Firebase builds use the public production configuration in
 `src/firebase-web.ts`. An explicit override needs all four
 `VITE_FIREBASE_*` values; partial configuration does not fall through to
 production. The rehearsal builder selects the test project explicitly and
-uses `VITE_REHEARSAL_PREVIEW=true`. `npm run recovery-bridge:build` writes
-`dist-recovery-bridge` with `VITE_RECOVERY_BRIDGE=true` and base
-`/german-flashcards-site/`. That artifact keeps the original storage prefix
-and the installed app's manifest identity, refuses an account that is not a
-completed legacy assignment, and is not a Pages publish input. A signed-out
-open reads the legacy database and does not seed or import into it. Web
+uses `VITE_REHEARSAL_PREVIEW=true`. Web
 configuration is public; Admin SDK credentials belong only to local operator
 commands.
 
@@ -58,6 +53,8 @@ Google Authentication uses browser-local persistence. Firebase UID selects
 the account's IndexedDB database and Firestore ownership; a name or email
 is only a label. Guest and legacy profile databases stay separate and are
 not deleted or renamed on sign-in. Copying device data requires confirmation.
+There is no in-app copy from a legacy per-user profile (`german-flashcards:<profile>`)
+into an account; such a database stays on the device, unread.
 
 A new account gets a deterministic personal deck at `decks/{uid}`.
 Provisioning keeps an existing account's assigned deck. An Admin import
@@ -380,7 +377,7 @@ only the existing SRS update and anonymous activity event are saved.
 IndexedDB version 2 adds an `activity` store. A grade commits the schedule,
 its UUID activity event and both pending markers in one transaction. Retrying
 the same UUID does not reschedule or count again. Imports, seed writes and
-ordinary card edits do not earn streak credit. Read-only legacy/recovery opens
+ordinary card edits do not earn streak credit. Read-only opens
 keep the existing database version; the first write upgrades it without removing
 cards or preferences. Older installed clients need the new build to write a
 version-2 database.

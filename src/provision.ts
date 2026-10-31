@@ -44,14 +44,14 @@ async function readOrCreate(
 export async function provisionAccount(
   db: Firestore,
   uid: string,
-  options: { requiredLegacyDeckId?: string; refusal?: 'bridge' } = {},
+  options: { requiredLegacyDeckId?: string } = {},
 ): Promise<{ deckId: string; personal: boolean; created: boolean }> {
   if (options.requiredLegacyDeckId) {
-    // Rehearsal and the recovery bridge cannot invent a personal deck.
+    // Rehearsal cannot invent a personal deck.
     // Read online and perform no writes, including for a restored auth session.
     const snap = await getDocFromServer(doc(db, 'users', uid))
     const data = snap.exists() ? snap.data() : null
-    const refusal = legacyAssignmentRefusal(data, options.requiredLegacyDeckId, options.refusal === 'bridge' ? 'bridge' : 'rehearsal')
+    const refusal = legacyAssignmentRefusal(data, options.requiredLegacyDeckId)
     if (refusal) throw Object.assign(new Error(refusal.message), { code: refusal.code })
     const deckId = (data as { deckId: string }).deckId
     return { deckId, personal: false, created: false }

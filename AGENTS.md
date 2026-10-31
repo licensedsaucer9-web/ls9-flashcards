@@ -26,7 +26,8 @@
 
 - Run live rehearsal operations only against `flashcards-ls9-auth-test`.
   Joakim authorized the 2026-10-07 release: no studied-data import and no
-  legacy device recovery. Master publishes `dist-firebase` through the paired
+  legacy device recovery. The in-app legacy profile recovery and the
+  recovery-bridge build were removed in #163. Master publishes `dist-firebase` through the paired
   master-only conditions in `.github/workflows/pages.yml`. Do not publish a
   flag-off build in its place, and do not deploy Firestore rules from that
   workflow.

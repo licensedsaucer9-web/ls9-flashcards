@@ -71,7 +71,7 @@ import {
 import { selectReviewCandidates, sessionCount, SESSION_PRESETS } from './session.ts'
 import { reviewTiers, toggleTier, tierOf, tierLabel, tierPillLabel, tierPillName, TIERS, TIER_NOTES } from './tiers.ts'
 import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock.ts'
-import { recoveryBridge, rehearsalPreview } from './rehearsal.ts'
+import { rehearsalPreview } from './rehearsal.ts'
 import { buildInfo } from './build-info.ts'
 import { applyUpdate, checkForUpdate, clearUpdateParam } from './app-update.ts'
 import {
@@ -1344,8 +1344,7 @@ async function render() {
 }
 
 function clearLegacyGithubToken(): void {
-  // A recovery open must leave the installation's stored keys untouched.
-  if (rehearsalPreview || recoveryBridge) return
+  if (rehearsalPreview) return
   try {
     localStorage.removeItem('german-flashcards.github')
     localStorage.removeItem('german-flashcards.github.shas')
@@ -1360,13 +1359,8 @@ async function boot() {
   await prepareAccount(accountHooks)
   markAccountBooted()
   let added = 0
-  // Signed-out study on the bridge is the legacy source. Seeding and the
-  // one-time profile import write that database, so this open only reads it.
-  // After sign-in the study lock is the account database, which sync may seed.
   const signedIn = Boolean(captureStudyLock().uid)
-  if (recoveryBridge) {
-    if (signedIn) await bootSync()
-  } else if (accountSignIn) {
+  if (accountSignIn) {
     // A deck created with this sign-in has nothing on the server yet. Paint
     // the built-in words before the cloud read, which can stall after the
     // Google sheet returns on a phone. An existing account still syncs first
@@ -1387,7 +1381,7 @@ async function boot() {
   scheduleRender()
   await renderChain
   if (added > 0) toast(`Added ${added} new cards`)
-  if (!recoveryBridge && accountSignIn && captureStudyLock().uid) {
+  if (accountSignIn && captureStudyLock().uid) {
     void bootSync().finally(() => {
       openingEmptyDeck = false
       const now = parseRoute().name

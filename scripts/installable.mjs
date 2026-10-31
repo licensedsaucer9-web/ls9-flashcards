@@ -16,8 +16,8 @@ async function dismissWelcome(page) {
   await page.waitForSelector('[data-due-count]')
 }
 
-// The recovery bridge does not seed the legacy database. This profile is
-// disposable, so one synthetic due card lets the review controls run.
+// If the study view opens with no due card, this disposable profile gets one
+// synthetic due card so the review controls can run.
 async function plantDueCardWhenEmpty(page) {
   const planted = await page.evaluate(async () => {
     const start = document.querySelector('#start')
