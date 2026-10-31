@@ -122,7 +122,7 @@ layer around it. Do not fork it.
    not count as correct. Speech adds one risk: recognisers sometimes drop or
    mishear short articles ("die" ↔ "dir", "el" swallowed). Use exact match
    for the article token and fuzzy match only for the word. Treat a missing
-   article as `incorrect`, the same as typing (open question 3).
+   article as `incorrect`, the same as typing (decision 3).
 5. **Fuzzy word match.** Use normalised Levenshtein similarity on the word
    part (ratio = 1 − distance / max length). It is simple, has no dependency
    and is easy to test. Phonetic algorithms (Kölner Phonetik for German,
@@ -141,12 +141,12 @@ layer around it. Do not fork it.
      so Easy/Good/Gender/Again stay exactly as they are now. `close` matters
      only as the hint "Heard: … — close"; the typed path decides the grade.
      This is the recommended Phase 1 because grading does not change at all.
-     The auto-submit variant is open question 1.
+     No auto-submit (decision 1).
    - **Flip mode:** the mic sits on the front face. A spoken answer flips the
      card and shows "You said: …" with a **suggested** grade highlighted on the
      grade bar. Suggestions: `correct` → Good, `close` → Hard,
      `wrong_gender` → Gender, `incorrect` → Again. The learner still taps
-     (or uses keys 1–5) to grade, so scheduling never depends on the
+     (or uses keys 1–5) to grade. A `close` match suggests Hard (decision 5), so scheduling never depends on the
      recogniser alone. Easy is never suggested, because recognition cannot
      tell an instant answer from a slow one.
 7. Matching lives in a pure function, `matchSpoken(card, direction,
@@ -156,8 +156,9 @@ layer around it. Do not fork it.
 **Which language is spoken?** The answer side. For `de-en` the learner says
 the base-language word, using `speechLang(baseLang)`, e.g. en-GB. For `en-de`
 they say the target word, using `speechLang(targetLang)`. Pronunciation
-practice mostly matters for `en-de`. Open question 2 asks whether to offer the
-mic only in that direction.
+practice mostly matters for `en-de`. Decision 2: the mic is offered **only
+when the answer is in the target language** (`en-de`); in `de-en` there is no
+mic button.
 
 ## Fluency (optional, display-only)
 
@@ -170,7 +171,7 @@ These signals are available from events without any extra API:
 | Hesitation | Number of interim results whose text was later revised. Filler words seen in interim but stripped from final text. Gap length between interim updates | Only if Safari emits interim results often enough **[U]** |
 | Confidence | `results[i][0].confidence` | Unreliable, see above. Show nothing based on it |
 
-Recommendation: Phase 3 shows a small "fluency" line on the result, such as
+Decision 6: Phase 3 shows a small "fluency" line on the result, such as
 "Started after 0.8 s · 1.2 s · smooth/hesitant", and **does not feed it into
 grading or SRS**. Real pronunciation or fluency scoring (phoneme alignment,
 prosody) needs raw audio and an acoustic model. Examples are a WASM model such
@@ -190,6 +191,11 @@ it is out of scope here.
   switch off or the API missing, there is no button in the DOM.
   - Flip mode: on the front, before flipping, next to the speak button.
   - Hard mode: beside the answer field.
+  - Only when the answer side is the target language (decision 2).
+- **Home Screen app hint (decision 4):** when the switch is on and the app
+  runs standalone (`navigator.standalone` or `display-mode: standalone`)
+  where recognition does not work, show a short hint on review cards:
+  "Speech input works in a Safari tab. Open the site in Safari to use it."
 - **Listening state:** the button gets `aria-pressed="true"` and a pulsing
   style. Tapping again stops. A `role="status"` line shows "Listening…" and
   the interim transcript.
@@ -206,7 +212,7 @@ it is out of scope here.
   server-based. **Audio may be sent to Apple** and is covered by Apple's
   Siri/Dictation privacy terms, not by this app. Chrome sends audio to
   Google unless on-device mode is used. Say this in the Settings note.
-  Opting in is what makes it acceptable.
+  Opting in is what makes it acceptable (decision 7: accepted, with the note).
 - The app itself stores nothing. No audio, no transcripts and no fluency
   numbers go to IndexedDB, Firestore or analytics. The transcript lives only in
   the current card's in-memory state. `firestore.rules` and sync code do not
@@ -254,7 +260,7 @@ it is out of scope here.
 
 | Phase | Scope | Estimate |
 |---|---|---|
-| 0 Spike | Throwaway page under `spikes/` that logs every event, transcript, alternative count and confidence on iPhone Safari (tab + Home Screen) and Mac Safari for the four languages. Settles the **[U]** rows, the timeouts and the `close` threshold. Needs Joakim's devices | 0.5 day + device time |
+| 0 Spike | Standalone device test page (`public/speech-test.html`, not linked from the app, no app behaviour changes) that logs every event, transcript, alternative count and confidence on iPhone Safari (tab + Home Screen) and Mac Safari for the four languages. Settles the **[U]** rows, the timeouts and the `close` threshold. Needs Joakim's devices | 0.5 day + device time |
 | 1 Toggle + Hard mode | `src/speech-input.ts`, Settings switch, detection/fallback, mic in Hard mode filling the answer field, lifecycle aborts, unit + UI tests, architecture doc update | 1.5 days |
 | 2 Flip mode | `matchSpoken` with fuzzy/accent rules, "You said" panel, suggested grade, tests | 1 day |
 | 3 Fluency | Latency/duration/hesitation line, display-only, tests with the fake's timed events | 0.5–1 day |
@@ -262,25 +268,22 @@ it is out of scope here.
 Total about 3.5–4 days plus device testing. Each phase is a separate PR, and
 each is useful without the next.
 
-## Open questions for Joakim
+## Decisions (Joakim, 2026-10-31)
 
-1. In Hard mode, should a spoken answer **auto-submit** (one tap to answer and
-   grade) or **fill the field for review** (recommended; avoids grading on a
-   misheard word)?
-2. Offer the mic in **both directions**, or only when the answer is in the
-   target language (`en-de`) for speaking practice?
-3. Should a spoken German noun **without its article** be accepted (as Hard),
-   or stay `incorrect` as in typing?
-4. Since the API reportedly does not work in the iPhone Home Screen app:
-   should the app show a hint to open the site in Safari, or should the mic
-   just silently not appear there?
-5. Is a fuzzy `close` match worth a **suggested Hard** in flip mode, or should
-   suggestions be only Good/Gender/Again?
-6. Is display-only fluency (Phase 3) wanted at all, or should we stop after
-   accuracy?
-7. Is it acceptable that audio goes to Apple/Google servers, with the warning
-   in the Settings note, or should the feature be limited to browsers with
-   verified on-device recognition (in practice: none of the targets today)?
+Joakim chose the recommended answers to the former open questions:
+
+1. **Hard mode:** a spoken answer fills the answer field for review. No
+   auto-submit.
+2. **Direction:** the mic is shown only when the answer is in the target
+   language (`en-de`), for speaking practice.
+3. **German articles:** a noun spoken without its article stays `incorrect`,
+   the same as typing.
+4. **iPhone Home Screen app:** show a hint to open the site in a Safari tab.
+5. **Flip mode:** a close fuzzy match suggests Hard.
+6. **Fluency:** keep the Phase 3 fluency line, display-only (no grading/SRS
+   effect).
+7. **Privacy:** audio going to Apple/Google servers is acceptable, with the
+   note in Settings.
 
 ## Sources (checked 2026-10-31)
 
