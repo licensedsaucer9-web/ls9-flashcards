@@ -32,6 +32,7 @@ jobs:
       - run: npm run test:themes-ui
       - run: npm run test:hard-mode-ui
       - run: npm run test:speech-ui
+      - run: npm run test:speech-page
       - name: Set up Java for the Firestore emulator
         uses: actions/setup-java@v4
         with:
