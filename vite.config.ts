@@ -83,9 +83,12 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}', 'release.json'],
+          // Standalone pages always come from the network so a stale cache cannot pin them.
+          globIgnores: ['speech-test.html'],
           // The temporary auth PWAs live under this Pages path. Let their own
           // service workers handle navigation instead of serving the main app.
-          navigateFallbackDenylist: [/\/auth-spike(?:-prod)?\//],
+          // Any other *.html page (with or without a query) is not the app shell.
+          navigateFallbackDenylist: [/\/auth-spike(?:-prod)?\//, /\/(?!index\.html(?:\?|$))[^/?]+\.html(?:\?|$)/],
         },
       }),
     ],

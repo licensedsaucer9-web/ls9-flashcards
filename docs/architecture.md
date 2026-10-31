@@ -30,6 +30,10 @@ identity is emitted as `release.json` and precached by the service worker.
 Settings reads the bundled identity without network access, so an installed
 offline client reports the version it is actually running. A source change
 alters the bundled identity and worker precache revision.
+The worker serves the app shell only for app navigations. Other `*.html`
+pages, such as the standalone `speech-test.html`, and the auth-spike paths go
+to the network, and `speech-test.html` is not precached
+(`npm run test:sw-navigation`).
 
 `release:build` requires a clean committed source tree and matching publication
 gates (both currently master-only and disabled on pull requests),
