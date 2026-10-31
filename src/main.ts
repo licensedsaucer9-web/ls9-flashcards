@@ -477,13 +477,10 @@ async function renderReview() {
   let flipped = false
   let saving = false
   let attempt: string | null = null
-  let paintedCardId: string | null = null
 
   const paint = () => {
     if (!studyLockCurrent(lock) || parseRoute().name !== 'review') return
     const card = result?.card ?? queue[0]
-    if ((card?.id ?? null) !== paintedCardId) cancelSpeech()
-    paintedCardId = card?.id ?? null
     if (!card) {
       main.innerHTML = `
         <section class="screen review">
@@ -640,6 +637,7 @@ async function renderReview() {
         result = null
         secondTry = false
         typedAnswer = ''
+        cancelSpeech()
         paint()
       })
       const answerInput = main.querySelector<HTMLInputElement>('#answer')
@@ -676,7 +674,11 @@ async function renderReview() {
       }
       flipped = false
       if (result) result.saved = true
-      if (advance) paint()
+      // A requeued card keeps its id, so cancel on every advance, not on id change.
+      if (advance) {
+        cancelSpeech()
+        paint()
+      }
     } catch {
       if (studyLockCurrent(lock)) toast('Could not save this review. Try again.')
     } finally {

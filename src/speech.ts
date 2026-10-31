@@ -46,10 +46,18 @@ export function chooseSpeech(value: boolean): boolean {
   try { localStorage.setItem(storageKey, String(value)); return true } catch { return false }
 }
 
+// Browsers often drop an utterance queued in the same turn as cancel().
+const restartDelayMs = 50
+let pendingSpeech: ReturnType<typeof setTimeout> | null = null
+function clearPendingSpeech() {
+  if (pendingSpeech !== null) clearTimeout(pendingSpeech)
+  pendingSpeech = null
+}
+
 export function speak(text: string, languageName: string): void {
   if (!speechAvailable() || !text.trim()) return
   const synth = window.speechSynthesis
-  synth.cancel()
+  clearPendingSpeech()
   const utterance = new SpeechSynthesisUtterance(text)
   const lang = speechLang(languageName)
   if (lang) {
@@ -57,9 +65,18 @@ export function speak(text: string, languageName: string): void {
     const voice = pickVoice(synth.getVoices(), lang)
     if (voice) utterance.voice = voice
   }
-  synth.speak(utterance)
+  if (!synth.speaking && !synth.pending) {
+    synth.speak(utterance)
+    return
+  }
+  synth.cancel()
+  pendingSpeech = setTimeout(() => {
+    pendingSpeech = null
+    synth.speak(utterance)
+  }, restartDelayMs)
 }
 
 export function cancelSpeech(): void {
+  clearPendingSpeech()
   if (speechAvailable()) window.speechSynthesis.cancel()
 }
