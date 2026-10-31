@@ -60,8 +60,9 @@ try {
   assert.equal(await select.inputValue(), 'dark', 'switching back persists too')
   assert.deepEqual(await select.locator('option').evaluateAll(options => options.map(o => [o.value, o.textContent])), [
     ['dark', 'Dark'], ['light', 'Light'], ['halloween', 'Halloween'], ['christmas', 'Christmas'], ['neopunk', 'NeoPunk'], ['nature', 'Nature'], ['coffee', 'Coffee'], ['dissonant', 'Dissonant'],
+    ['pink', 'Cute Pink'], ['mint', 'Mint'], ['lavender', 'Lavender'],
   ], 'picker lists every theme')
-  const seasonal = { halloween: ['#120b1a', 'dark'], christmas: ['#0d2618', 'dark'], neopunk: ['#07060d', 'dark'], nature: ['#f2f0e1', 'light'], coffee: ['#1c120b', 'dark'], dissonant: ['#2a1636', 'dark'] }
+  const seasonal = { halloween: ['#120b1a', 'dark'], christmas: ['#0d2618', 'dark'], neopunk: ['#07060d', 'dark'], nature: ['#f2f0e1', 'light'], coffee: ['#1c120b', 'dark'], dissonant: ['#2a1636', 'dark'], pink: ['#fdeef4', 'light'], mint: ['#e8f7ef', 'light'], lavender: ['#f1ecfb', 'light'] }
   for (const [theme, [bg, scheme]] of Object.entries(seasonal)) {
     await select.selectOption(theme)
     assert.deepEqual(await palette(), { bg, scheme, meta: bg }, `${theme} palette and theme-color`)
@@ -127,10 +128,12 @@ try {
   assert.deepEqual(rings.map(shadow => shadow.includes('inset')), [true, true, true, false], 'NeoPunk keeps gender rings on noun cards')
   assert.equal(new Set(rings).size, 4, 'each gender ring has its own colour')
   await page.emulateMedia({ reducedMotion: null })
-  // Dissonant: jarring accents, but every rendered text sits on its surface at
-  // AA contrast and UI boundaries reach 3:1, in Settings and on Review.
+  // Dissonant (jarring accents) and the pastels (soft surfaces, deeper accent):
+  // every rendered text sits on its surface at AA contrast and UI boundaries
+  // reach 3:1, in Settings and on Review.
   const rendered = () => page.evaluate(() => {
-    const rgb = value => (value.match(/[\d.]+/g) || []).map(Number)
+    // color-mix() computes to color(srgb r g b / a) with 0–1 channels.
+    const rgb = value => (value.match(/[\d.]+/g) || []).map(Number).map((v, i) => value.startsWith('color(srgb') && i < 3 ? v * 255 : v)
     const lum = ([r, g, b]) => [r, g, b].map(v => v / 255)
       .map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
       .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0)
@@ -165,22 +168,28 @@ try {
     }
     return { failures, checked: document.querySelectorAll('.screen *').length, running: document.getAnimations().length }
   })
-  await select.selectOption('dissonant')
-  const settingsCheck = await rendered()
-  assert.deepEqual(settingsCheck.failures, [], 'Dissonant Settings text and controls meet WCAG AA')
-  assert.equal(settingsCheck.running, 0, 'Dissonant has no animations')
-  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar h1')).animationName), 'none')
-  await page.goto('http://127.0.0.1:4191/#/'); await page.waitForSelector('#start')
-  assert.deepEqual((await rendered()).failures, [], 'Dissonant home and primary button meet WCAG AA')
-  await page.click('#start'); await page.waitForSelector('#card')
-  assert.deepEqual((await rendered()).failures, [], 'Dissonant Review front meets WCAG AA')
-  await page.click('#card'); await page.waitForSelector('.grades:not([hidden])')
-  assert.deepEqual((await rendered()).failures, [], 'Dissonant Review grades meet WCAG AA')
-  if (process.env.THEME_SCREENSHOTS) await page.screenshot({ path: '/tmp/flashcards-theme-dissonant-review.png', fullPage: true })
-  for (const route of ['/deck', '/decks']) {
-    await page.goto(`http://127.0.0.1:4191/#${route}`); await page.waitForSelector('.screen')
-    assert.deepEqual((await rendered()).failures, [], `Dissonant ${route} meets WCAG AA`)
+  const accents = {}
+  for (const [theme, label] of [['dissonant', 'Dissonant'], ['pink', 'Cute Pink'], ['mint', 'Mint'], ['lavender', 'Lavender']]) {
+    await page.goto('http://127.0.0.1:4191/#/settings'); await select.waitFor()
+    await select.selectOption(theme)
+    const settingsCheck = await rendered()
+    assert.deepEqual(settingsCheck.failures, [], `${label} Settings text and controls meet WCAG AA`)
+    assert.equal(settingsCheck.running, 0, `${label} has no animations`)
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar h1')).animationName), 'none')
+    await page.goto('http://127.0.0.1:4191/#/'); await page.waitForSelector('#start')
+    assert.deepEqual((await rendered()).failures, [], `${label} home and primary button meet WCAG AA`)
+    accents[theme] = await page.evaluate(() => getComputedStyle(document.querySelector('#start')).backgroundColor)
+    await page.click('#start'); await page.waitForSelector('#card')
+    assert.deepEqual((await rendered()).failures, [], `${label} Review front meets WCAG AA`)
+    await page.click('#card'); await page.waitForSelector('.grades:not([hidden])')
+    assert.deepEqual((await rendered()).failures, [], `${label} Review grades meet WCAG AA`)
+    if (process.env.THEME_SCREENSHOTS) await page.screenshot({ path: `/tmp/flashcards-theme-${theme}-review.png`, fullPage: true })
+    for (const route of ['/deck', '/decks']) {
+      await page.goto(`http://127.0.0.1:4191/#${route}`); await page.waitForSelector('.screen')
+      assert.deepEqual((await rendered()).failures, [], `${label} ${route} meets WCAG AA`)
+    }
   }
+  assert.equal(new Set([accents.pink, accents.mint, accents.lavender]).size, 3, 'each pastel has its own accent')
   await page.goto('http://127.0.0.1:4191/#/settings'); await select.waitFor()
   await select.selectOption('dark')
   assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar h1')).animationName), 'none', 'other themes do not glitch')
@@ -210,7 +219,7 @@ try {
   assert.equal(await blockedPage.locator('#theme').inputValue(), 'dark', 'blocked storage does not prevent startup')
   await blocked.close()
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('themes UI: keyboard switching, all eight palettes and contrast, Dissonant rendered contrast, NeoPunk effects, gender rings and reduced motion, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
+  console.log('themes UI: keyboard switching, all eleven palettes and contrast, Dissonant and pastel rendered contrast, NeoPunk effects, gender rings and reduced motion, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()
