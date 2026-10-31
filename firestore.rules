@@ -1,9 +1,10 @@
 rules_version = '2';
 
 // Production rules for the LS9 Flashcards sync data (each user's own cards, progress,
-// decks and activity). They are deployed to the production Firebase project and also run
-// against the emulator in CI and pull requests; change them deliberately and keep
-// scripts/limits-test.mjs and the emulator tests in step with any limit you change.
+// decks and activity) and the create-only app feedback. They are deployed to the
+// production Firebase project and also run against the emulator in CI and pull
+// requests; change them deliberately and keep scripts/limits-test.mjs and the
+// emulator tests in step with any limit you change.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
@@ -129,6 +130,21 @@ service cloud.firestore {
         && (!('tier' in data) || data.tier in [1, 2, 3, 4]);
     }
 
+    // Settings → Send feedback. Anyone may create one document; nobody can read,
+    // change or delete it from a client. Read it in the Firebase console.
+    function validFeedback() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['message', 'createdAt', 'appVersion'])
+        && data.keys().hasOnly(['message', 'email', 'createdAt', 'appVersion', 'uid'])
+        && text(data.message, 2000)
+        && data.message.trim().size() > 0
+        && (!('email' in data) || (text(data.email, 254)
+          && data.email.matches('^[^@\\s]+@[^@\\s]+[.][^@\\s]+$')))
+        && data.createdAt == request.time
+        && text(data.appVersion, 100)
+        && (!('uid' in data) || (signedIn() && data.uid == request.auth.uid));
+    }
+
     match /users/{uid} {
       allow get: if isOwner(uid);
       allow list: if false;
@@ -194,6 +210,11 @@ service cloud.firestore {
         allow create, update: if isMember(deckId) && validCard(cardId);
         allow delete: if false;
       }
+    }
+
+    match /feedback/{id} {
+      allow create: if validFeedback();
+      allow read, update, delete: if false;
     }
   }
 }

@@ -67,6 +67,7 @@ try {
         if (id.endsWith('/src/cloud-sync.ts')) return `
           import * as real from '/src/cloud-sync.ts?real';
           export const cloudTransport = real.cloudTransport;
+          export const sendFeedback = real.sendFeedback;
           export function cloudSyncPass(control) { return window.syncOutcome ? window.syncOutcome() : real.cloudSyncPass(control) }
         `
         if (id.endsWith('/src/provision.ts')) return `

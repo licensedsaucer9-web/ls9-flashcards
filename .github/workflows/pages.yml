@@ -35,6 +35,7 @@ jobs:
       - run: npm run test:speech-input-ui
       - run: npm run test:speech-page
       - run: npm run test:update-ui
+      - run: npm run test:feedback-ui
       - run: npm run test:sw-navigation
       - name: Set up Java for the Firestore emulator
         uses: actions/setup-java@v4
