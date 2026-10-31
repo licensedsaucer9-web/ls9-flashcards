@@ -96,8 +96,15 @@ layer around it. Do not fork it.
 
 1. **Normalise the transcript** with `answerKey()` (NFC, case, typography,
    punctuation, German ä/ö/ü/ß ↔ ae/oe/ue/ss). Speech also needs extra
-   handling: strip filler words at the edges (äh, ähm, eh, ehm, um, uh, öh),
-   collapse repeated words ("der der Hund"), and map spelled-out ↔ digit
+   handling: strip filler words at the edges, using a list chosen by the
+   answer-side language. Never use one shared list: German `um` is a
+   preposition and separable prefix ("um sieben", "um zu", "steig um"),
+   so it is a filler only for English. Lists hold only sounds that are not
+   words in that language. Proposed: de äh, ähm, öh, öhm; en um, uh, er, erm;
+   es eh, ehm; nb eh, ehm, øh.
+   Also never strip a token that appears as a word in any accepted answer
+   for the card, and never strip if that would leave the transcript empty.
+   Then collapse repeated words ("der der Hund"), and map spelled-out ↔ digit
    numbers for cards whose answer is a number. Recognisers often write
    "3" for "drei".
 2. **Accents.** Unlike typing, the learner cannot "misspell" an accent. The
@@ -210,7 +217,9 @@ it is out of scope here.
 
 - **Unit (Node, `scripts/speech-input-test.mjs`, added to `npm test`):**
   `matchSpoken` tables per language. Cover umlaut/ß variants, stripped accents
-  (es "árbol" → "arbol"), fillers, repeated words, numbers, wrong-gender
+  (es "árbol" → "arbol"), per-language fillers (de "um" kept as an answer
+  or its first word; en "um" stripped; a filler that is also an accepted
+  answer kept), repeated words, numbers, wrong-gender
   articles, alternatives with glosses, and the `close` threshold edges. Also
   check `listenAvailable()` is false outside a browser and `listenEnabled()`
   is false by default, as `speech-test.mjs` does.
