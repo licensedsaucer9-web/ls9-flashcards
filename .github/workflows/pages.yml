@@ -32,6 +32,7 @@ jobs:
       - run: npm run test:themes-ui
       - run: npm run test:hard-mode-ui
       - run: npm run test:speech-ui
+      - run: npm run test:speech-input-ui
       - run: npm run test:speech-page
       - run: npm run test:update-ui
       - run: npm run test:sw-navigation

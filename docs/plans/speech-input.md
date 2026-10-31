@@ -1,6 +1,10 @@
 # Plan: speech input (spoken answers)
 
-Status: proposal for #150. Nothing here is implemented. The code, tests and
+Status: proposal for #150. Phase 0 (device test page) and Phase 1 (Settings
+switch and Hard-mode mic, #158) are implemented; Phase 1 follows the device
+results: no Home Screen hint (decision 4 dropped, the Home Screen app works on
+iOS 18.7) and app-side start/silence/stable/hard timeouts. The rest is not
+implemented. The code, tests and
 `docs/architecture.md` stay authoritative; this file describes a possible next
 step and should be removed or archived once it ships or is dropped.
 

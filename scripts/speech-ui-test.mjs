@@ -60,7 +60,7 @@ try {
 
   const { context, page } = await open(fakeSpeech)
   await page.goto(`${base}/#/settings`)
-  const toggle = page.getByRole('switch', { name: 'Speech' })
+  const toggle = page.getByRole('switch', { name: 'Speech', exact: true })
   await toggle.waitFor()
   assert.equal(await toggle.isChecked(), false, 'speech is off by default')
   assert.equal(await toggle.isDisabled(), false)
@@ -142,7 +142,7 @@ try {
   await missing.page.goto(`${base}/#/settings`)
   await missing.page.evaluate(() => localStorage.setItem('german-flashcards.speech', 'true'))
   await missing.page.reload()
-  const missingToggle = missing.page.getByRole('switch', { name: 'Speech' })
+  const missingToggle = missing.page.getByRole('switch', { name: 'Speech', exact: true })
   await missingToggle.waitFor()
   assert.equal(await missingToggle.isDisabled(), true, 'toggle disabled without the API')
   assert.match(await missing.page.locator('#speech-note').textContent(), /not available in this browser/)

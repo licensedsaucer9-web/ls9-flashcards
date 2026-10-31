@@ -329,6 +329,25 @@ otherwise the browser picks. Unknown languages leave the choice to the browser.
 Without the API the button is hidden and the switch says speech is unavailable.
 Speech is cancelled when the card changes or review is left.
 
+A separate Speech input switch (`<prefix>.speech-input`, same rules: off by
+default, this browser only, never synced) adds a 🎤 “Answer by voice” button
+beside the Hard-mode answer field, only when the answer is in the target
+language (`en-de`) and the browser has `SpeechRecognition` or
+`webkitSpeechRecognition`. Otherwise the button is not rendered; without the
+API the switch is disabled. The note says audio may go to Apple or Google
+servers. A tap cancels speech output and starts one recognition in the deck's
+target language (`src/speech-input.ts`); a second tap stops it. The transcript
+fills the answer field for the learner to check and submit, so grading is the
+typed path. Because Safari has no silence timeout and may stall, the app shows
+“Starting…” until the engine starts (up to 8 s; up to 30 s while microphone
+access still reads `prompt`, since Safari may keep that state after a grant
+without a change event), ends a silent attempt after
+7 s, accepts an interim result that stays unchanged for 1.5 s when no final
+arrives, and stops any attempt after 15 s. Each finished attempt is aborted and
+detached, so a late error (such as a muted `audio-capture`) cannot affect the
+next one. Listening is aborted on repaint or card change, on leaving review and
+when the tab is hidden. No audio or transcript is stored.
+
 ### Hard mode
 
 Review offers a Hard mode switch, off by default and remembered in this browser
