@@ -161,6 +161,34 @@
   --backdrop: rgb(58 40 23 / 40%);
 }
 
+/* Dissonant: deliberately clashing hues (acid green, hot orange, magenta,
+   muddy purple) on mismatched dark surfaces; every text pair stays AA. */
+:root[data-theme='dissonant'] {
+  color-scheme: dark;
+  --bg: #2a1636;
+  --bg-elev: #2f2c0c;
+  --surface: #0c3434;
+  --surface-2: #4a1230;
+  --line: #ff5f1f;
+  --text: #c6ff00;
+  --muted: #ffaad9;
+  --der: #ffb000;
+  --die: #00e5ff;
+  --das: #ff8af0;
+  --none: #e6e6a8;
+  --again: #ff8c42;
+  --hard: #5cffd6;
+  --good: #ff70d8;
+  --easy: #f4ff52;
+  --gender: #a8ff8a;
+  --shadow: rgb(255 95 31 / 30%);
+  --backdrop: rgb(20 40 0 / 75%);
+  --clash-orange: #ff5f1f;
+  --clash-magenta: #ff2bd6;
+  --clash-cyan: #00e5ff;
+  --clash-ink: #1a0d24;
+}
+
 #theme:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 3px;
@@ -1412,6 +1440,74 @@ p code {
 
 :root[data-theme='coffee'] :is(.chip.is-on, .seg button.is-on) {
   border-color: #e0a96d;
+}
+
+/* Dissonant: accents that refuse to match. Static only, so nothing moves. */
+:root[data-theme='dissonant'] .primary {
+  background: var(--clash-orange);
+  color: var(--clash-ink);
+}
+
+:root[data-theme='dissonant'] :is(.chip.is-on, .badge.due) {
+  background: var(--clash-magenta);
+  color: var(--clash-ink);
+  border-color: var(--clash-cyan);
+}
+
+/* Faded due counts drop below AA on the magenta fill, so keep them solid. */
+:root[data-theme='dissonant'] .chip.is-on.type-chip small {
+  opacity: 1;
+}
+
+:root[data-theme='dissonant'] .seg button.is-on {
+  background: var(--clash-cyan);
+  color: var(--bg);
+  border-color: var(--clash-magenta);
+}
+
+:root[data-theme='dissonant'] .tab.is-active {
+  color: var(--clash-magenta);
+}
+
+:root[data-theme='dissonant'] .progress-fill {
+  background: var(--clash-magenta);
+}
+
+:root[data-theme='dissonant'] .progress-track {
+  background: var(--bg-elev);
+}
+
+:root[data-theme='dissonant'] .face {
+  border: 2px solid var(--clash-magenta);
+  box-shadow: 6px 6px 0 var(--clash-orange), -4px -4px 0 var(--clash-cyan);
+}
+
+/* Keep the der/die/das ring inside the offset shadows. */
+:root[data-theme='dissonant'] .face:is(.gender-der, .gender-die, .gender-das) {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ring) 55%, transparent),
+    6px 6px 0 var(--clash-orange), -4px -4px 0 var(--clash-cyan);
+}
+
+:root[data-theme='dissonant'] .face.gender-der { --ring: var(--der); }
+:root[data-theme='dissonant'] .face.gender-die { --ring: var(--die); }
+:root[data-theme='dissonant'] .face.gender-das { --ring: var(--das); }
+
+:root[data-theme='dissonant'] .grade {
+  border: 2px solid var(--clash-cyan);
+}
+
+:root[data-theme='dissonant'] :is(.grade.good, .grade.gender) {
+  border-color: var(--clash-orange);
+}
+
+:root[data-theme='dissonant'] :is(h1, h2) {
+  text-decoration: underline wavy var(--clash-orange);
+  text-underline-offset: 6px;
+}
+
+:root[data-theme='dissonant'] :focus-visible {
+  outline: 3px dashed var(--clash-magenta);
+  outline-offset: 3px;
 }
 
 .answer-row { display: flex; gap: 8px; align-items: center; }

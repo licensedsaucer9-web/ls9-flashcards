@@ -73,7 +73,7 @@ Ordinary builds remove the obsolete `german-flashcards.github` and
 GitHub data transport, and the published Firebase app has no GitHub writer.
 The archived legacy repository is a frozen pre-Firebase recovery snapshot.
 
-Theme selection (Dark, Light, Halloween, Christmas, NeoPunk, Nature or Coffee) is stored in the browser’s localStorage under
+Theme selection (Dark, Light, Halloween, Christmas, NeoPunk, Nature, Coffee or Dissonant) is stored in the browser’s localStorage under
 the build’s storage prefix, independently of accounts, decks, and Firestore.
 Startup restores it before rendering the app; missing or invalid choices use
 the original Dark palette. If storage is blocked, switching still works for
@@ -84,6 +84,8 @@ NeoPunk adds neon glow, uppercase headings with a glitch animation and a CRT
 scanline layer painted behind the app (it never covers cards or takes pointer
 events); with `prefers-reduced-motion: reduce` it keeps the static glow and
 runs no animations or transitions. Coffee is a warm espresso/cream palette.
+Dissonant is intentionally jarring (acid green, hot orange, magenta, muddy
+purple, mismatched accents) yet keeps WCAG AA text contrast and has no motion.
 
 ## Firestore layout
 
