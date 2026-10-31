@@ -1232,6 +1232,12 @@ async function renderCloudSettings() {
     <section class="screen scroll">
       <header class="topbar"><h1>Settings</h1><span class="badge">${esc(accountBadge())}</span></header>
       <div class="setting">
+        <p class="kicker" style="margin:0">App version</p>
+        <p class="note" id="app-version" data-version="${esc(buildInfo.version)}" data-source="${esc(buildInfo.sourceCommit)}">Version ${esc(buildInfo.version)} · ${esc(buildInfo.sourceCommit.slice(0, 7))}${buildInfo.sourceDirty ? ' (local changes)' : ''}</p>
+        <button type="button" class="secondary" id="check-update">Check for update</button>
+        <p class="note" id="update-status" role="status" aria-live="polite"></p>
+      </div>
+      <div class="setting">
         <label for="theme">Theme</label>
         <select id="theme" aria-describedby="theme-note">
           ${themes.map((theme) => `<option value="${theme}" ${currentTheme() === theme ? 'selected' : ''}>${themeLabels[theme]}</option>`).join('')}
@@ -1250,12 +1256,6 @@ async function renderCloudSettings() {
       <div class="setting">
         <p class="kicker" style="margin:0">Starter content</p>
         <p class="note">French/Spanish vocabulary and examples © 2026 LS9 Flashcards. Frequency ranks adapted from <a href="https://github.com/hermitdave/FrequencyWords" target="_blank" rel="noopener noreferrer">Hermit Dave’s FrequencyWords</a>, OpenSubtitles 2018 via OPUS. Curated content and derived rankings are licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>.</p>
-      </div>
-      <div class="setting">
-        <p class="kicker" style="margin:0">App version</p>
-        <p class="note" id="app-version" data-version="${esc(buildInfo.version)}" data-source="${esc(buildInfo.sourceCommit)}">Version ${esc(buildInfo.version)} · ${esc(buildInfo.sourceCommit.slice(0, 7))}${buildInfo.sourceDirty ? ' (local changes)' : ''}</p>
-        <button type="button" class="secondary" id="check-update">Check for update</button>
-        <p class="note" id="update-status" role="status" aria-live="polite"></p>
       </div>
       <div class="setting">
         <p class="kicker" style="margin:0">Install</p>
