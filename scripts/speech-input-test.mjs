@@ -26,7 +26,7 @@ const run = (lang = 'de-DE', permission) => {
   }, FakeRecognition, permission)
   return { rec: made[0], events, done, session }
 }
-setListenTimings({ startMs: 60, silenceMs: 80, stableMs: 30, hardMs: 150 })
+setListenTimings({ startMs: 60, promptMs: 300, silenceMs: 80, stableMs: 30, hardMs: 150 })
 
 {
   const { rec, events, done } = run('es-ES')
@@ -95,6 +95,16 @@ setListenTimings({ startMs: 60, silenceMs: 80, stableMs: 30, hardMs: 150 })
   rec.result('Maus', true)
   assert.deepEqual(await done, { kind: 'heard', transcript: 'Maus', final: true })
   assert.deepEqual(events, ['listening', 'done'])
+}
+{
+  // Safari can stay on 'prompt' with no change event; a hung start still ends.
+  const status = new EventTarget()
+  status.state = 'prompt'
+  const t = Date.now()
+  const { rec, done } = run('de-DE', async () => status)
+  assert.deepEqual(await done, { kind: 'no-start' }, 'prompt cut-off ends a hung start')
+  assert.ok(Date.now() - t >= 290)
+  assert.equal(rec.aborted, 1)
 }
 {
   // Granted access keeps the cut-off; a failed query falls back to it.
@@ -173,4 +183,4 @@ setListenTimings({ startMs: 60, silenceMs: 80, stableMs: 30, hardMs: 150 })
   assert.deepEqual(outcome, { kind: 'error', error: 'start-failed' })
 }
 setListenTimings(null)
-console.log('speech input: detection, default off, final/interim/silence/start/prompt/hard timeouts, late errors, single attempt ok')
+console.log('speech input: detection, default off, final/interim/silence/start/prompt/stuck-prompt/hard timeouts, late errors, single attempt ok')

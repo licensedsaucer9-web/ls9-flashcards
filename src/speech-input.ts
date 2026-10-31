@@ -58,8 +58,10 @@ export function chooseListen(value: boolean): boolean {
 }
 
 // Safari never ends a silent attempt on its own, can stall after interim
-// results, and its first start can take over 4 s. Tests shorten these.
-const defaultTimings = { startMs: 8000, silenceMs: 7000, stableMs: 1500, hardMs: 15000 }
+// results, and its first start can take over 4 s. promptMs is the longer
+// start cut-off while microphone access reads 'prompt': Safari can keep that
+// state after a grant and fire no change. Tests shorten these.
+const defaultTimings = { startMs: 8000, promptMs: 30000, silenceMs: 7000, stableMs: 1500, hardMs: 15000 }
 let timings = { ...defaultTimings }
 export function setListenTimings(next: Partial<typeof defaultTimings> | null): void {
   timings = { ...defaultTimings, ...next }
@@ -163,11 +165,11 @@ export function listen(
     else endWithInterim({ kind: 'error', error: event.error ?? 'unknown' })
   }
   rec.onend = () => endWithInterim({ kind: 'silence' })
-  // The start cut-off must not run while a microphone prompt waits for the
-  // user, so it is armed once access is known to be granted (or unknowable).
-  const armStart = () => {
+  // An unanswered microphone prompt gets the longer cut-off; the normal one
+  // starts once access is known to be granted (or unknowable).
+  const armStart = (ms = timings.startMs) => {
     if (done || listening) return
-    timer('start', timings.startMs, () => end({ kind: 'no-start' }))
+    timer('start', ms, () => end({ kind: 'no-start' }))
   }
   try {
     rec.start()
@@ -177,6 +179,7 @@ export function listen(
   }
   void permission().then(status => {
     if (!status || status.state !== 'prompt') return armStart()
+    armStart(timings.promptMs)
     const changed = () => {
       if (status.state === 'prompt') return
       unwatch()
@@ -185,6 +188,6 @@ export function listen(
     status.addEventListener('change', changed)
     unwatch = () => status.removeEventListener('change', changed)
     if (done) unwatch()
-  }, armStart)
+  }, () => armStart())
   return session
 }

@@ -63,7 +63,7 @@ try {
     if (!await page.isChecked('#hard-mode')) await page.check('#hard-mode')
     await page.click('#start'); await page.waitForSelector('#answer')
     // Short cut-offs keep the test fast; the module is shared with the app.
-    await page.evaluate(async () => (await import('/src/speech-input.ts')).setListenTimings({ startMs: 400, silenceMs: 300, stableMs: 150, hardMs: 700 }))
+    await page.evaluate(async () => (await import('/src/speech-input.ts')).setListenTimings({ startMs: 400, promptMs: 1500, silenceMs: 300, stableMs: 150, hardMs: 700 }))
   }
   const mic = page => page.locator('[data-listen]')
   const status = async page => (await page.locator('#listen-status').textContent()).trim()
@@ -137,8 +137,9 @@ try {
   await page.waitForTimeout(700)
   assert.equal(await status(page), 'Starting…', 'still waiting on the prompt')
   assert.equal(await mic(page).getAttribute('aria-pressed'), 'true')
-  await mic(page).click()
+  // Safari can stay on 'prompt' after a grant; the longer cut-off still ends it.
   await idle(page)
+  assert.match(await status(page), /did not start/)
 
   // A start that never happens times out instead of hanging in "Starting…".
   await context.grantPermissions(['microphone'], { origin: base })
@@ -217,7 +218,7 @@ try {
   await missing.context.close()
 
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('speech input UI: default off, hidden/shown, deck language, final/interim/silence/hung/no-start, prompt not timed, muted errors, abort on hide and leave, de-en and flip hidden, unavailable API: ok')
+  console.log('speech input UI: default off, hidden/shown, deck language, final/interim/silence/hung/no-start, prompt gets longer cut-off, muted errors, abort on hide and leave, de-en and flip hidden, unavailable API: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()

@@ -339,8 +339,9 @@ servers. A tap cancels speech output and starts one recognition in the deck's
 target language (`src/speech-input.ts`); a second tap stops it. The transcript
 fills the answer field for the learner to check and submit, so grading is the
 typed path. Because Safari has no silence timeout and may stall, the app shows
-“Starting…” until the engine starts (up to 8 s, not counting an unanswered
-microphone permission prompt), ends a silent attempt after
+“Starting…” until the engine starts (up to 8 s; up to 30 s while microphone
+access still reads `prompt`, since Safari may keep that state after a grant
+without a change event), ends a silent attempt after
 7 s, accepts an interim result that stays unchanged for 1.5 s when no final
 arrives, and stops any attempt after 15 s. Each finished attempt is aborted and
 detached, so a late error (such as a muted `audio-capture`) cannot affect the
