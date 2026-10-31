@@ -1601,6 +1601,12 @@ p code {
 :root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) :is(.tab.is-active, h1) {
   color: var(--pastel-accent);
 }
+/* The accent label would drop below AA on the usual --surface-2 hover fill. */
+@media (hover: hover) and (pointer: fine) {
+  :root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) .tab.is-active:hover {
+    background: var(--bg-elev);
+  }
+}
 :root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) .progress-fill {
   background: var(--pastel-accent);
 }
