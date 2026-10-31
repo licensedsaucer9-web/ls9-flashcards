@@ -59,9 +59,9 @@ try {
   await page.reload(); await select.waitFor()
   assert.equal(await select.inputValue(), 'dark', 'switching back persists too')
   assert.deepEqual(await select.locator('option').evaluateAll(options => options.map(o => [o.value, o.textContent])), [
-    ['dark', 'Dark'], ['light', 'Light'], ['halloween', 'Halloween'], ['christmas', 'Christmas'], ['neopunk', 'NeoPunk'], ['nature', 'Nature'], ['coffee', 'Coffee'],
+    ['dark', 'Dark'], ['light', 'Light'], ['halloween', 'Halloween'], ['christmas', 'Christmas'], ['neopunk', 'NeoPunk'], ['nature', 'Nature'], ['coffee', 'Coffee'], ['dissonant', 'Dissonant'],
   ], 'picker lists every theme')
-  const seasonal = { halloween: ['#120b1a', 'dark'], christmas: ['#0d2618', 'dark'], neopunk: ['#07060d', 'dark'], nature: ['#f2f0e1', 'light'], coffee: ['#1c120b', 'dark'] }
+  const seasonal = { halloween: ['#120b1a', 'dark'], christmas: ['#0d2618', 'dark'], neopunk: ['#07060d', 'dark'], nature: ['#f2f0e1', 'light'], coffee: ['#1c120b', 'dark'], dissonant: ['#2a1636', 'dark'] }
   for (const [theme, [bg, scheme]] of Object.entries(seasonal)) {
     await select.selectOption(theme)
     assert.deepEqual(await palette(), { bg, scheme, meta: bg }, `${theme} palette and theme-color`)
@@ -127,6 +127,53 @@ try {
   assert.deepEqual(rings.map(shadow => shadow.includes('inset')), [true, true, true, false], 'NeoPunk keeps gender rings on noun cards')
   assert.equal(new Set(rings).size, 4, 'each gender ring has its own colour')
   await page.emulateMedia({ reducedMotion: null })
+  // Dissonant: jarring accents, but every rendered text sits on its surface at
+  // AA contrast and UI boundaries reach 3:1, in Settings and on Review.
+  const rendered = () => page.evaluate(() => {
+    const rgb = value => (value.match(/[\d.]+/g) || []).map(Number)
+    const lum = ([r, g, b]) => [r, g, b].map(v => v / 255)
+      .map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+      .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0)
+    const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05) }
+    const surface = el => {
+      for (let node = el; node; node = node.parentElement) {
+        const c = rgb(getComputedStyle(node).backgroundColor)
+        if (c.length === 3 || c[3] > 0) return c
+      }
+      return rgb(getComputedStyle(document.documentElement).getPropertyValue('--bg').trim().replace(/^#(..)(..)(..)$/, (_, r, g, b) => `${parseInt(r, 16)} ${parseInt(g, 16)} ${parseInt(b, 16)}`))
+    }
+    const failures = []
+    const visible = el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden'
+    for (const el of document.querySelectorAll('.screen *, .tabbar *')) {
+      if (!visible(el) || ![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue
+      const r = ratio(rgb(getComputedStyle(el).color), surface(el))
+      if (r < 4.5) failures.push(`${el.tagName.toLowerCase()}.${el.className} "${el.textContent.trim().slice(0, 20)}" ${r.toFixed(2)}`)
+    }
+    for (const el of document.querySelectorAll('.screen :is(button, input, select, textarea, .grade)')) {
+      const css = getComputedStyle(el)
+      if (!visible(el) || parseFloat(css.borderTopWidth) === 0) continue
+      const r = ratio(rgb(css.borderTopColor), surface(el.parentElement))
+      if (r < 3) failures.push(`border ${el.tagName.toLowerCase()}#${el.id}.${el.className} ${r.toFixed(2)}`)
+    }
+    return { failures, checked: document.querySelectorAll('.screen *').length, running: document.getAnimations().length }
+  })
+  await select.selectOption('dissonant')
+  const settingsCheck = await rendered()
+  assert.deepEqual(settingsCheck.failures, [], 'Dissonant Settings text and controls meet WCAG AA')
+  assert.equal(settingsCheck.running, 0, 'Dissonant has no animations')
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar h1')).animationName), 'none')
+  await page.goto('http://127.0.0.1:4191/#/'); await page.waitForSelector('#start')
+  assert.deepEqual((await rendered()).failures, [], 'Dissonant home and primary button meet WCAG AA')
+  await page.click('#start'); await page.waitForSelector('#card')
+  assert.deepEqual((await rendered()).failures, [], 'Dissonant Review front meets WCAG AA')
+  await page.click('#card'); await page.waitForSelector('.grades:not([hidden])')
+  assert.deepEqual((await rendered()).failures, [], 'Dissonant Review grades meet WCAG AA')
+  if (process.env.THEME_SCREENSHOTS) await page.screenshot({ path: '/tmp/flashcards-theme-dissonant-review.png', fullPage: true })
+  for (const route of ['/deck', '/decks']) {
+    await page.goto(`http://127.0.0.1:4191/#${route}`); await page.waitForSelector('.screen')
+    assert.deepEqual((await rendered()).failures, [], `Dissonant ${route} meets WCAG AA`)
+  }
+  await page.goto('http://127.0.0.1:4191/#/settings'); await select.waitFor()
   await select.selectOption('dark')
   assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar h1')).animationName), 'none', 'other themes do not glitch')
   const after = await page.evaluate(async () => {
@@ -155,7 +202,7 @@ try {
   assert.equal(await blockedPage.locator('#theme').inputValue(), 'dark', 'blocked storage does not prevent startup')
   await blocked.close()
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('themes UI: keyboard switching, all seven palettes and contrast, NeoPunk effects, gender rings and reduced motion, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
+  console.log('themes UI: keyboard switching, all eight palettes and contrast, Dissonant rendered contrast, NeoPunk effects, gender rings and reduced motion, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()
