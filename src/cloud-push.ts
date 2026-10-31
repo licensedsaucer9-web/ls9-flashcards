@@ -104,26 +104,33 @@ export async function pullDeckCards(db: Firestore, deckId: string): Promise<Clou
  * What a pull reads. With `since` (server time) only cards, progress and activity written after it
  * are read. Without it every card and progress record is read, and
  * activity is read from `activityFrom` (a review time) onwards, or all of it when that is absent too.
+ * `activitySince` (server time) adds the activity written after it to an `activityFrom` read, so an
+ * old review that reached the cloud after the last pull still arrives.
  * Settings are one document and are always read.
  */
-export type PullOptions = { since?: number | null; activityFrom?: number | null }
+export type PullOptions = { since?: number | null; activityFrom?: number | null; activitySince?: number | null }
 
 /** `cursor` is the newest server write time seen, or null when no document carried one. */
 export type PulledDocs = CloudDocs & { cursor: number | null; reads: number }
 
 export async function pullCloud(db: Firestore, uid: string, deckId: string, extra = false, options: PullOptions = {}): Promise<PulledDocs> {
   const userPath = extra ? ['users', uid, 'decks', deckId] : ['users', uid]
-  const since = typeof options.since === 'number' ? Timestamp.fromMillis(Math.max(0, options.since)) : null
-  const changed = (base: Query): Query => since ? query(base, where(SYNCED_AT, '>', since)) : base
+  const after = (time: number | null | undefined) => typeof time === 'number' ? Timestamp.fromMillis(Math.max(0, time)) : null
+  const since = after(options.since)
+  const changedSince = (base: Query, time: Timestamp | null): Query => time ? query(base, where(SYNCED_AT, '>', time)) : base
+  const changed = (base: Query): Query => changedSince(base, since)
   const activityBase = collection(db, 'users', uid, 'activity')
+  const activityFrom = !since && typeof options.activityFrom === 'number' ? options.activityFrom : null
   const activityQuery = since ? changed(activityBase)
-    : typeof options.activityFrom === 'number' ? query(activityBase, where('at', '>=', options.activityFrom))
+    : activityFrom !== null ? query(activityBase, where('at', '>=', activityFrom))
     : activityBase
-  const [cardsSnap, progressSnap, settingsSnap, activitySnap] = await Promise.all([
+  const activitySince = activityFrom !== null ? after(options.activitySince) : null
+  const [cardsSnap, progressSnap, settingsSnap, activitySnap, lateActivitySnap] = await Promise.all([
     getDocs(changed(collection(db, 'decks', deckId, 'cards'))),
     getDocs(changed(collection(db, userPath[0], ...userPath.slice(1), 'progress'))),
     getDoc(doc(db, userPath[0], ...userPath.slice(1), 'settings', 'current')),
     getDocs(activityQuery),
+    activitySince ? getDocs(changedSince(activityBase, activitySince)) : Promise.resolve(null),
   ])
   let cursor: number | null = null
   const seen = (item: QueryDocumentSnapshot) => {
@@ -146,11 +153,14 @@ export async function pullCloud(db: Firestore, uid: string, deckId: string, extr
     tier: extra ? 4 as const : 1 as const,
     settingsUpdatedAt: 0,
   }
-  for (const item of activitySnap.docs) seen(item)
-  const { activity, skipped } = filterReviewEvents(activitySnap.docs.map((item) => ({ id: item.id, data: withoutSyncedAt(item.data()) })))
+  // Recent events that also changed after the cursor come back from both queries.
+  const activityDocs = new Map(activitySnap.docs.map((item) => [item.id, item]))
+  for (const item of lateActivitySnap?.docs ?? []) activityDocs.set(item.id, item)
+  for (const item of activityDocs.values()) seen(item)
+  const { activity, skipped } = filterReviewEvents([...activityDocs.values()].map((item) => ({ id: item.id, data: withoutSyncedAt(item.data()) })))
   if (skipped) console.warn(`Skipped ${skipped} invalid cloud review activity events`)
   // A query that matches nothing is still billed as one read.
-  const reads = [cardsSnap, progressSnap, activitySnap].reduce((sum, snap) => sum + Math.max(1, snap.size), 1)
+  const reads = [cardsSnap, progressSnap, activitySnap, ...(lateActivitySnap ? [lateActivitySnap] : [])].reduce((sum, snap) => sum + Math.max(1, snap.size), 1)
   return { cards, progress, settings, activity, cursor, reads }
 }
 

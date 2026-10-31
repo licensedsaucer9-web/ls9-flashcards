@@ -479,6 +479,17 @@ try {
   assert(await commitCard(caraSecond, CARA, 'c3', null, 1) === 'noop', 'an older tombstone does not rewrite the card')
   const settled = await pullCloud(cara, CARA, CARA, false, { since: changes.cursor })
   assert(settled.reads === 4, 'nothing after the newest change is read again')
+  // A review older than the recent window that a long-offline device uploads after the cursor still
+  // arrives in the daily full pull, beside the recent events.
+  const lateId = randomUUID()
+  assert(await commitActivity(caraSecond, CARA, lateId, { at: Date.now() - 45 * DAY, timeZone: 'Europe/Oslo' }) === 'wrote', 'an old review is uploaded late')
+  const lateDaily = await pullCloud(cara, CARA, CARA, false, { activityFrom: Date.now() - 30 * DAY, activitySince: changes.cursor })
+  assert(lateDaily.activity.length === 12 && lateDaily.activity.some(row => row.id === lateId) && lateDaily.activity.some(row => row.id === reviewId),
+    'the daily full pull reads recent activity and activity changed since the cursor')
+  assert(lateDaily.cursor > changes.cursor, 'and the cursor moves past the late review')
+  assert(lateDaily.reads === 41 + 25 + 11 + 1 + 1, `the daily full pull reads ${lateDaily.reads}`)
+  const recentOnly = await pullCloud(cara, CARA, CARA, false, { activityFrom: Date.now() - 30 * DAY })
+  assert(!recentOnly.activity.some(row => row.id === lateId), 'without activitySince the late review is missed')
 
   // A client from before #171 writes no syncedAt. The incremental pull misses it; the daily full pull does not.
   await setDoc(doc(caraSecond, 'decks', CARA, 'cards', 'c-old-client'), cardDoc('c-old-client', { de: 'alt' }))

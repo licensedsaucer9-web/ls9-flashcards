@@ -99,15 +99,18 @@ export { PULL_OVERLAP_MS }
  * How the next pull reads, from the cursor the deck's last pull stored. The first pull reads
  * everything, including all review history. A daily full pull (or one while no pulled document has
  * a server write time yet) re-reads cards and progress so writes from older clients without that
- * time still arrive, but only recent activity. Otherwise only changes since the cursor are read,
- * reaching back the overlap until a pull has re-read that window once.
+ * time still arrive; of the activity it reads recent events plus any changed since the cursor, so an
+ * old review another device uploaded late is not skipped. Otherwise only changes since the cursor
+ * are read, reaching back the overlap until a pull has re-read that window once.
  */
 export function pullPlan(cursor: PullCursor | null, now: number): { kind: 'first' | 'full' | 'changes'; options: PullOptions } {
   if (!cursor) return { kind: 'first', options: {} }
+  // No pulled document had a server write time, so every stamped event is newer than the last pull.
+  const since = cursor.at === null ? 0 : cursor.settled ? cursor.at : cursor.at - PULL_OVERLAP_MS
   if (cursor.at === null || now - cursor.fullAt >= FULL_PULL_INTERVAL_MS) {
-    return { kind: 'full', options: { activityFrom: now - RECENT_ACTIVITY_MS } }
+    return { kind: 'full', options: { activityFrom: now - RECENT_ACTIVITY_MS, activitySince: since } }
   }
-  return { kind: 'changes', options: { since: cursor.settled ? cursor.at : cursor.at - PULL_OVERLAP_MS } }
+  return { kind: 'changes', options: { since } }
 }
 
 /** The cursor after a merged pull that started at device time `startedAt` and saw server write times up to `seen`. */
@@ -180,12 +183,13 @@ export async function cloudSyncPass(control: { requestAgain: () => void; light?:
       if (!studyLockCurrent(lock)) return 'idle'
       if (original) await applyStagedProgress(scope)
       if (!studyLockCurrent(lock)) return 'idle'
-      // Advance only past records this deck really merged; a skipped merge must be read again.
+      // Advance only past records this deck really merged; a skipped merge must be read again,
+      // so it does not count as a fresh pull either.
       if (deckMerge.applied && progressMerge.applied) {
         await recordPullCursor(nextCursor(pullKey, stored, plan, docs.cursor ?? null, startedAt), scope)
         if (!studyLockCurrent(lock)) return 'idle'
+        lastPull.set(pullKey, now())
       }
-      lastPull.set(pullKey, now())
     }
     const snapshot = await readCloudSnapshot(scope)
     if (!studyLockCurrent(lock)) return 'idle'

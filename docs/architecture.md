@@ -197,9 +197,11 @@ the cursor; until one pull has re-read it, that query also reaches two minutes
 behind the cursor. Card deletions are tombstone documents, so they arrive the
 same way. Once a day (and while no pulled document has a `syncedAt` yet) a
 full pull re-reads every card and progress record, so writes from clients
-older than the cursor still arrive, but only the last 30 days of activity.
-The cursor is stored only after both merges applied, and it is removed with
-its deck. Settings are a single document and are read on every pull.
+older than the cursor still arrive. Of the activity it reads the last 30 days
+plus every event with `syncedAt` after the cursor, so an older review another
+device uploaded late still arrives. The cursor is stored, and the pull counts
+as recent for the light and foreground intervals below, only after both
+merges applied; the cursor is removed with its deck. Settings are a single document and are read on every pull.
 
 A pass after a local change (a *light* pass) skips the pull while one for that
 deck finished less than five minutes ago and only pushes the dirty records;
@@ -420,7 +422,7 @@ one schedule. Conflicting payloads for a UUID are refused. Activity remains afte
 card deletion and survives confirmed device copies, user-file serialization,
 private backup and isolated restore. It is separate from settings merge clocks.
 Only a device's first pull reads all activity; incremental pulls read new
-events and the daily full pull the last 30 days, so storage, not routine reads,
+events and the daily full pull the last 30 days plus new events, so storage, not routine reads,
 grows with the number of saved reviews. Acknowledged activity pending marks are removed, while
 events remain unless the owner explicitly deletes them.
 
