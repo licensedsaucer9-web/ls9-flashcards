@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { chromium } from 'playwright-core'
 import { canonicalReviewTimeZone, validReviewEvent } from '../src/streak.ts'
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing'
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore'
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg)
@@ -361,6 +361,24 @@ try {
     await denied(getDoc(doc(db(CARA), ...path)), 'language articles retain membership privacy')
   }
   await denied(setDoc(doc(db(ALICE), 'decks', 'legacy', 'cards', 'bad-article'), card({ article: 'invalid' })), 'unknown article')
+
+  // syncedAt (#171) is the server's commit time, or unchanged when an older client copies a document back.
+  const forged = Timestamp.fromMillis(Date.now() + 86_400_000)
+  const syncedCard = doc(db(ALICE), 'decks', 'legacy', 'cards', 'seed-synced')
+  await assertSucceeds(setDoc(syncedCard, card({ syncedAt: serverTimestamp() })))
+  await denied(setDoc(doc(db(ALICE), 'decks', 'legacy', 'cards', 'seed-forged'), card({ syncedAt: forged })), 'client-chosen card syncedAt')
+  await denied(setDoc(syncedCard, card({ deletedAt: 5, syncedAt: forged })), 'card syncedAt moved by the client')
+  const stamped = (await getDoc(syncedCard)).data().syncedAt
+  await assertSucceeds(setDoc(syncedCard, card({ deletedAt: 5, syncedAt: stamped })))
+  await assertSucceeds(setDoc(syncedCard, card({ deletedAt: 6 })))
+  await denied(setDoc(syncedCard, card({ deletedAt: 7, syncedAt: stamped })), 'a removed syncedAt cannot be restored by the client')
+  const syncedProgress = doc(db(ALICE), 'users', ALICE, 'progress', 'seed-synced')
+  await assertSucceeds(setDoc(syncedProgress, progress({ syncedAt: serverTimestamp() })))
+  await denied(setDoc(syncedProgress, progress({ reps: 2, syncedAt: forged })), 'client-chosen progress syncedAt')
+  await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'decks', progressDeckId, 'progress', 'seed-synced'), progress({ syncedAt: serverTimestamp() })))
+  await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'activity', randomUUID()), { ...event, syncedAt: serverTimestamp() }))
+  await denied(setDoc(doc(db(ALICE), 'users', ALICE, 'activity', randomUUID()), { ...event, syncedAt: forged }), 'client-chosen activity syncedAt')
+  await denied(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ syncedAt: serverTimestamp() })), 'settings carry no syncedAt')
   console.log('firestore rules ok')
 } finally {
   await env.cleanup()

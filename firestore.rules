@@ -80,9 +80,19 @@ service cloud.firestore {
         && (!('wordTypes' in request.resource.data) || validWordTypes(request.resource.data.wordTypes));
     }
 
+    // Server commit time of a sync write, used as the incremental-pull cursor. Optional so
+    // clients from before it still sync. It is the server's clock or, when an older client
+    // copies the stored document back, unchanged; a client cannot move it anywhere else.
+    function validSyncedAt(data) {
+      return !('syncedAt' in data)
+        || data.syncedAt == request.time
+        || (resource != null && 'syncedAt' in resource.data && data.syncedAt == resource.data.syncedAt);
+    }
+
     function validProgress(cardId) {
       return validId(cardId)
-        && request.resource.data.keys().hasOnly(['ease', 'interval', 'reps', 'due', 'updated_at'])
+        && request.resource.data.keys().hasOnly(['ease', 'interval', 'reps', 'due', 'updated_at', 'syncedAt'])
+        && validSyncedAt(request.resource.data)
         && request.resource.data.ease is number
         && request.resource.data.ease > 0
         && request.resource.data.ease <= 10
@@ -104,7 +114,8 @@ service cloud.firestore {
       let data = request.resource.data;
       return validId(cardId)
         && data.keys().hasAll(['de', 'en', 'article', 'example_de', 'example_en', 'tags', 'created_at', 'updated_at', 'deletedAt'])
-        && data.keys().hasOnly(['de', 'en', 'article', 'example_de', 'example_en', 'tags', 'created_at', 'updated_at', 'deletedAt', 'rank', 'tier'])
+        && data.keys().hasOnly(['de', 'en', 'article', 'example_de', 'example_en', 'tags', 'created_at', 'updated_at', 'deletedAt', 'rank', 'tier', 'syncedAt'])
+        && validSyncedAt(data)
         && text(data.de, 200)
         && text(data.en, 200)
         && data.article in ['der', 'die', 'das', 'le', 'la', 'l_m', 'l_f', 'el', 'el_f', 'los', 'las', 'les_m', 'les_f', 'none']
@@ -156,7 +167,8 @@ service cloud.firestore {
         allow create: if isOwner(uid)
           && eventId.matches('^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$')
           && request.resource.data.keys().hasAll(['at', 'timeZone'])
-          && request.resource.data.keys().hasOnly(['at', 'timeZone'])
+          && request.resource.data.keys().hasOnly(['at', 'timeZone', 'syncedAt'])
+          && validSyncedAt(request.resource.data)
           && clock(request.resource.data.at) && request.resource.data.at <= 253402214400000
           && text(request.resource.data.timeZone, 100)
           && request.resource.data.timeZone.matches('^(UTC|[A-Za-z_]+/[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)?)$');

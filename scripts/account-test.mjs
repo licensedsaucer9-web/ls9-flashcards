@@ -47,6 +47,8 @@ assert(!seedBeforeFirstSync(false), 'an existing account waits for its server de
 assert(retryableDeckOpen('unavailable') && retryableDeckOpen('deadline-exceeded'), 'a cold phone retries the first deck open')
 assert(retryableDeckOpen('firestore/unavailable'), 'a namespaced unavailable error is retried')
 assert(!retryableDeckOpen('permission-denied'), 'rules rejection is not a cold-start retry')
+assert(!retryableDeckOpen('resource-exhausted') && !retryableDeckOpen('firestore/resource-exhausted'), 'an exhausted daily quota is not retried')
+assert(deckOpenFailure('resource-exhausted') === 'Daily cloud limit reached, studying offline until it resets.', 'an exhausted quota says study continues offline')
 assert(deckOpenFailure('deadline-exceeded').includes('did not open'), 'a signed-in phone is told the deck did not open')
 assert(deckOpenFailure('auth/popup-blocked').includes('Safari'), 'a blocked popup asks for Safari')
 rememberCopyDecision(choices, 'uid-a', 'german-flashcards', 'skip')

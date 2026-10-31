@@ -1,4 +1,4 @@
-import { type Card, type DeckFile, type LocalDeck, type Settings, type UserFile } from './types.ts'
+import { type Card, type DeckFile, type LocalDeck, type PullCursor, type Settings, type UserFile } from './types.ts'
 import { mergeDeck, mergeProgress, newerSettings, sameSrs } from './merge.ts'
 import { applyAck, bumpMark, hasDirty, reconcileStagedProgress, type PushItem } from './record-sync.ts'
 import { newSrs } from './srs.ts'
@@ -8,7 +8,8 @@ import { activeUserSlug } from './user.ts'
 import { localDeckFile, localUserFile } from './db-cards.ts'
 import { type CloudScope, LOCAL_DECK_ID, activeCards, cloudScopeCurrent, deckTombstones, load, mergeActivityInTransaction, mergeTombstones, namesFor, normalizeSettings, openDb, publicSettings, replacePreferences, storeOriginalPreferences, txDone, value } from './db-core.ts'
 
-export type MergeResult = { deck: DeckFile; user: UserFile; revision: number; pending: boolean }
+/** `applied` is false when the binding or deck changed first and nothing was merged. */
+export type MergeResult = { deck: DeckFile; user: UserFile; revision: number; pending: boolean; applied: boolean }
 
 function untouchedMerge(user: string): MergeResult {
   const settings = normalizeSettings(null)
@@ -17,6 +18,7 @@ function untouchedMerge(user: string): MergeResult {
     user: localUserFile([], settings, user),
     revision: 0,
     pending: false,
+    applied: false,
   }
 }
 
@@ -61,6 +63,7 @@ export async function mergeDeckIntoDb(remote: DeckFile, user = activeUserSlug(),
       user: localUserFile(cards, current.settings, user, current.activity),
       revision: current.settings.localRevision,
       pending: current.settings.localRevision > current.settings.acknowledgedRevision,
+      applied: true,
     }
   } finally {
     db.close()
@@ -121,6 +124,7 @@ export async function mergeProgressIntoDb(remote: UserFile, user = activeUserSlu
       user: localUserFile(cards, current.settings, user, current.activity),
       revision: current.settings.localRevision,
       pending: current.settings.localRevision > current.settings.acknowledgedRevision,
+      applied: true,
     }
   } finally {
     db.close()
@@ -164,6 +168,45 @@ export async function acknowledgeRevision(includedRevision: number, user = activ
     await done
     if (!studyLockCurrent(lock)) return false
     return pending
+  } finally {
+    db.close()
+  }
+}
+
+/** The cursor this deck's last completed pull recorded for `key`, if any. */
+export async function readPullCursor(key: string, scope: CloudScope): Promise<PullCursor | null> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return null
+    const tx = db.transaction(['decks'], 'readonly')
+    const deck = await value(tx.objectStore('decks').get(scope.deckId)) as LocalDeck | undefined
+    const cursor = deck?.pullCursor
+    return cursor && cursor.key === key ? cursor : null
+  } finally {
+    db.close()
+  }
+}
+
+/** Call only after the pulled records were merged; a lost write just means the next pull reads more. */
+export async function recordPullCursor(cursor: PullCursor, scope: CloudScope): Promise<void> {
+  const { lock, name } = namesFor()
+  const db = await openDb(name)
+  try {
+    if (!studyLockCurrent(lock)) return
+    const tx = db.transaction(['decks', 'settings'], 'readwrite')
+    const done = txDone(tx)
+    const [deck, settings] = await Promise.all([
+      value(tx.objectStore('decks').get(scope.deckId)) as Promise<LocalDeck | undefined>,
+      value(tx.objectStore('settings').get('settings')) as Promise<Settings | undefined>,
+    ])
+    if (!deck || !settings || !cloudScopeCurrent(scope, settings)) {
+      tx.abort()
+      await done.catch(() => {})
+      return
+    }
+    tx.objectStore('decks').put({ ...deck, pullCursor: cursor })
+    await done
   } finally {
     db.close()
   }

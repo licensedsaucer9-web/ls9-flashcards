@@ -1,11 +1,40 @@
-import { collection, doc, getDoc, getDocs, runTransaction, setDoc, type Firestore } from 'firebase/firestore'
+import {
+  collection, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, Timestamp, where,
+  type DocumentData, type Firestore, type Query, type QueryDocumentSnapshot,
+} from 'firebase/firestore'
 import type { CardContent, PublicSettings, Srs } from './types.ts'
 import type { CardDoc, CloudDocs, ProgressDoc, SettingsDoc } from './firestore-docs.ts'
 import { planCardWrite, planProgressWrite, planSettingsWrite } from './record-sync.ts'
 import { newSrs } from './srs.ts'
 import { filterReviewEvents, validReviewEvent, type ReviewEvent } from './streak.ts'
 
+/**
+ * Server commit time of a card, progress or activity write, set with serverTimestamp() so an
+ * incremental pull can ask for "changed since" without trusting any device clock. Documents
+ * written before this field existed (or by an older client) lack it; the daily full pull covers them.
+ */
+export const SYNCED_AT = 'syncedAt'
+
+/**
+ * Incremental queries first reach this far behind the cursor, so a write that committed just before
+ * the newest one seen, but was not yet visible to that pull, is still read.
+ */
+export const PULL_OVERLAP_MS = 2 * 60 * 1000
+
+/** The sync clock is transport metadata, never part of the record a merge or validation sees. */
+function withoutSyncedAt(data: unknown): unknown {
+  if (!data || typeof data !== 'object' || !(SYNCED_AT in data)) return data
+  const { [SYNCED_AT]: _, ...rest } = data as Record<string, unknown>
+  return rest
+}
+
+function syncedAtMillis(data: DocumentData): number | null {
+  const value = data[SYNCED_AT]
+  return value instanceof Timestamp ? value.toMillis() : null
+}
+
 function asCard(data: unknown): CardDoc | null {
+  data = withoutSyncedAt(data)
   if (!data || typeof data !== 'object') return null
   const row = data as CardDoc
   if (typeof row.de !== 'string' || typeof row.updated_at !== 'number' || typeof row.deletedAt !== 'number') return null
@@ -13,6 +42,7 @@ function asCard(data: unknown): CardDoc | null {
 }
 
 function asProgress(data: unknown): ProgressDoc | null {
+  data = withoutSyncedAt(data)
   if (!data || typeof data !== 'object') return null
   const row = data as ProgressDoc
   if (typeof row.ease !== 'number' || typeof row.due !== 'number') return null
@@ -70,19 +100,43 @@ export async function pullDeckCards(db: Firestore, deckId: string): Promise<Clou
   })
 }
 
-export async function pullCloud(db: Firestore, uid: string, deckId: string, extra = false): Promise<CloudDocs> {
+/**
+ * What a pull reads. With `since` (server time) only cards, progress and activity written after it
+ * are read. Without it every card and progress record is read, and
+ * activity is read from `activityFrom` (a review time) onwards, or all of it when that is absent too.
+ * Settings are one document and are always read.
+ */
+export type PullOptions = { since?: number | null; activityFrom?: number | null }
+
+/** `cursor` is the newest server write time seen, or null when no document carried one. */
+export type PulledDocs = CloudDocs & { cursor: number | null; reads: number }
+
+export async function pullCloud(db: Firestore, uid: string, deckId: string, extra = false, options: PullOptions = {}): Promise<PulledDocs> {
   const userPath = extra ? ['users', uid, 'decks', deckId] : ['users', uid]
+  const since = typeof options.since === 'number' ? Timestamp.fromMillis(Math.max(0, options.since)) : null
+  const changed = (base: Query): Query => since ? query(base, where(SYNCED_AT, '>', since)) : base
+  const activityBase = collection(db, 'users', uid, 'activity')
+  const activityQuery = since ? changed(activityBase)
+    : typeof options.activityFrom === 'number' ? query(activityBase, where('at', '>=', options.activityFrom))
+    : activityBase
   const [cardsSnap, progressSnap, settingsSnap, activitySnap] = await Promise.all([
-    getDocs(collection(db, 'decks', deckId, 'cards')),
-    getDocs(collection(db, userPath[0], ...userPath.slice(1), 'progress')),
+    getDocs(changed(collection(db, 'decks', deckId, 'cards'))),
+    getDocs(changed(collection(db, userPath[0], ...userPath.slice(1), 'progress'))),
     getDoc(doc(db, userPath[0], ...userPath.slice(1), 'settings', 'current')),
-    getDocs(collection(db, 'users', uid, 'activity')),
+    getDocs(activityQuery),
   ])
+  let cursor: number | null = null
+  const seen = (item: QueryDocumentSnapshot) => {
+    const at = syncedAtMillis(item.data())
+    if (at !== null && (cursor === null || at > cursor)) cursor = at
+  }
   const cards = cardsSnap.docs.flatMap((item) => {
+    seen(item)
     const data = asCard(item.data())
     return data ? [{ id: item.id, data }] : []
   })
   const progress = progressSnap.docs.flatMap((item) => {
+    seen(item)
     const data = asProgress(item.data())
     return data ? [{ id: item.id, data }] : []
   })
@@ -92,9 +146,12 @@ export async function pullCloud(db: Firestore, uid: string, deckId: string, extr
     tier: extra ? 4 as const : 1 as const,
     settingsUpdatedAt: 0,
   }
-  const { activity, skipped } = filterReviewEvents(activitySnap.docs.map((item) => ({ id: item.id, data: item.data() })))
+  for (const item of activitySnap.docs) seen(item)
+  const { activity, skipped } = filterReviewEvents(activitySnap.docs.map((item) => ({ id: item.id, data: withoutSyncedAt(item.data()) })))
   if (skipped) console.warn(`Skipped ${skipped} invalid cloud review activity events`)
-  return { cards, progress, settings, activity }
+  // A query that matches nothing is still billed as one read.
+  const reads = [cardsSnap, progressSnap, activitySnap].reduce((sum, snap) => sum + Math.max(1, snap.size), 1)
+  return { cards, progress, settings, activity, cursor, reads }
 }
 
 export async function commitActivity(db: Firestore, uid: string, id: string, event: ReviewEvent): Promise<'wrote' | 'noop'> {
@@ -103,13 +160,13 @@ export async function commitActivity(db: Firestore, uid: string, id: string, eve
     const ref = doc(db, 'users', uid, 'activity', id)
     const snap = await tx.get(ref)
     if (snap.exists()) {
-      const remote = snap.data()
+      const remote = withoutSyncedAt(snap.data())
       if (!validReviewEvent(id, remote) || remote.at !== event.at || remote.timeZone !== event.timeZone) {
         throw new Error('Conflicting review activity')
       }
       return 'noop'
     }
-    tx.set(ref, event)
+    tx.set(ref, { ...event, [SYNCED_AT]: serverTimestamp() })
     return 'wrote'
   })
 }
@@ -127,7 +184,7 @@ export async function commitCard(
     const remote = snap.exists() ? asCard(snap.data()) : null
     const next = planCardWrite(id, local, localDeletedAt, remote)
     if (!next) return 'noop'
-    tx.set(ref, next)
+    tx.set(ref, { ...next, [SYNCED_AT]: serverTimestamp() })
     return 'wrote'
   })
 }
@@ -149,7 +206,7 @@ export async function commitProgress(
     const remote = snap.exists() ? asProgress(snap.data()) : null
     const next = planProgressWrite(local, remote)
     if (!next) return 'noop'
-    tx.set(ref, next)
+    tx.set(ref, { ...next, [SYNCED_AT]: serverTimestamp() })
     return 'wrote'
   })
 }

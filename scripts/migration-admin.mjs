@@ -4,6 +4,13 @@ import { generateKeyPairSync, randomUUID } from 'node:crypto'
 import { readPrivateJson, credentialPath } from './migration-files.mjs'
 import { same } from './migration-core.mjs'
 
+/** The app's incremental-pull cursor (#171) is sync metadata; dumps, restores and imports see account data only. */
+function withoutSyncedAt(data) {
+  if (!data) return null
+  const { syncedAt: _, ...rest } = data
+  return rest
+}
+
 export async function adminStore(projectId, { emulator = false, credential = 'service-account.json' } = {}) {
   const host = process.env.FIRESTORE_EMULATOR_HOST
   if (emulator && (!host || !projectId.startsWith('demo-'))) throw new Error('Emulator mode requires FIRESTORE_EMULATOR_HOST and a demo-* project')
@@ -25,15 +32,15 @@ export async function adminStore(projectId, { emulator = false, credential = 'se
   const app = initializeApp(options, `migration-${randomUUID()}`)
   const db = getFirestore(app)
   return {
-    get: async (path) => (await db.doc(path).get()).data() ?? null,
-    list: async (path) => (await db.collection(path).get()).docs.map((row) => ({ id: row.id, data: row.data() })),
+    get: async (path) => withoutSyncedAt((await db.doc(path).get()).data()),
+    list: async (path) => (await db.collection(path).get()).docs.map((row) => ({ id: row.id, data: withoutSyncedAt(row.data()) })),
     // Includes ids whose document is gone but a subcollection still has documents.
     listDocumentIds: async (path) => (await db.collection(path).listDocuments()).map((ref) => ref.id),
     listSubcollections: async (path) => (await db.doc(path).listCollections()).map((col) => col.id),
     atomic: (paths, compute) => db.runTransaction(async (tx) => {
       const refs = paths.map((path) => db.doc(path))
       const snaps = await tx.getAll(...refs)
-      const before = snaps.map((snap) => snap.data() ?? null)
+      const before = snaps.map((snap) => withoutSyncedAt(snap.data()))
       const after = compute(before)
       after.forEach((data, index) => { if (!same(data, before[index])) tx.set(refs[index], data) })
     }),

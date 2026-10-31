@@ -16,8 +16,12 @@ let needsFixingLock: StudyLock | null = null
 let timer = 0
 let activeSync: Promise<void> | null = null
 let syncAgain = false
-/** A caller that needs the latest cloud state (launch, foreground, reconnect, Sync now) asked since the last pass began. */
-let fullRequested = false
+/**
+ * The strongest pull a caller asked for since the last pass began: 'always' (launch, sign-in, Sync now),
+ * 'foreground' (return to the app, reconnect; throttled) or 'light' (after a local change).
+ */
+let requested: 'light' | 'foreground' | 'always' = 'light'
+const strength = { light: 0, foreground: 1, always: 2 } as const
 const listeners = new Set<() => void>()
 
 export function getSyncStatus(): SyncStatus {
@@ -37,7 +41,9 @@ function setStatus(patch: Partial<SyncStatus>) {
   for (const fn of listeners) fn()
 }
 
-async function syncPass(light: boolean): Promise<void> {
+export const QUOTA_MESSAGE = 'Daily cloud limit reached, studying offline until it resets'
+
+async function syncPass(pull: 'light' | 'foreground' | 'always'): Promise<void> {
   const lock = captureStudyLock()
   if (!cloudTransport || !lock.uid) {
     setStatus({ state: 'idle', message: 'Saved on this device', at: null, needsFixing: [] })
@@ -46,7 +52,8 @@ async function syncPass(light: boolean): Promise<void> {
   // Drop a list left over from another account or deck before this pass reports.
   setStatus({ state: 'syncing', message: 'Syncing', at: null, needsFixing: getSyncStatus().needsFixing })
   const outcome = await cloudSyncPass({
-    light,
+    light: pull === 'light',
+    foreground: pull === 'foreground',
     requestAgain: () => {
       syncAgain = true
     },
@@ -63,6 +70,7 @@ async function syncPass(light: boolean): Promise<void> {
     setStatus({ state: 'error', message: outcome.message, at: null, needsFixing: outcome.items })
   } else if (outcome === 'synced') setStatus({ state: 'ok', message: 'Synced', at: Date.now(), needsFixing: [] })
   else if (outcome === 'local') setStatus({ state: 'idle', message: 'On this device', at: null, needsFixing: [] })
+  else if (outcome === 'quota') setStatus({ state: 'waiting', message: QUOTA_MESSAGE, at: null })
   else setStatus({ state: 'waiting', message: 'Saved on this device', at: null })
 }
 
@@ -72,9 +80,10 @@ export function forgetNeedsFixing(entry: NeedsFixing): void {
 }
 
 /** All foreground triggers share one serialized pull/merge/push loop. */
-export function syncNow(options: { light?: boolean } = {}): Promise<void> {
+export function syncNow(options: { light?: boolean; foreground?: boolean } = {}): Promise<void> {
   window.clearTimeout(timer)
-  if (!options.light) fullRequested = true
+  const pull = options.light ? 'light' : options.foreground ? 'foreground' : 'always'
+  if (strength[pull] > strength[requested]) requested = pull
   if (activeSync) {
     syncAgain = true
     return activeSync
@@ -82,9 +91,9 @@ export function syncNow(options: { light?: boolean } = {}): Promise<void> {
   activeSync = (async () => {
     do {
       syncAgain = false
-      const light = !fullRequested
-      fullRequested = false
-      await syncPass(light)
+      const pull = requested
+      requested = 'light'
+      await syncPass(pull)
     } while (syncAgain)
   })().finally(() => {
     activeSync = null

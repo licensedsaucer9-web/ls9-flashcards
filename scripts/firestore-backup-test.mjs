@@ -86,6 +86,21 @@ try {
   }
 }
 
+// The incremental-pull cursor (#171) is a timestamp the dump does not carry; it is dropped, not fatal.
+{
+  const realFetch = globalThis.fetch
+  const stamped = { integerValue: '2' }
+  globalThis.fetch = async () => ({ status: 200, ok: true, json: async () => ({
+    documents: [{ name: 'x/decks/d/cards/c', fields: { updated_at: stamped, syncedAt: { timestampValue: '2026-10-31T00:00:00Z' } } }],
+  }) })
+  try {
+    const rows = await cliStore('token', 'demo').list('decks/d/cards')
+    assert.deepEqual(rows, [{ id: 'c', data: { updated_at: 2 } }])
+  } finally {
+    globalThis.fetch = realFetch
+  }
+}
+
 // A user in the dump whose deck is missing (a sign-up racing the export) would make restore refuse it:
 // the job must say so, not report ok, and must not leave it among the retained dumps.
 {

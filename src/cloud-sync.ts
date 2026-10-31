@@ -1,6 +1,6 @@
 import { reviewTiers, validSelectedTiers } from './tiers.ts'
 import { cloudFirestore } from './cloud-handle.ts'
-import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettings, ensureExtraDeck, pullCloud } from './cloud-push.ts'
+import { accountDeckId, commitActivity, commitCard, commitProgress, commitSettings, ensureExtraDeck, pullCloud, PULL_OVERLAP_MS, type PullOptions } from './cloud-push.ts'
 import {
   getActiveDeck,
   recordAssignedDeck,
@@ -11,6 +11,8 @@ import {
   mergeDeckIntoDb,
   mergeProgressIntoDb,
   readCloudSnapshot,
+  readPullCursor,
+  recordPullCursor,
   insertMissingSeeds,
   type CloudSnapshot,
 } from './db.ts'
@@ -19,7 +21,7 @@ import { cardContentProblem, clampSrs } from './limits.ts'
 import { deckSyncs, hasDirty, listPushItems, runDirtyQueue, type NeedsFixing, type PushItem } from './record-sync.ts'
 import { seedCards } from './seed.ts'
 import { captureStudyLock, studyLockCurrent } from './study-lock.ts'
-import type { Card, CardContent, PublicSettings } from './types.ts'
+import type { Card, CardContent, PublicSettings, PullCursor } from './types.ts'
 
 function cardContent(card: Card): CardContent {
   return {
@@ -71,18 +73,60 @@ async function pushLoaded(
 
 export const cloudTransport = true
 
-/** A "light" pass (after a local change) skips the full-account pull if one finished this recently. */
+/** A "light" pass (after a local change) skips the account pull if one finished this recently. */
 export const PULL_INTERVAL_MS = 5 * 60 * 1000
+/** Returning to the foreground or reconnecting pulls at most this often. Launch, sign-in and Sync now always pull. */
+export const FOREGROUND_PULL_INTERVAL_MS = 10 * 60 * 1000
+/** Between full pulls a deck reads only what changed since its cursor. */
+export const FULL_PULL_INTERVAL_MS = 24 * 60 * 60 * 1000
+/** A full pull after the first reads only this much review history; older events are already on the device. */
+export const RECENT_ACTIVITY_MS = 30 * 24 * 60 * 60 * 1000
 const lastPull = new Map<string, number>()
 const ensuredDecks = new Set<string>()
+/** `users/{uid}.deckId` cannot change (the rules refuse updates), so one read per session is enough. */
+const accountDecks = new Map<string, string>()
 
-/** Forget what the light passes remember (tests, and account changes). */
+/** Forget what the passes remember (tests, and account changes). */
 export function resetSyncMemory(): void {
   lastPull.clear()
   ensuredDecks.clear()
+  accountDecks.clear()
 }
 
-export async function cloudSyncPass(control: { requestAgain: () => void; light?: boolean; now?: () => number }): Promise<'synced' | 'pending' | 'idle' | 'local' | { state: 'rejected'; message: string; items: NeedsFixing[] }> {
+export { PULL_OVERLAP_MS }
+
+/**
+ * How the next pull reads, from the cursor the deck's last pull stored. The first pull reads
+ * everything, including all review history. A daily full pull (or one while no pulled document has
+ * a server write time yet) re-reads cards and progress so writes from older clients without that
+ * time still arrive, but only recent activity. Otherwise only changes since the cursor are read,
+ * reaching back the overlap until a pull has re-read that window once.
+ */
+export function pullPlan(cursor: PullCursor | null, now: number): { kind: 'first' | 'full' | 'changes'; options: PullOptions } {
+  if (!cursor) return { kind: 'first', options: {} }
+  if (cursor.at === null || now - cursor.fullAt >= FULL_PULL_INTERVAL_MS) {
+    return { kind: 'full', options: { activityFrom: now - RECENT_ACTIVITY_MS } }
+  }
+  return { kind: 'changes', options: { since: cursor.settled ? cursor.at : cursor.at - PULL_OVERLAP_MS } }
+}
+
+/** The cursor after a merged pull that started at device time `startedAt` and saw server write times up to `seen`. */
+export function nextCursor(key: string, stored: PullCursor | null, plan: ReturnType<typeof pullPlan>, seen: number | null, startedAt: number): PullCursor {
+  const fullAt = plan.kind === 'changes' ? stored!.fullAt : startedAt
+  const at = stored?.at == null ? seen : seen === null ? stored.at : Math.max(stored.at, seen)
+  if (!stored || at !== stored.at) return { key, at, movedAt: startedAt, settled: false, fullAt }
+  // Every plan but a settled one reads the overlap window. Device time elapsed since the cursor moved
+  // is server time elapsed too, so a write hidden from that pull has had the overlap to land.
+  return { key, at, movedAt: stored.movedAt, settled: stored.settled || startedAt - stored.movedAt >= PULL_OVERLAP_MS, fullAt }
+}
+
+/** Firestore's daily read or write quota is used up; it resets at midnight Pacific time. */
+export function quotaExhausted(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code
+  return code === 'resource-exhausted' || code === 'firestore/resource-exhausted'
+}
+
+export async function cloudSyncPass(control: { requestAgain: () => void; light?: boolean; foreground?: boolean; now?: () => number }): Promise<'synced' | 'pending' | 'idle' | 'local' | 'quota' | { state: 'rejected'; message: string; items: NeedsFixing[] }> {
   const lock = captureStudyLock()
   if (!lock.uid) return 'idle'
   const db = cloudFirestore()
@@ -94,12 +138,14 @@ export async function cloudSyncPass(control: { requestAgain: () => void; light?:
     if (!deckSyncs(active)) return 'local'
     const original = active!.origin === 'original'
     if (!studyLockCurrent(lock)) return 'idle'
-    const deckId = original ? await accountDeckId(db, uid) : active!.id
+    const deckId = original ? accountDecks.get(uid) ?? await accountDeckId(db, uid) : active!.id
+    if (original) accountDecks.set(uid, deckId)
     if (!studyLockCurrent(lock)) return 'idle'
     // Local records keep `deckId`; only Firestore paths use `cloudId`.
     let cloudId = original ? deckId : active!.cloudId ?? deckId
     if (original) await recordAssignedDeck(deckId)
-    else if (!(control.light && ensuredDecks.has(`${uid}/${cloudId}`)) && await ensureExtraDeck(db, uid, cloudId) === 'taken') {
+    // Deck documents cannot be changed or deleted, so one successful check per session holds.
+    else if (!ensuredDecks.has(`${uid}/${cloudId}`) && await ensureExtraDeck(db, uid, cloudId) === 'taken') {
       // Another account created this predictable starter ID first: sync under a fresh random one.
       const fresh = crypto.randomUUID()
       if (await ensureExtraDeck(db, uid, fresh) === 'taken') return 'pending'
@@ -113,22 +159,32 @@ export async function cloudSyncPass(control: { requestAgain: () => void; light?:
     const scope = { lock, deckId }
     const now = control.now ?? Date.now
     const pullKey = `${uid}/${cloudId}`
-    // Every card, progress record and review event is read by a full pull, so after a local change (a light pass)
-    // only the dirty records are pushed (each push reads and merges the record it writes) while a recent pull is fresh.
-    // Launch, return to foreground, reconnecting and Sync now always pull.
-    const skipPull = control.light === true && now() - (lastPull.get(pullKey) ?? -Infinity) < PULL_INTERVAL_MS
+    // After a local change (a light pass) only the dirty records are pushed (each push reads and merges the
+    // record it writes) while a recent pull is fresh. Returning to the foreground and reconnecting pull at most
+    // every FOREGROUND_PULL_INTERVAL_MS. Launch, sign-in and Sync now always pull.
+    const interval = control.light ? PULL_INTERVAL_MS : control.foreground ? FOREGROUND_PULL_INTERVAL_MS : 0
+    const skipPull = interval > 0 && now() - (lastPull.get(pullKey) ?? -Infinity) < interval
     if (!skipPull) {
-      const docs = await pullCloud(db, uid, cloudId, !original)
+      const stored = await readPullCursor(pullKey, scope)
+      if (!studyLockCurrent(lock)) return 'idle'
+      const startedAt = now()
+      const plan = pullPlan(stored, startedAt)
+      const docs = await pullCloud(db, uid, cloudId, !original, plan.options)
       if (!studyLockCurrent(lock)) return 'idle'
       const files = docsToFiles(docs, uid, 0)
-      await mergeDeckIntoDb(files.deck, undefined, scope)
+      const deckMerge = await mergeDeckIntoDb(files.deck, undefined, scope)
       if (!studyLockCurrent(lock)) return 'idle'
-      await mergeProgressIntoDb(files.user, undefined, scope)
+      const progressMerge = await mergeProgressIntoDb(files.user, undefined, scope)
       if (!studyLockCurrent(lock)) return 'idle'
       if (original) await insertMissingSeeds(seedCards())
       if (!studyLockCurrent(lock)) return 'idle'
       if (original) await applyStagedProgress(scope)
       if (!studyLockCurrent(lock)) return 'idle'
+      // Advance only past records this deck really merged; a skipped merge must be read again.
+      if (deckMerge.applied && progressMerge.applied) {
+        await recordPullCursor(nextCursor(pullKey, stored, plan, docs.cursor ?? null, startedAt), scope)
+        if (!studyLockCurrent(lock)) return 'idle'
+      }
       lastPull.set(pullKey, now())
     }
     const snapshot = await readCloudSnapshot(scope)
@@ -188,7 +244,8 @@ export async function cloudSyncPass(control: { requestAgain: () => void; light?:
       return 'pending'
     }
     return 'synced'
-  } catch {
-    return 'pending'
+  } catch (error) {
+    // Local study carries on; the pending records upload once the quota resets.
+    return quotaExhausted(error) ? 'quota' : 'pending'
   }
 }

@@ -16,17 +16,26 @@ export function seedBeforeFirstSync(createdPersonalDeck: boolean): boolean {
   return createdPersonalDeck
 }
 
-/** A cold phone often fails the first Firestore read after the Google sheet closes. */
+/**
+ * A cold phone often fails the first Firestore read after the Google sheet closes.
+ * An exhausted daily quota is not retried: it lasts until the reset, and each retry spends more.
+ */
 export function retryableDeckOpen(code: string): boolean {
   return code === 'unavailable'
     || code === 'deadline-exceeded'
-    || code === 'resource-exhausted'
     || code === 'auth/network-request-failed'
     || code.endsWith('/unavailable')
     || code.endsWith('/deadline-exceeded')
 }
 
+export function quotaCode(code: string): boolean {
+  return code === 'resource-exhausted' || code.endsWith('/resource-exhausted')
+}
+
+export const QUOTA_DECK_MESSAGE = 'Daily cloud limit reached, studying offline until it resets.'
+
 export function deckOpenFailure(code: string): string {
+  if (quotaCode(code)) return QUOTA_DECK_MESSAGE
   if (code === 'auth/web-storage-unsupported' || code === 'auth/popup-blocked') {
     return 'Open this page in Safari, then choose Continue with Google.'
   }

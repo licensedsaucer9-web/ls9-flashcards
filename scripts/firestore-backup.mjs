@@ -62,8 +62,12 @@ export function expiredBackups(names, keep = KEEP) {
   return dumps.slice(0, Math.max(0, dumps.length - keep))
 }
 
+// syncedAt is the app's incremental-pull cursor (#171), not account data. A restore writes
+// documents without it, and the next full pull on each device reads them all again.
 function fieldsOf(fields) {
-  return Object.fromEntries(Object.entries(fields ?? {}).map(([key, value]) => [key, firestoreValue(value)]))
+  return Object.fromEntries(Object.entries(fields ?? {})
+    .filter(([key]) => key !== 'syncedAt')
+    .map(([key, value]) => [key, firestoreValue(value)]))
 }
 
 async function readJson(url, token) {

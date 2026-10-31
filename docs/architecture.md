@@ -187,14 +187,32 @@ blocked upgrades surface an actionable notice.
 
 All foreground triggers share a serialized pull/merge/push loop. Sync runs
 on launch, return to foreground, connectivity return, **Sync now**, and after
-a debounced local change. A full pull reads every card, progress record and
-review event of the active deck/account, so a pass after a local change (a
-*light* pass) skips it while a pull for that deck finished less than five
-minutes ago and only pushes the dirty records; each push already reads and
-merges the record it writes. Launch, foreground, reconnect and **Sync now**
-always pull. Another device's changes can therefore take up to five minutes
-to appear while you keep grading; the extra-deck creation check is also
-skipped by light passes once it succeeded. Hiding or leaving the app pauses the timer; it
+a debounced local change. Card, progress and activity writes carry a
+server-assigned `syncedAt` (`serverTimestamp()`, enforced as `request.time`
+by the rules, or left unchanged when an older client copies a document back).
+Each deck row keeps a pull cursor for `uid/cloudId`: the newest `syncedAt` it
+has merged. The first pull of a deck on a device reads every card, progress
+record and review event. Later pulls read only documents with `syncedAt` after
+the cursor; until one pull has re-read it, that query also reaches two minutes
+behind the cursor. Card deletions are tombstone documents, so they arrive the
+same way. Once a day (and while no pulled document has a `syncedAt` yet) a
+full pull re-reads every card and progress record, so writes from clients
+older than the cursor still arrive, but only the last 30 days of activity.
+The cursor is stored only after both merges applied, and it is removed with
+its deck. Settings are a single document and are read on every pull.
+
+A pass after a local change (a *light* pass) skips the pull while one for that
+deck finished less than five minutes ago and only pushes the dirty records;
+each push reads and merges the record it writes in a transaction, so a stale
+device cannot overwrite a newer record. Return to foreground and reconnect pull
+at most every ten minutes. Launch, sign-in and **Sync now** always pull.
+Another device's changes can therefore take up to ten minutes to appear without
+**Sync now**. The account's deck assignment and each extra deck's creation
+check are kept in memory once they succeed (both documents are immutable). An
+exhausted Firestore quota (`resource-exhausted`) is not retried: the status
+reads "Daily cloud limit reached, studying offline until it resets", changes
+stay pending, and an account this device has opened before opens from its local
+copy. Hiding or leaving the app pauses the timer; it
 does not attempt a full background upload. There is no realtime listener or
 background polling. Two clients kept visible may need **Sync now** to see
 one another's latest work.
@@ -401,8 +419,9 @@ transactions. Different devices retain both events even when the SRS merge picks
 one schedule. Conflicting payloads for a UUID are refused. Activity remains after
 card deletion and survives confirmed device copies, user-file serialization,
 private backup and isolated restore. It is separate from settings merge clocks.
-The current full-account pull includes activity, so reads/storage grow with the
-number of saved reviews; acknowledged activity pending marks are removed, while
+Only a device's first pull reads all activity; incremental pulls read new
+events and the daily full pull the last 30 days, so storage, not routine reads,
+grows with the number of saved reviews. Acknowledged activity pending marks are removed, while
 events remain unless the owner explicitly deletes them.
 
 Calendar days use a fixed profile zone chosen from the earliest tracked event;
