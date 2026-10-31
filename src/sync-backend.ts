@@ -9,7 +9,8 @@ export async function cloudSyncPass(control: { requestAgain: () => void; light?:
   return 'idle'
 }
 
-export async function sendFeedback(input: FeedbackInput): Promise<FeedbackResult> {
+export async function sendFeedback(input: FeedbackInput, onWaiting?: () => void): Promise<FeedbackResult> {
   void input
+  void onWaiting
   return { ok: false, message: 'Feedback needs the online version of the app. This build stays on this device.' }
 }

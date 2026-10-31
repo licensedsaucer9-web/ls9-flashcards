@@ -83,7 +83,13 @@ export function bindFeedbackPanel(): void {
     draft.status = 'Sending…'
     status.textContent = draft.status
     refresh()
-    const result = await sendFeedback({ message: draft.message, email: draft.email, appVersion: buildInfo.version })
+    // The form stays locked until the write settles: a slow send is still queued and
+    // will arrive, so unlocking it would let a retry create a second document.
+    const result = await sendFeedback({ message: draft.message, email: draft.email, appVersion: buildInfo.version }, () => {
+      draft.status = 'Still sending… Waiting for the server; your message will go out when the connection returns. Keep the app open.'
+      const current = document.querySelector('#feedback-status')
+      if (current) current.textContent = draft.status
+    })
     draft.sending = false
     if (result.ok) {
       draft.message = ''

@@ -3,14 +3,34 @@ import { addDoc, collection, serverTimestamp, type Firestore } from 'firebase/fi
 import { cloudFirestore } from './cloud-handle.ts'
 import { feedbackFields, feedbackProblem, type FeedbackInput, type FeedbackResult } from './feedback.ts'
 
-const SEND_TIMEOUT_MS = 15000
+const SLOW_SEND_MS = 15000
 
 /** Create one /feedback document. Rules allow create only; nobody can read it back from the app. */
 export async function writeFeedback(db: Firestore, uid: string | null, input: FeedbackInput): Promise<void> {
   await addDoc(collection(db, 'feedback'), { ...feedbackFields(input, uid), createdAt: serverTimestamp() })
 }
 
-export async function sendFeedback(input: FeedbackInput): Promise<FeedbackResult> {
+/**
+ * Wait for the write itself, however long it takes. addDoc never answers while the
+ * connection is down, but the SDK keeps the write queued and sends it on reconnect,
+ * so giving up early would report "not sent" for a document that still arrives and
+ * invite a duplicate retry. A slow write only calls onWaiting.
+ */
+export async function settleFeedbackWrite(write: Promise<void>, onWaiting?: () => void, slowMs = SLOW_SEND_MS): Promise<FeedbackResult> {
+  const timer = setTimeout(() => onWaiting?.(), slowMs)
+  try {
+    await write
+    return { ok: true }
+  } catch (error) {
+    const code = String((error as { code?: unknown })?.code ?? '')
+    if (code === 'permission-denied') return { ok: false, message: 'The server refused this feedback. Shorten it or check the email and try again.' }
+    return { ok: false, message: 'Could not send feedback. Check your connection and try again.' }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+export async function sendFeedback(input: FeedbackInput, onWaiting?: () => void): Promise<FeedbackResult> {
   const problem = feedbackProblem(input.message, input.email)
   if (problem) return { ok: false, message: problem }
   const db = cloudFirestore()
@@ -24,18 +44,5 @@ export async function sendFeedback(input: FeedbackInput): Promise<FeedbackResult
   } catch {
     uid = null
   }
-  // addDoc waits for the server, which never answers while the connection is down.
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<'timeout'>(resolve => { timer = setTimeout(() => resolve('timeout'), SEND_TIMEOUT_MS) })
-  try {
-    const outcome = await Promise.race([writeFeedback(db, uid, input).then(() => 'sent' as const), timeout])
-    if (outcome === 'timeout') return { ok: false, message: 'Could not reach the server. Check your connection and try again.' }
-    return { ok: true }
-  } catch (error) {
-    const code = String((error as { code?: unknown })?.code ?? '')
-    if (code === 'permission-denied') return { ok: false, message: 'The server refused this feedback. Shorten it or check the email and try again.' }
-    return { ok: false, message: 'Could not send feedback. Check your connection and try again.' }
-  } finally {
-    clearTimeout(timer)
-  }
+  return settleFeedbackWrite(writeFeedback(db, uid, input), onWaiting)
 }

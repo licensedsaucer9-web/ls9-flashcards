@@ -23,8 +23,9 @@ try {
         return `
           export const cloudTransport = false
           export async function cloudSyncPass() { return 'idle' }
-          export async function sendFeedback(input) {
+          export async function sendFeedback(input, onWaiting) {
             (window.feedbackSent ||= []).push(input)
+            if (window.feedbackSlow) onWaiting()
             if (window.feedbackHold) await window.feedbackHold
             return window.feedbackOutcome || { ok: true }
           }
@@ -111,10 +112,26 @@ try {
   assert.equal(await message.isDisabled(), true, 'message locked while sending')
   await page.evaluate(() => window.releaseFeedback())
   await page.waitForFunction(() => /Thanks/.test(document.querySelector('#feedback-status')?.textContent ?? ''))
+  await open.click()
+  await message.fill('  Great app, more verbs please  ')
+  await email.fill('me@example.com')
+
+  // A slow send says it is still going and stays locked, so no retry can duplicate it.
+  await page.evaluate(() => {
+    window.feedbackSlow = true
+    window.feedbackHold = new Promise(resolve => { window.releaseFeedback = resolve })
+  })
+  await send.click()
+  await page.waitForFunction(() => /Still sending/.test(document.querySelector('#feedback-status')?.textContent ?? ''))
+  assert.equal(await page.getByRole('button', { name: 'Sending…' }).isDisabled(), true, 'no retry while the slow write is pending')
+  assert.equal(await message.isDisabled(), true)
+  assert.equal(await page.getByRole('button', { name: 'Cancel' }).isDisabled(), true)
+  await page.evaluate(() => { window.feedbackSlow = false; window.releaseFeedback() })
+  await page.waitForFunction(() => /Thanks/.test(document.querySelector('#feedback-status')?.textContent ?? ''))
   assert.equal(await form.isHidden(), true)
   assert.equal(await open.isVisible(), true)
   const sent = await page.evaluate(() => window.feedbackSent)
-  assert.equal(sent.length, 2)
+  assert.equal(sent.length, 3, 'the slow send was submitted once')
   assert.deepEqual(Object.keys(sent[1]).sort(), ['appVersion', 'email', 'message'])
   assert.equal(sent[1].message, '  Great app, more verbs please  ', 'the backend trims; the UI passes the draft')
   assert.equal(sent[1].appVersion, await page.locator('#app-version').getAttribute('data-version'))
@@ -131,10 +148,10 @@ try {
   // Cancel closes without sending.
   await page.getByRole('button', { name: 'Cancel' }).click()
   assert.equal(await form.isHidden(), true)
-  assert.equal((await page.evaluate(() => window.feedbackSent)).length, 2)
+  assert.equal((await page.evaluate(() => window.feedbackSent)).length, 3)
 
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('feedback UI: button opens form, empty/long/bad-email blocked, failure keeps the draft, send locks then clears: ok')
+  console.log('feedback UI: button opens form, empty/long/bad-email blocked, failure keeps the draft, send locks then clears, slow send stays locked: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()

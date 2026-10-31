@@ -34,7 +34,9 @@ Settings → Send feedback writes one create-only document to the top-level
 `feedback` collection (message, optional email, app version, server time, and
 the uid only when signed in). Device-only builds cannot send it. The draft stays
 in memory across Settings re-renders and failed sends; offline or refused sends
-say so inline. See [Firebase setup](firebase-setup.md#app-feedback).
+say so inline. A slow send is not abandoned: the form stays locked and says it
+is still sending until the queued write succeeds or fails, so a retry cannot
+create a second document (`scripts/feedback-send-test.mjs`). See [Firebase setup](firebase-setup.md#app-feedback).
 
 `release:build` requires a clean committed source tree and matching publication
 gates (both currently master-only and disabled on pull requests),
