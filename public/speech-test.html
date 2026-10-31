@@ -378,7 +378,8 @@
     a.tts = { text, voice: voice ? `${voice.name} ${voice.lang}` : 'default' }
     let started = false
     const go = why => {
-      if (started) return
+      // Stop, Abort and Clear cancel the utterance, which can fire end or error after the attempt closed.
+      if (started || a.done || current !== a) return
       started = true
       a.ttsEndAt = log(a, 'tts ' + why)
       startRecognition(a)
@@ -386,9 +387,21 @@
     u.onstart = () => { a.ttsStartAt = log(a, 'tts start', `"${text}" voice=${a.tts.voice}`) }
     u.onend = () => go('end')
     u.onerror = e => { a.errors.push({ error: 'tts-' + (e.error || 'error'), message: '' }); go('error ' + (e.error || '')) }
-    log(a, 'tts speak()')
     synth.cancel()
-    synth.speak(u)
+    // Browsers often drop an utterance queued in the same turn as cancel().
+    pendingSpeech = setTimeout(() => {
+      pendingSpeech = null
+      if (a.done || current !== a) return
+      log(a, 'tts speak()')
+      synth.speak(u)
+    }, 50)
+  }
+
+  let pendingSpeech = null
+  function cancelSpeech() {
+    if (pendingSpeech !== null) clearTimeout(pendingSpeech)
+    pendingSpeech = null
+    if (synth) synth.cancel()
   }
 
   function report() {
@@ -444,13 +457,14 @@
   const halt = method => {
     if (current) log(current, method + '()')
     if (rec) rec[method]()
-    else if (current && !current.done) { if (synth) synth.cancel(); finish(current) }
+    else if (current && !current.done) { cancelSpeech(); finish(current) }
   }
   $('stop').addEventListener('click', () => halt('stop'))
   $('abort').addEventListener('click', () => halt('abort'))
   $('copy').addEventListener('click', copy)
   $('clear').addEventListener('click', () => {
     if (rec) rec.abort()
+    else if (current && !current.done) { current.done = true; cancelSpeech() }
     attempts.length = 0; current = null; rec = null
     $('log').textContent = ''; $('live').textContent = ''; $('timings').replaceChildren(); $('alts').hidden = true
     $('copyStatus').textContent = ''

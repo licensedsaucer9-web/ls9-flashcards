@@ -14,6 +14,8 @@ let server, browser
 const fakeRecognition = () => {
   window.__recognitions = []
   window.__spoken = []
+  window.__dropped = []
+  let active = null, cancelledThisTurn = false
   class FakeRecognition extends EventTarget {
     constructor() { super(); this.lang = ''; this.continuous = false; this.interimResults = false; this.maxAlternatives = 1; window.__recognitions.push(this) }
     fire(type, props = {}) { const ev = new Event(type); Object.assign(ev, props); this.dispatchEvent(ev) }
@@ -37,10 +39,18 @@ const fakeRecognition = () => {
   window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; this.lang = ''; this.voice = null } }
   Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: {
     getVoices: () => [{ name: 'Anna', lang: 'de-DE' }, { name: 'Daniel', lang: 'en-GB' }],
-    cancel() {},
+    // Like real engines: cancel() interrupts the current utterance and drops one queued in the same turn.
+    cancel() {
+      const u = active; active = null
+      if (u) setTimeout(() => u.onerror?.({ error: 'interrupted' }))
+      cancelledThisTurn = true; setTimeout(() => { cancelledThisTurn = false })
+    },
     speak(u) {
+      if (cancelledThisTurn) { window.__dropped.push(u.text); return }
       window.__spoken.push({ text: u.text, lang: u.lang, voice: u.voice?.name ?? null, recognitionsBefore: window.__recognitions.length })
-      setTimeout(() => u.onstart?.(), 5); setTimeout(() => u.onend?.(), 20)
+      active = u
+      setTimeout(() => { if (active === u) u.onstart?.() }, 5)
+      setTimeout(() => { if (active === u) { active = null; u.onend?.() } }, window.__ttsMs ?? 20)
     },
   } })
 }
@@ -124,12 +134,27 @@ try {
   assert.deepEqual(ttsTypes.slice(0, 5), ['tts', 'tts', 'tts', 'start()', 'start'], 'recognition starts after the utterance ends')
   assert.match(await page.locator('#log').textContent(), /#2 \+\d+ms tts end\n#2 \+\d+ms start\(\)/)
 
+  // Stopping or aborting while speaking closes the attempt without starting recognition.
+  await page.evaluate(() => { window.__ttsMs = 5000 })
+  for (const [n, name] of [[3, 'Stop'], [4, 'Abort']]) {
+    await page.getByRole('button', { name: 'Speak phrase, then listen' }).click()
+    await page.waitForFunction(n => new RegExp(`#${n} \\+\\d+ms tts start`).test(document.getElementById('log').textContent), n)
+    await page.getByRole('button', { name, exact: true }).click()
+    await page.waitForTimeout(100)
+    assert.equal(await page.evaluate(() => window.__recognitions.length), 2, `${name} while speaking starts no recognition`)
+    assert.equal(await page.locator('#status').textContent(), 'done')
+    assert.equal(await page.getByRole('button', { name: 'Start listening' }).isDisabled(), false, `${name} re-enables Start`)
+    assert.equal(await page.getByRole('button', { name, exact: true }).isDisabled(), true)
+  }
+  await page.evaluate(() => { window.__ttsMs = 20 })
+  assert.deepEqual(await page.evaluate(() => window.__dropped), [], 'no utterance is dropped after cancel()')
+
   // Errors are logged with their code and message.
   await page.evaluate(() => { window.__scenario = 'error' })
   await page.uncheck('#interim'); await page.check('#continuous'); await page.fill('#maxAlt', '3')
   await page.getByRole('button', { name: 'Start listening' }).click()
-  await page.waitForFunction(() => window.__recognitions.length === 3 && /#3 \+\d+ms end/.test(document.getElementById('log').textContent))
-  assert.match(await page.locator('#log').textContent(), /#3 \+\d+ms error error=not-allowed message="Permission denied"/)
+  await page.waitForFunction(() => window.__recognitions.length === 3 && /#5 \+\d+ms end/.test(document.getElementById('log').textContent))
+  assert.match(await page.locator('#log').textContent(), /#5 \+\d+ms error error=not-allowed message="Permission denied"/)
   assert.match(await page.locator('#status').textContent(), /error: not-allowed/)
 
   // Report, copied through the clipboard API when allowed.
@@ -141,7 +166,7 @@ try {
   assert.equal(untimed(report), untimed(await page.locator('#report').inputValue()))
   assert.match(report, /userAgent: .*HeadlessChrome/)
   assert.match(report, /webkitSpeechRecognition: yes/)
-  assert.match(report, /## Attempts \(3\)/)
+  assert.match(report, /## Attempts \(5\)/)
   assert.match(report, /### #1 listen lang=de-DE continuous=false interimResults=true maxAlternatives=5/)
   assert.match(report, /\[0\.0\] "der Hund" conf=0\.920 match=1\.00/)
   assert.match(report, /\[0\.1\] "der Hunt" conf=0\.400 match=0\.88/)
@@ -149,7 +174,7 @@ try {
   assert.match(report, /timings: tap → start\(\)=\d+ms, tap → start event=\d+ms, tap → first result=\d+ms, tap → first final=\d+ms, total \(tap → end\)=\d+ms/)
   assert.match(report, /events: start\(\)@\d+ start@\d+ audiostart@\d+ soundstart@\d+ speechstart@\d+ speechend@\d+ soundend@\d+ audioend@\d+ end@\d+/)
   assert.match(report, /### #2 speak-then-listen[\s\S]*tts: "der Hund" voice=Anna de-DE/)
-  assert.match(report, /### #3 listen lang=de-DE continuous=true interimResults=false maxAlternatives=3[\s\S]*errors: not-allowed "Permission denied"/)
+  assert.match(report, /### #5 listen lang=de-DE continuous=true interimResults=false maxAlternatives=3[\s\S]*errors: not-allowed "Permission denied"/)
 
   // Without clipboard access the report stays selectable in the textarea.
   await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined }); document.execCommand = () => false })
@@ -158,6 +183,21 @@ try {
   assert.equal(await page.evaluate(() => { const t = document.getElementById('report'); return t.value.slice(t.selectionStart, t.selectionEnd) }), await page.locator('#report').inputValue())
   if (process.env.SPEECH_SCREENSHOTS) await page.screenshot({ path: '/tmp/flashcards-speech-test-page.png', fullPage: true })
   await context.close()
+
+  // Clearing while speaking cancels the utterance and starts no recognition.
+  {
+    const { context, page } = await open(fakeRecognition)
+    await page.goto(`${base}/speech-test.html`)
+    await page.evaluate(() => { window.__ttsMs = 5000 })
+    await page.getByRole('button', { name: 'Speak phrase, then listen' }).click()
+    await page.waitForFunction(() => /#1 \+\d+ms tts start/.test(document.getElementById('log').textContent))
+    await page.getByRole('button', { name: 'Clear attempts' }).click()
+    await page.waitForTimeout(100)
+    assert.equal(await page.evaluate(() => window.__recognitions.length), 0, 'Clear while speaking starts no recognition')
+    assert.equal(await page.locator('#log').textContent(), '')
+    assert.equal(await page.getByRole('button', { name: 'Speak phrase, then listen' }).isDisabled(), false)
+    await context.close()
+  }
 
   // No API: the page still loads and says so.
   {
