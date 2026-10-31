@@ -27,12 +27,6 @@ export function plannedRoute(context: RecoveryContext): PlannedRoute {
   return 'blocker'
 }
 
-/** The bridge must open the original database names. Rehearsal storage cannot. */
-export function bridgeStoragePrefix(rehearsal: boolean): string {
-  if (rehearsal) throw new Error('The recovery bridge cannot use rehearsal storage')
-  return LEGACY_STORAGE_PREFIX
-}
-
 export type ReadinessRow = { context: RecoveryContext; proven: boolean }
 
 export type PublicReadiness = {

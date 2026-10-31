@@ -20,15 +20,8 @@ export function completedLegacyAssignment(data: unknown, deckId: string): boolea
 export function legacyAssignmentRefusal(
   data: unknown,
   deckId: string,
-  refusal: 'rehearsal' | 'bridge',
 ): { code: string; message: string } | null {
   if (completedLegacyAssignment(data, deckId)) return null
-  if (refusal === 'bridge') {
-    return {
-      code: 'recovery/legacy-required',
-      message: 'This recovery bridge only opens a verified legacy account',
-    }
-  }
   return {
     code: 'rehearsal/import-required',
     message: 'The test account needs a verified legacy import',

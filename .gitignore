@@ -3,7 +3,6 @@ dist
 dist-firebase
 dist-auth-spike
 dist-rehearsal
-dist-recovery-bridge
 *.local
 .DS_Store
 playwright-report
