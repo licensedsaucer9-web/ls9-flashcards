@@ -1,7 +1,8 @@
 import './style.css'
 import { automaticGrade, matchAnswer } from './hard-mode.ts'
 import { chooseHardMode, hardModeEnabled } from './review-mode.ts'
-import { cancelSpeech, chooseSpeech, speak, speechAvailable, speechEnabled } from './speech.ts'
+import { cancelSpeech, chooseSpeech, speak, speechAvailable, speechEnabled, speechLang } from './speech.ts'
+import { abortListening, chooseListen, listen, listenAvailable, listenEnabled, type ListenOutcome } from './speech-input.ts'
 import { chooseTheme, currentTheme, initializeTheme, themeLabels, themes, type Theme } from './theme.ts'
 import { registerSW } from 'virtual:pwa-register'
 import type { Article, Card, Direction, Grade, LocalDeck, PublicSettings, Tier, WordType } from './types.ts'
@@ -113,6 +114,15 @@ function parseRoute(): Route {
   if (parts[0] === 'card' && parts[1] === 'new') return { name: 'edit', id: null }
   if (parts[0] === 'card' && parts[1]) return { name: 'edit', id: parts[1] }
   return { name: 'home' }
+}
+
+function listenMessage(outcome: ListenOutcome): string {
+  if (outcome.kind === 'aborted') return ''
+  if (outcome.kind === 'heard') return `Heard: ${outcome.transcript}. Check it, then submit.`
+  if (outcome.kind === 'no-start') return 'Speech input did not start. Try again.'
+  if (outcome.kind === 'error' && (outcome.error === 'not-allowed' || outcome.error === 'service-not-allowed')) return 'Speech input needs microphone and speech recognition access.'
+  if (outcome.kind === 'error' && outcome.error === 'audio-capture') return 'The microphone is not available. Try again.'
+  return 'Didn’t catch that. Try again.'
 }
 
 function go(path: string) {
@@ -479,8 +489,10 @@ async function renderReview() {
   let flipped = false
   let saving = false
   let attempt: string | null = null
+  let listenSession: { finish(): void } | null = null
 
   const paint = () => {
+    abortListening()
     if (!studyLockCurrent(lock) || parseRoute().name !== 'review') return
     const card = result?.card ?? queue[0]
     if (!card) {
@@ -531,6 +543,8 @@ async function renderReview() {
     const speakButton = (face: 'front' | 'back') => showSpeak
       ? `<button type="button" class="speak" data-speak="${face}" aria-label="Speak word">🔊</button>`
       : ''
+    // Spoken answers are offered only when the answer is in the target language.
+    const showListen = hardMode && settings.direction === 'en-de' && listenEnabled() && listenAvailable()
 
     main.innerHTML = `
       <section class="screen review">
@@ -559,7 +573,11 @@ async function renderReview() {
           ` : `
             <form id="typed-answer" class="typed-answer">
               <label for="answer">${settings.direction === 'de-en' ? esc(activeDeck?.baseLang ?? 'English') : esc(activeDeck?.targetLang ?? 'German')} answer${settings.direction === 'en-de' && activeDeck?.articles !== false && card.article !== 'none' ? ' (include the article)' : ''}</label>
-              <input id="answer" name="answer" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" required aria-describedby="answer-help" value="${esc(typedAnswer)}">
+              <div class="answer-row">
+                <input id="answer" name="answer" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" required aria-describedby="answer-help" value="${esc(typedAnswer)}">
+                ${showListen ? '<button type="button" class="speak listen" data-listen aria-label="Answer by voice" aria-pressed="false">🎤</button>' : ''}
+              </div>
+              ${showListen ? '<p class="note listen-status" id="listen-status" role="status" aria-live="polite"></p>' : ''}
               <p class="note" id="answer-help" role="status">${secondTry ? 'Not quite. Try once more.' : 'First try: Easy · second try: Good · wrong gender: Gender · otherwise: Hard'}</p>
               <button type="submit" class="primary">Check answer</button>
             </form>
@@ -605,6 +623,7 @@ async function renderReview() {
     $('#back').addEventListener('click', () => go('/'))
     main.querySelectorAll<HTMLButtonElement>('[data-speak]').forEach(btn => {
       btn.addEventListener('click', () => {
+        abortListening()
         const front = btn.dataset.speak === 'front'
         const targetFirst = settings.direction === 'de-en'
         const lang = front === targetFirst ? activeDeck?.targetLang ?? 'German' : activeDeck?.baseLang ?? 'English'
@@ -612,6 +631,32 @@ async function renderReview() {
       })
     })
     if (hardMode) {
+      const micBtn = main.querySelector<HTMLButtonElement>('[data-listen]')
+      micBtn?.addEventListener('click', () => {
+        if (micBtn.getAttribute('aria-pressed') === 'true') {
+          listenSession?.finish()
+          return
+        }
+        cancelSpeech()
+        const input = main.querySelector<HTMLInputElement>('#answer')!
+        const status = $('#listen-status')
+        const setPressed = (on: boolean) => micBtn.setAttribute('aria-pressed', String(on))
+        setPressed(true)
+        status.textContent = 'Starting…'
+        listenSession = listen(speechLang(activeDeck?.targetLang ?? 'German'), {
+          onListening: () => { status.textContent = 'Listening…' },
+          onInterim: text => { status.textContent = `Listening… ${text}` },
+          onDone: outcome => {
+            listenSession = null
+            setPressed(false)
+            status.textContent = listenMessage(outcome)
+            if (outcome.kind === 'heard') {
+              input.value = outcome.transcript
+              input.focus()
+            }
+          },
+        })
+      })
       main.querySelector<HTMLFormElement>('#typed-answer')?.addEventListener('submit', async event => {
         event.preventDefault()
         if (saving || result || !studyLockCurrent(lock)) return
@@ -691,7 +736,7 @@ async function renderReview() {
 
   const onKey = (e: KeyboardEvent) => {
     if (hardMode || !queue.length) return
-    if (e.target instanceof Element && e.target.closest('[data-streak], [data-speak]')) return
+    if (e.target instanceof Element && e.target.closest('[data-streak], [data-speak], [data-listen]')) return
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault()
@@ -1197,6 +1242,10 @@ async function renderCloudSettings() {
         <label class="setting-switch"><input type="checkbox" role="switch" id="speech" aria-describedby="speech-note" ${speechEnabled() && speechAvailable() ? 'checked' : ''} ${speechAvailable() ? '' : 'disabled'} /> Speech</label>
         <p class="note" id="speech-note">${speechAvailable() ? 'Show a speak button on review cards. Only on this device.' : 'Speech is not available in this browser.'}</p>
       </div>
+      <div class="setting">
+        <label class="setting-switch"><input type="checkbox" role="switch" id="speech-input" aria-describedby="speech-input-note" ${listenEnabled() && listenAvailable() ? 'checked' : ''} ${listenAvailable() ? '' : 'disabled'} /> Speech input</label>
+        <p class="note" id="speech-input-note">${listenAvailable() ? 'Show a mic button in Hard mode to answer by voice when the answer is in the language you are learning. Only on this device. The browser may send audio to Apple or Google servers for recognition.' : 'Speech input is not available in this browser.'}</p>
+      </div>
       ${accountPanelHtml()}
       <div class="setting">
         <p class="kicker" style="margin:0">Starter content</p>
@@ -1226,6 +1275,9 @@ async function renderCloudSettings() {
   })
   $('#speech').addEventListener('change', (event) => {
     if (!chooseSpeech((event.target as HTMLInputElement).checked)) toast('Speech changed, but browser storage is unavailable. This choice may not survive a reload.')
+  })
+  $('#speech-input').addEventListener('change', (event) => {
+    if (!chooseListen((event.target as HTMLInputElement).checked)) toast('Speech input changed, but browser storage is unavailable. This choice may not survive a reload.')
   })
   $('#check-update').addEventListener('click', async (event) => {
     const button = event.currentTarget as HTMLButtonElement
@@ -1277,6 +1329,7 @@ async function render() {
   unbindKeys?.()
   unbindKeys = null
   cancelSpeech()
+  abortListening()
   const route = parseRoute()
   if (route.name === 'home') await renderHome()
   else if (route.name === 'review') await renderReview()
@@ -1346,6 +1399,7 @@ async function boot() {
   })
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') {
+      abortListening()
       pauseSync()
       return
     }

@@ -1413,3 +1413,10 @@ p code {
 :root[data-theme='coffee'] :is(.chip.is-on, .seg button.is-on) {
   border-color: #e0a96d;
 }
+
+.answer-row { display: flex; gap: 8px; align-items: center; }
+.answer-row input { flex: 1; }
+.speak.listen[aria-pressed="true"] { border-color: var(--easy); animation: listen-pulse 1.2s ease-in-out infinite; }
+.listen-status:empty { display: none; }
+@keyframes listen-pulse { 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .speak.listen[aria-pressed="true"] { animation: none; } }
