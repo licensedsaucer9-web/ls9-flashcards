@@ -22,6 +22,22 @@ export interface SpeechRecognitionLike {
 }
 export type RecognitionCtor = new () => SpeechRecognitionLike
 
+/** The parts of PermissionStatus we use. */
+export interface PermissionLike {
+  state: string
+  addEventListener(type: 'change', listener: () => void): void
+  removeEventListener(type: 'change', listener: () => void): void
+}
+export type MicPermission = () => Promise<PermissionLike | null>
+
+async function micPermission(): Promise<PermissionLike | null> {
+  try {
+    return await navigator.permissions.query({ name: 'microphone' as PermissionName })
+  } catch {
+    return null
+  }
+}
+
 function recognitionCtor(): RecognitionCtor | null {
   if (typeof window === 'undefined') return null
   const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor }
@@ -72,10 +88,16 @@ let current: { abort(): void } | null = null
 export function abortListening(): void { current?.abort() }
 
 /** Starts one attempt; a running attempt is aborted first. Call from a user gesture. */
-export function listen(lang: string, callbacks: ListenCallbacks, ctor: RecognitionCtor | null = recognitionCtor()): { finish(): void } {
+export function listen(
+  lang: string,
+  callbacks: ListenCallbacks,
+  ctor: RecognitionCtor | null = recognitionCtor(),
+  permission: MicPermission = micPermission,
+): { finish(): void } {
   abortListening()
   let done = false
   let interim = ''
+  let unwatch = () => {}
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
   const timer = (name: string, ms: number, fire: () => void) => {
     clearTimeout(timers.get(name))
@@ -86,6 +108,7 @@ export function listen(lang: string, callbacks: ListenCallbacks, ctor: Recogniti
     done = true
     for (const id of timers.values()) clearTimeout(id)
     timers.clear()
+    unwatch()
     if (current === session) current = null
     if (!rec) return
     // Late events (such as a muted audio-capture error) must not reach a newer attempt.
@@ -140,11 +163,28 @@ export function listen(lang: string, callbacks: ListenCallbacks, ctor: Recogniti
     else endWithInterim({ kind: 'error', error: event.error ?? 'unknown' })
   }
   rec.onend = () => endWithInterim({ kind: 'silence' })
-  timer('start', timings.startMs, () => end({ kind: 'no-start' }))
+  // The start cut-off must not run while a microphone prompt waits for the
+  // user, so it is armed once access is known to be granted (or unknowable).
+  const armStart = () => {
+    if (done || listening) return
+    timer('start', timings.startMs, () => end({ kind: 'no-start' }))
+  }
   try {
     rec.start()
   } catch {
     end({ kind: 'error', error: 'start-failed' })
+    return session
   }
+  void permission().then(status => {
+    if (!status || status.state !== 'prompt') return armStart()
+    const changed = () => {
+      if (status.state === 'prompt') return
+      unwatch()
+      armStart()
+    }
+    status.addEventListener('change', changed)
+    unwatch = () => status.removeEventListener('change', changed)
+    if (done) unwatch()
+  }, armStart)
   return session
 }

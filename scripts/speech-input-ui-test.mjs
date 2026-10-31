@@ -131,7 +131,17 @@ try {
   assert.match(await page.inputValue('#answer'), /^wort \d+$/)
   assert.ok(await page.evaluate(() => window.__aborts) > aborts, 'hung session aborted')
 
+  // An unanswered microphone prompt does not count toward the start cut-off.
+  assert.equal(await page.evaluate(async () => (await navigator.permissions.query({ name: 'microphone' })).state), 'prompt')
+  await mic(page).click()
+  await page.waitForTimeout(700)
+  assert.equal(await status(page), 'Starting…', 'still waiting on the prompt')
+  assert.equal(await mic(page).getAttribute('aria-pressed'), 'true')
+  await mic(page).click()
+  await idle(page)
+
   // A start that never happens times out instead of hanging in "Starting…".
+  await context.grantPermissions(['microphone'], { origin: base })
   await mic(page).click()
   await idle(page)
   assert.match(await status(page), /did not start/)
@@ -207,7 +217,7 @@ try {
   await missing.context.close()
 
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('speech input UI: default off, hidden/shown, deck language, final/interim/silence/hung/no-start, muted errors, abort on hide and leave, de-en and flip hidden, unavailable API: ok')
+  console.log('speech input UI: default off, hidden/shown, deck language, final/interim/silence/hung/no-start, prompt not timed, muted errors, abort on hide and leave, de-en and flip hidden, unavailable API: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()
