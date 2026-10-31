@@ -312,6 +312,19 @@ does not reschedule them; grading a review-ahead card uses the normal SRS and
 progress-save path. Cards arriving from sync do not join that running session;
 start a new session to include them.
 
+### Speech
+
+Settings offers a Speech switch, off by default and remembered in this browser
+(`<prefix>.speech` in `localStorage`, like appearance; never synced). When it is
+on and the browser has `speechSynthesis`, review shows a 🔊 “Speak word” button
+for the visible face: the prompt before reveal and the answer after it (Hard
+mode shows one on each). Deck language names map to BCP-47 tags (German `de-DE`,
+Spanish `es-ES`, French `fr-FR`, Norwegian `nb-NO`, English `en-GB`); a voice
+with the exact tag, then the same primary language, is chosen when listed,
+otherwise the browser picks. Unknown languages leave the choice to the browser.
+Without the API the button is hidden and the switch says speech is unavailable.
+Speech is cancelled when the card changes or review is left.
+
 ### Hard mode
 
 Review offers a Hard mode switch, off by default and remembered in this browser

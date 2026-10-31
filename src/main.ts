@@ -1,6 +1,7 @@
 import './style.css'
 import { automaticGrade, matchAnswer } from './hard-mode.ts'
 import { chooseHardMode, hardModeEnabled } from './review-mode.ts'
+import { cancelSpeech, chooseSpeech, speak, speechAvailable, speechEnabled } from './speech.ts'
 import { chooseTheme, currentTheme, initializeTheme, themeLabels, themes, type Theme } from './theme.ts'
 import { registerSW } from 'virtual:pwa-register'
 import type { Article, Card, Direction, Grade, LocalDeck, PublicSettings, Tier, WordType } from './types.ts'
@@ -524,6 +525,10 @@ async function renderReview() {
     const pct = Math.round((done / sessionTotal) * 100)
     const faces = reviewFaces(card, settings.direction, activeDeck)
     const wordClass = (name: string) => (name ? ` ${name}` : '')
+    const showSpeak = speechEnabled() && speechAvailable()
+    const speakButton = (face: 'front' | 'back') => showSpeak
+      ? `<button type="button" class="speak" data-speak="${face}" aria-label="Speak word">🔊</button>`
+      : ''
 
     main.innerHTML = `
       <section class="screen review">
@@ -536,6 +541,7 @@ async function renderReview() {
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
         ${hardMode ? `
           <div class="typed-card">
+            ${speakButton('front')}
             ${faces.front.kickerHtml}
             <div class="word${wordClass(faces.front.wordClass)}">${esc(faces.front.wordText)}</div>
           </div>
@@ -544,6 +550,7 @@ async function renderReview() {
               <p class="kicker">${{ easy: 'Easy · first try', good: 'Good · second try', wrong_gender: 'Gender · right word, wrong gender', hard: 'Hard · keep practicing', again: 'Again · not remembered' }[result.grade]}</p>
               <p>Your answer: <span>${esc(typedAnswer)}</span></p>
               <p class="word">${esc(faces.back.wordText)}</p>
+              ${speakButton('back')}
               ${card.example_de ? `<p class="example">${esc(card.example_de)}${card.example_en ? `<br>${esc(card.example_en)}` : ''}</p>` : ''}
               <button type="button" class="primary" id="typed-next" ${saving ? 'disabled' : ''}>${saving ? 'Saving…' : result.saved ? 'Next card' : 'Retry saving'}</button>
             </div>
@@ -576,6 +583,7 @@ async function renderReview() {
               </div>
             </div>
           </button>
+          ${speakButton(flipped ? 'back' : 'front')}
         </div>
         <div class="grades ${activeDeck?.articles !== false && card.article !== 'none' ? 'noun' : ''}" ${flipped ? '' : 'hidden'}>
           <button class="grade again" data-grade="again">Again<small>1</small></button>
@@ -593,6 +601,14 @@ async function renderReview() {
 
     quietlyRefreshStreak()
     $('#back').addEventListener('click', () => go('/'))
+    main.querySelectorAll<HTMLButtonElement>('[data-speak]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const front = btn.dataset.speak === 'front'
+        const targetFirst = settings.direction === 'de-en'
+        const lang = front === targetFirst ? activeDeck?.targetLang ?? 'German' : activeDeck?.baseLang ?? 'English'
+        speak(faces[front ? 'front' : 'back'].wordText, lang)
+      })
+    })
     if (hardMode) {
       main.querySelector<HTMLFormElement>('#typed-answer')?.addEventListener('submit', async event => {
         event.preventDefault()
@@ -621,6 +637,7 @@ async function renderReview() {
         result = null
         secondTry = false
         typedAnswer = ''
+        cancelSpeech()
         paint()
       })
       const answerInput = main.querySelector<HTMLInputElement>('#answer')
@@ -657,7 +674,11 @@ async function renderReview() {
       }
       flipped = false
       if (result) result.saved = true
-      if (advance) paint()
+      // A requeued card keeps its id, so cancel on every advance, not on id change.
+      if (advance) {
+        cancelSpeech()
+        paint()
+      }
     } catch {
       if (studyLockCurrent(lock)) toast('Could not save this review. Try again.')
     } finally {
@@ -668,7 +689,7 @@ async function renderReview() {
 
   const onKey = (e: KeyboardEvent) => {
     if (hardMode || !queue.length) return
-    if (e.target instanceof Element && e.target.closest('[data-streak]')) return
+    if (e.target instanceof Element && e.target.closest('[data-streak], [data-speak]')) return
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault()
@@ -1170,6 +1191,10 @@ async function renderCloudSettings() {
         </select>
         <p class="note" id="theme-note">Colors for every deck and account on this device.</p>
       </div>
+      <div class="setting">
+        <label class="setting-switch"><input type="checkbox" role="switch" id="speech" aria-describedby="speech-note" ${speechEnabled() && speechAvailable() ? 'checked' : ''} ${speechAvailable() ? '' : 'disabled'} /> Speech</label>
+        <p class="note" id="speech-note">${speechAvailable() ? 'Show a speak button on review cards. Only on this device.' : 'Speech is not available in this browser.'}</p>
+      </div>
       ${accountPanelHtml()}
       <div class="setting">
         <p class="kicker" style="margin:0">Starter content</p>
@@ -1191,6 +1216,9 @@ async function renderCloudSettings() {
   $('#theme').addEventListener('change', (event) => {
     const theme = (event.target as HTMLSelectElement).value as Theme
     if (!chooseTheme(theme)) toast('Theme applied for now. Browser storage is unavailable.')
+  })
+  $('#speech').addEventListener('change', (event) => {
+    if (!chooseSpeech((event.target as HTMLInputElement).checked)) toast('Speech changed, but browser storage is unavailable. This choice may not survive a reload.')
   })
   const sw = 'serviceWorker' in navigator
   $('#sw-status').textContent = sw
@@ -1216,6 +1244,7 @@ async function render() {
   const lock: StudyLock = captureStudyLock()
   unbindKeys?.()
   unbindKeys = null
+  cancelSpeech()
   const route = parseRoute()
   if (route.name === 'home') await renderHome()
   else if (route.name === 'review') await renderReview()
