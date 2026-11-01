@@ -18,6 +18,11 @@ try {
     server: { host: '127.0.0.1', port: 4198, strictPort: true },
     plugins: [{
       name: 'scripted-feedback', enforce: 'pre',
+      transform(code, id) {
+        // Let the test sign in and out: Settings reads the signed-in uid from the study lock.
+        if (!id.endsWith('/src/study-lock.ts')) return null
+        return `${code}\nwindow.testSignIn = uid => { boundUid = uid; generation += 1 }\n`
+      },
       load(id) {
         if (!id.endsWith('/src/sync-backend.ts')) return null
         return `
@@ -54,6 +59,9 @@ try {
   const count = page.locator('#feedback-count')
   const problem = page.locator('#feedback-problem')
   const status = page.locator('#feedback-status')
+  const include = page.locator('#feedback-include-account')
+  const includeBox = page.getByLabel('Include my account so you can reply')
+  const privacy = page.locator('#feedback-privacy')
 
   // Closed until asked for; opening focuses the message and Send starts disabled.
   await open.waitFor()
@@ -65,6 +73,8 @@ try {
   assert.equal(await count.textContent(), '0 / 2000')
   assert.equal(await send.isDisabled(), true, 'empty message cannot be sent')
   assert.equal(await problem.textContent(), '', 'no complaint before typing')
+  assert.equal(await include.isHidden(), true, 'guests get no account checkbox')
+  assert.equal(await privacy.textContent(), 'Feedback is anonymous unless you add your email or tick the box.')
 
   // Whitespace is empty; the counter follows the trimmed text; too long disables Send.
   await message.fill('   ')
@@ -132,7 +142,8 @@ try {
   assert.equal(await open.isVisible(), true)
   const sent = await page.evaluate(() => window.feedbackSent)
   assert.equal(sent.length, 3, 'the slow send was submitted once')
-  assert.deepEqual(Object.keys(sent[1]).sort(), ['appVersion', 'email', 'message'])
+  assert.deepEqual(Object.keys(sent[1]).sort(), ['appVersion', 'email', 'includeAccount', 'message'])
+  assert.equal(sent.every(input => input.includeAccount === false && !('uid' in input)), true, 'guest feedback never asks for the account')
   assert.equal(sent[1].message, '  Great app, more verbs please  ', 'the backend trims; the UI passes the draft')
   assert.equal(sent[1].appVersion, await page.locator('#app-version').getAttribute('data-version'))
   await open.click()
@@ -150,8 +161,56 @@ try {
   assert.equal(await form.isHidden(), true)
   assert.equal((await page.evaluate(() => window.feedbackSent)).length, 3)
 
+  // Signed in: the box appears unticked, so feedback stays anonymous unless the user opts in.
+  const rerender = async () => { await page.goto(`${base}/#/`); await page.locator('#feedback-setting').waitFor({ state: 'detached' }); await page.goto(`${base}/#/settings`); await page.locator('#feedback-setting').waitFor() }
+  await page.evaluate(() => window.testSignIn('alice'))
+  await rerender()
+  await open.click()
+  assert.equal(await includeBox.isVisible(), true, 'signed in shows the account checkbox')
+  assert.equal(await includeBox.isChecked(), false, 'unticked by default')
+  if (process.env.FEEDBACK_SCREENSHOTS) {
+    await form.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: '/tmp/flashcards-feedback-signed-in.png' })
+  }
+  await message.fill('Anonymous while signed in')
+  await send.click()
+  await page.waitForFunction(() => /Thanks/.test(document.querySelector('#feedback-status')?.textContent ?? ''))
+  let last = (await page.evaluate(() => window.feedbackSent)).at(-1)
+  assert.equal(last.includeAccount, false, 'no account unless ticked')
+
+  await open.click()
+  await message.fill('Please reply to my account')
+  await includeBox.check()
+  await page.evaluate(() => { window.feedbackHold = new Promise(resolve => { window.releaseFeedback = resolve }) })
+  await send.click()
+  await page.getByRole('button', { name: 'Sending…' }).waitFor()
+  assert.equal(await includeBox.isDisabled(), true, 'checkbox locked while sending')
+  await page.evaluate(() => window.releaseFeedback())
+  await page.waitForFunction(() => /Thanks/.test(document.querySelector('#feedback-status')?.textContent ?? ''))
+  last = (await page.evaluate(() => window.feedbackSent)).at(-1)
+  assert.equal(last.includeAccount, true, 'ticked box asks for the account')
+  await open.click()
+  assert.equal(await includeBox.isChecked(), false, 'reset to unticked after a successful send')
+
+  // A tick survives re-renders for the same account, but not a sign-out or another account.
+  await includeBox.check()
+  await rerender()
+  assert.equal(await includeBox.isChecked(), true, 'tick kept across a re-render')
+  await page.evaluate(() => window.testSignIn('bob'))
+  await rerender()
+  assert.equal(await includeBox.isChecked(), false, 'another account starts unticked')
+  await includeBox.check()
+  await page.evaluate(() => window.testSignIn(null))
+  await rerender()
+  assert.equal(await include.isHidden(), true, 'signing out hides the checkbox')
+  await message.fill('Back to guest')
+  await send.click()
+  await page.waitForFunction(() => /Thanks/.test(document.querySelector('#feedback-status')?.textContent ?? ''))
+  last = (await page.evaluate(() => window.feedbackSent)).at(-1)
+  assert.equal(last.includeAccount, false, 'a stale tick never sends the account after sign-out')
+
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('feedback UI: button opens form, empty/long/bad-email blocked, failure keeps the draft, send locks then clears, slow send stays locked: ok')
+  console.log('feedback UI: button opens form, empty/long/bad-email blocked, failure keeps the draft, send locks then clears, slow send stays locked, account opt-in only when signed in and ticked: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()

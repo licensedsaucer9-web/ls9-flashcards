@@ -47,15 +47,18 @@ try {
   await assertSucceeds(addDoc(feedback('alice'), entry()))
   await assertSucceeds(addDoc(feedback(null), entry({ message: 'm'.repeat(MAX_FEEDBACK_MESSAGE), email: `${'e'.repeat(MAX_FEEDBACK_EMAIL - 12)}@example.com` })))
 
-  // The app's own write path, signed out and signed in.
+  // The app's own write path: signed out, signed in without the box (anonymous), and opted in.
   await assertSucceeds(writeFeedback(db(null), null, { message: '  From the app  ', email: ' ', appVersion: '1.5.0' }))
-  await assertSucceeds(writeFeedback(db('bob'), 'bob', { message: 'Signed in', email: 'bob@example.com', appVersion: '1.5.0' }))
+  await assertSucceeds(writeFeedback(db('bob'), 'bob', { message: 'Signed in, anonymous', email: '', appVersion: '1.5.0', includeAccount: false }))
+  await assertSucceeds(writeFeedback(db('bob'), 'bob', { message: 'Signed in', email: 'bob@example.com', appVersion: '1.5.0', includeAccount: true }))
   const docs = await stored()
-  assert(docs.length === 6, `expected 6 feedback docs, got ${docs.length}`)
+  assert(docs.length === 7, `expected 7 feedback docs, got ${docs.length}`)
   const app = docs.find(d => d.message === 'From the app')
   assert(app && !('email' in app) && !('uid' in app) && app.appVersion === '1.5.0' && app.createdAt instanceof Timestamp, 'signed-out app write is trimmed, omits email/uid and has a server time')
+  const quiet = docs.find(d => d.message === 'Signed in, anonymous')
+  assert(quiet && !('uid' in quiet) && !('email' in quiet), 'signed-in app write without the box omits uid')
   const bob = docs.find(d => d.message === 'Signed in')
-  assert(bob?.uid === 'bob' && bob.email === 'bob@example.com', 'signed-in app write carries uid and email')
+  assert(bob?.uid === 'bob' && bob.email === 'bob@example.com', 'opted-in app write carries uid and email')
 
   // Denied shapes.
   await denied(addDoc(feedback(null), entry({ message: 'm'.repeat(MAX_FEEDBACK_MESSAGE + 1) })), 'oversized message')
@@ -72,7 +75,7 @@ try {
   await denied(addDoc(feedback(null), entry({ createdAt: undefined })), 'missing createdAt')
   await denied(addDoc(feedback(null), entry({ uid: 'alice' })), 'anonymous with a uid')
   await denied(addDoc(feedback('alice'), entry({ uid: 'bob' })), 'wrong uid')
-  await denied(writeFeedback(db('alice'), 'bob', { message: 'Spoof', email: '', appVersion: '1.5.0' }), 'app write with wrong uid')
+  await denied(writeFeedback(db('alice'), 'bob', { message: 'Spoof', email: '', appVersion: '1.5.0', includeAccount: true }), 'app write with wrong uid')
 
   // Nobody reads, changes or deletes feedback from a client, including its author.
   const [first] = await stored()
@@ -84,8 +87,8 @@ try {
     await denied(setDoc(ref(uid), entry()), `overwrite by ${uid ?? 'anonymous'}`)
     await denied(deleteDoc(ref(uid)), `delete by ${uid ?? 'anonymous'}`)
   }
-  assert((await stored()).length === 6, 'denied writes stored nothing')
-  console.log('feedback rules: create-only with exact shape, anonymous and signed-in, client write path: ok')
+  assert((await stored()).length === 7, 'denied writes stored nothing')
+  console.log('feedback rules: create-only with exact shape, anonymous, signed-in with and without uid, client write path: ok')
 } finally {
   await env.cleanup()
 }

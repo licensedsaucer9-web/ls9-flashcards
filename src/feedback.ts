@@ -12,6 +12,8 @@ export interface FeedbackInput {
   readonly message: string
   readonly email: string
   readonly appVersion: string
+  /** The signed-in user ticked "Include my account". Without it feedback carries no uid. */
+  readonly includeAccount?: boolean
 }
 
 export interface FeedbackFields {
@@ -34,13 +36,16 @@ export function feedbackProblem(message: string, email: string): string | null {
   return null
 }
 
-/** The stored fields apart from createdAt, which Firestore stamps. Blank email and signed-out uid are omitted. */
+/**
+ * The stored fields apart from createdAt, which Firestore stamps. Blank email is omitted.
+ * Anonymous by default: the signed-in uid is stored only when the user ticked includeAccount.
+ */
 export function feedbackFields(input: FeedbackInput, uid: string | null): FeedbackFields {
   const email = input.email.trim()
   return {
     message: input.message.trim(),
     ...(email ? { email } : {}),
     appVersion: input.appVersion.slice(0, MAX_FEEDBACK_APP_VERSION),
-    ...(uid ? { uid } : {}),
+    ...(uid && input.includeAccount ? { uid } : {}),
   }
 }

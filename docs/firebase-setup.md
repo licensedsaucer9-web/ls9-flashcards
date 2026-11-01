@@ -175,8 +175,10 @@ Do not commit it, put it in a build environment, or upload it to Pages.
 
 Settings → Send feedback creates one document in the top-level `feedback`
 collection: `message` (trimmed, up to 2000 characters), optional `email` (up to
-254), `appVersion`, a server `createdAt`, and `uid` only when signed in (rules
-require it to equal `request.auth.uid`). Rules allow create only with that exact
+254), `appVersion`, a server `createdAt`, and `uid` only when a signed-in user
+opts in with "Include my account so you can reply" (unticked by default; rules
+require it to equal `request.auth.uid`). Without the email or the tick, feedback
+is anonymous. Rules allow create only with that exact
 shape; clients cannot read, update or delete feedback, so read it in Firebase
 console → Firestore Database → `feedback`. There is no email notification.
 

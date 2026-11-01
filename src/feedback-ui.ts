@@ -1,13 +1,21 @@
 import { buildInfo } from './build-info.ts'
 import { $, esc } from './dom.ts'
 import { feedbackProblem, MAX_FEEDBACK_MESSAGE } from './feedback.ts'
+import { captureStudyLock } from './study-lock.ts'
 import { sendFeedback } from './sync-backend.ts'
 
 // Settings re-renders on account and sync changes; the draft lives here so an
 // open form, typed text and the last result survive that and a failed send.
-const draft = { open: false, message: '', email: '', status: '', sending: false }
+// includeFor is the uid the box was ticked for: a sign-out or another account unticks it.
+const draft = { open: false, message: '', email: '', includeFor: null as string | null, status: '', sending: false }
+
+function includeAccount(): boolean {
+  const uid = captureStudyLock().uid
+  return Boolean(uid) && draft.includeFor === uid
+}
 
 export function feedbackPanelHtml(): string {
+  const signedIn = Boolean(captureStudyLock().uid)
   return `
       <div class="setting" id="feedback-setting">
         <p class="kicker" style="margin:0">Feedback</p>
@@ -22,11 +30,13 @@ export function feedbackPanelHtml(): string {
             <input type="email" id="feedback-email" autocomplete="email" inputmode="email" spellcheck="false" aria-describedby="feedback-email-note" value="${esc(draft.email)}" />
           </label>
           <p class="note" id="feedback-email-note">Only if you would like a reply.</p>
+          <label class="setting-switch feedback-include" ${signedIn ? '' : 'hidden'}><input type="checkbox" id="feedback-include-account" ${includeAccount() ? 'checked' : ''} /> Include my account so you can reply</label>
           <p class="note feedback-problem" id="feedback-problem" aria-live="polite"></p>
           <div class="feedback-actions">
             <button type="button" class="ghost" id="feedback-cancel">Cancel</button>
             <button type="submit" class="primary" id="feedback-send">Send</button>
           </div>
+          <p class="note" id="feedback-privacy">Feedback is anonymous unless you add your email or tick the box.</p>
         </form>
         <p class="note" id="feedback-status" role="status" aria-live="polite">${esc(draft.status)}</p>
       </div>`
@@ -37,6 +47,7 @@ export function bindFeedbackPanel(): void {
   const form = $('#feedback-form') as HTMLFormElement
   const message = $('#feedback-message') as HTMLTextAreaElement
   const email = $('#feedback-email') as HTMLInputElement
+  const include = $('#feedback-include-account') as HTMLInputElement
   const count = $('#feedback-count')
   const problemEl = $('#feedback-problem')
   const send = $('#feedback-send') as HTMLButtonElement
@@ -54,6 +65,7 @@ export function bindFeedbackPanel(): void {
     send.textContent = draft.sending ? 'Sending…' : 'Send'
     message.disabled = draft.sending
     email.disabled = draft.sending
+    include.disabled = draft.sending
     cancel.disabled = draft.sending
   }
   const show = (next: boolean) => {
@@ -76,19 +88,21 @@ export function bindFeedbackPanel(): void {
   })
   message.addEventListener('input', () => { draft.message = message.value; refresh() })
   email.addEventListener('input', () => { draft.email = email.value; refresh() })
+  include.addEventListener('change', () => { draft.includeFor = include.checked ? captureStudyLock().uid : null })
   form.addEventListener('submit', async event => {
     event.preventDefault()
     if (draft.sending || feedbackProblem(message.value, email.value)) return
     // Sync from the live fields: autofill can change a value without an input event.
     draft.message = message.value
     draft.email = email.value
+    draft.includeFor = include.checked ? captureStudyLock().uid : null
     draft.sending = true
     draft.status = 'Sending…'
     status.textContent = draft.status
     refresh()
     // The form stays locked until the write settles: a slow send is still queued and
     // will arrive, so unlocking it would let a retry create a second document.
-    const result = await sendFeedback({ message: draft.message, email: draft.email, appVersion: buildInfo.version }, () => {
+    const result = await sendFeedback({ message: draft.message, email: draft.email, appVersion: buildInfo.version, includeAccount: includeAccount() }, () => {
       draft.status = 'Still sending… Waiting for the server; your message will go out when the connection returns. Keep the app open.'
       const current = document.querySelector('#feedback-status')
       if (current) current.textContent = draft.status
@@ -97,6 +111,7 @@ export function bindFeedbackPanel(): void {
     if (result.ok) {
       draft.message = ''
       draft.email = ''
+      draft.includeFor = null
       draft.open = false
       draft.status = 'Thanks! Your feedback was sent.'
     } else {

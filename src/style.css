@@ -1025,7 +1025,8 @@ select:focus {
   gap: 10px;
 }
 
-.feedback-form[hidden] {
+.feedback-form[hidden],
+.feedback-include[hidden] {
   display: none;
 }
 
