@@ -214,6 +214,30 @@
   --pastel-accent: #b23a73;
 }
 
+/* Cuter Pink: Cute Pink with a deeper, more saturated pastel background. */
+:root[data-theme='cuterpink'] {
+  color-scheme: light;
+  --bg: #f8c8dc;
+  --bg-elev: #f4b6cf;
+  --surface: #fde3ee;
+  --surface-2: #f0a6c5;
+  --line: #9a3a68;
+  --text: #3d0a24;
+  --muted: #5e1a3c;
+  --der: #123f75;
+  --die: #7a0a36;
+  --das: #154a26;
+  --none: #4f2338;
+  --again: #7d1414;
+  --hard: #5a3300;
+  --good: #154a26;
+  --easy: #123f75;
+  --gender: #5a1a78;
+  --shadow: rgb(142 31 86 / 18%);
+  --backdrop: rgb(61 10 36 / 45%);
+  --pastel-accent: #861b50;
+}
+
 :root[data-theme='mint'] {
   color-scheme: light;
   --bg: #e8f7ef;
@@ -1589,24 +1613,24 @@ p code {
 @media (prefers-reduced-motion: reduce) { .speak.listen[aria-pressed="true"] { animation: none; } }
 
 /* Pastels: the deeper accent fills primary and selected controls. */
-:root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) :is(.primary, .chip.is-on, .chip.is-on:hover, .seg button.is-on) {
+:root:is([data-theme='pink'], [data-theme='cuterpink'], [data-theme='mint'], [data-theme='lavender']) :is(.primary, .chip.is-on, .chip.is-on:hover, .seg button.is-on) {
   background: var(--pastel-accent);
   border-color: var(--pastel-accent);
   color: var(--surface);
 }
 /* Faded due counts would drop below AA on the accent fill. */
-:root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) .chip.is-on.type-chip small {
+:root:is([data-theme='pink'], [data-theme='cuterpink'], [data-theme='mint'], [data-theme='lavender']) .chip.is-on.type-chip small {
   opacity: 1;
 }
-:root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) :is(.tab.is-active, h1) {
+:root:is([data-theme='pink'], [data-theme='cuterpink'], [data-theme='mint'], [data-theme='lavender']) :is(.tab.is-active, h1) {
   color: var(--pastel-accent);
 }
 /* The accent label would drop below AA on the usual --surface-2 hover fill. */
 @media (hover: hover) and (pointer: fine) {
-  :root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) .tab.is-active:hover {
+  :root:is([data-theme='pink'], [data-theme='cuterpink'], [data-theme='mint'], [data-theme='lavender']) .tab.is-active:hover {
     background: var(--bg-elev);
   }
 }
-:root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) .progress-fill {
+:root:is([data-theme='pink'], [data-theme='cuterpink'], [data-theme='mint'], [data-theme='lavender']) .progress-fill {
   background: var(--pastel-accent);
 }

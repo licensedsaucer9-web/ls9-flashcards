@@ -60,9 +60,9 @@ try {
   assert.equal(await select.inputValue(), 'dark', 'switching back persists too')
   assert.deepEqual(await select.locator('option').evaluateAll(options => options.map(o => [o.value, o.textContent])), [
     ['dark', 'Dark'], ['light', 'Light'], ['halloween', 'Halloween'], ['christmas', 'Christmas'], ['neopunk', 'NeoPunk'], ['nature', 'Nature'], ['coffee', 'Coffee'], ['dissonant', 'Dissonant'],
-    ['pink', 'Cute Pink'], ['mint', 'Mint'], ['lavender', 'Lavender'],
+    ['pink', 'Cute Pink'], ['cuterpink', 'Cuter Pink'], ['mint', 'Mint'], ['lavender', 'Lavender'],
   ], 'picker lists every theme')
-  const seasonal = { halloween: ['#120b1a', 'dark'], christmas: ['#0d2618', 'dark'], neopunk: ['#07060d', 'dark'], nature: ['#f2f0e1', 'light'], coffee: ['#1c120b', 'dark'], dissonant: ['#2a1636', 'dark'], pink: ['#fdeef4', 'light'], mint: ['#e8f7ef', 'light'], lavender: ['#f1ecfb', 'light'] }
+  const seasonal = { halloween: ['#120b1a', 'dark'], christmas: ['#0d2618', 'dark'], neopunk: ['#07060d', 'dark'], nature: ['#f2f0e1', 'light'], coffee: ['#1c120b', 'dark'], dissonant: ['#2a1636', 'dark'], pink: ['#fdeef4', 'light'], cuterpink: ['#f8c8dc', 'light'], mint: ['#e8f7ef', 'light'], lavender: ['#f1ecfb', 'light'] }
   for (const [theme, [bg, scheme]] of Object.entries(seasonal)) {
     await select.selectOption(theme)
     assert.deepEqual(await palette(), { bg, scheme, meta: bg }, `${theme} palette and theme-color`)
@@ -169,7 +169,7 @@ try {
     return { failures, checked: document.querySelectorAll('.screen *').length, running: document.getAnimations().length }
   })
   const accents = {}
-  for (const [theme, label] of [['dissonant', 'Dissonant'], ['pink', 'Cute Pink'], ['mint', 'Mint'], ['lavender', 'Lavender']]) {
+  for (const [theme, label] of [['dissonant', 'Dissonant'], ['pink', 'Cute Pink'], ['cuterpink', 'Cuter Pink'], ['mint', 'Mint'], ['lavender', 'Lavender']]) {
     await page.goto('http://127.0.0.1:4191/#/settings'); await select.waitFor()
     await select.selectOption(theme)
     const settingsCheck = await rendered()
@@ -192,7 +192,7 @@ try {
       assert.deepEqual((await rendered()).failures, [], `${label} ${route} meets WCAG AA`)
     }
   }
-  assert.equal(new Set([accents.pink, accents.mint, accents.lavender]).size, 3, 'each pastel has its own accent')
+  assert.equal(new Set([accents.pink, accents.cuterpink, accents.mint, accents.lavender]).size, 4, 'each pastel has its own accent')
   await page.goto('http://127.0.0.1:4191/#/settings'); await select.waitFor()
   await select.selectOption('dark')
   assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar h1')).animationName), 'none', 'other themes do not glitch')
@@ -222,7 +222,7 @@ try {
   assert.equal(await blockedPage.locator('#theme').inputValue(), 'dark', 'blocked storage does not prevent startup')
   await blocked.close()
   assert.deepEqual(errors, []); assert.deepEqual(external, [])
-  console.log('themes UI: keyboard switching, all eleven palettes and contrast, Dissonant and pastel rendered contrast, NeoPunk effects, gender rings and reduced motion, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
+  console.log('themes UI: keyboard switching, all twelve palettes and contrast, Dissonant and pastel rendered contrast, NeoPunk effects, gender rings and reduced motion, mobile/desktop, reload, navigation/review, data preservation, invalid/blocked storage: ok')
 } finally {
   if (browser) await browser.close()
   if (server) await server.close()
