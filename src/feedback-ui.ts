@@ -79,6 +79,9 @@ export function bindFeedbackPanel(): void {
   form.addEventListener('submit', async event => {
     event.preventDefault()
     if (draft.sending || feedbackProblem(message.value, email.value)) return
+    // Sync from the live fields: autofill can change a value without an input event.
+    draft.message = message.value
+    draft.email = email.value
     draft.sending = true
     draft.status = 'Sending…'
     status.textContent = draft.status
