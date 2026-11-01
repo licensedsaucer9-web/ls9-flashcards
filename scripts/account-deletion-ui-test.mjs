@@ -50,6 +50,7 @@ const fakeAuth = `
   export async function reauthenticateWithPopup(target) {
     count('reauthCalls');
     if (target !== user) throw new Error('Re-authenticated a different user');
+    if (window.reauthHold) await window.reauthHold;
     if (window.reauthFail) throw Object.assign(new Error('Synthetic re-authentication failure'), { code: window.reauthFail });
   }
   export async function reauthenticateWithRedirect() { count('redirectCalls'); }
@@ -186,6 +187,23 @@ try {
   assert.equal(await marker(), null, 'a cancelled confirmation leaves no marker')
   await page.click('#delete-account-cancel')
 
+  // Cancel while Google is still open: a confirmation that succeeds afterwards deletes nothing.
+  await page.evaluate(() => {
+    window.reauthFail = ''
+    window.reauthHold = new Promise((resolve) => { window.releaseReauth = resolve })
+  })
+  await page.waitForSelector('#delete-account')
+  await confirmDelete()
+  await page.waitForFunction(() => document.getElementById('delete-status')?.textContent.includes('Confirm with Google'))
+  await page.click('#delete-account-cancel')
+  await page.waitForSelector('#delete-account')
+  await page.evaluate(() => { window.reauthHold = null; window.releaseReauth() })
+  await page.waitForTimeout(300)
+  assert.equal((await calls()).runs, 0, 'a confirmation finishing after Cancel deletes nothing')
+  assert.equal((await calls()).deleteUser, 0)
+  assert.equal(await marker(), null, 'a cancelled confirmation leaves no marker')
+  assert.equal(await page.locator('#delete-account').isVisible(), true, 'still signed in on Settings')
+
   // The daily budget stops the run: signed out, told when it continues, marker kept.
   await page.evaluate(() => { window.reauthFail = ''; window.deletionOutcome = { state: 'budget', deleted: 10000 } })
   await page.waitForSelector('#delete-account')
@@ -237,6 +255,20 @@ try {
   assert.equal((await marker()).phase, 'auth', 'the marker records that only the Auth user is left')
   await page.evaluate(() => { window.deleteUserFail = '' })
   const runs = (await calls()).runs
+  // Finishing later while Google is still open: a confirmation that succeeds afterwards does not resume.
+  await page.evaluate(() => { window.reauthHold = new Promise((resolve) => { window.releaseReauth = resolve }) })
+  await page.click('#delete-account-reauth')
+  await page.click('#delete-account-later')
+  await page.waitForSelector('#google-sign-in')
+  await page.evaluate(() => { window.reauthHold = null; window.releaseReauth() })
+  await page.waitForTimeout(300)
+  assert.equal((await calls()).deleteUser, 2, 'a confirmation finishing after "finish later" does not delete the Auth user')
+  assert.equal((await calls()).runs, runs)
+  assert.equal((await marker()).phase, 'auth', 'the marker still resumes at the next sign-in')
+  await page.evaluate(() => { window.deleteUserFail = 'auth/requires-recent-login' })
+  await page.click('#google-sign-in')
+  await page.waitForSelector('#delete-account-reauth')
+  await page.evaluate(() => { window.deleteUserFail = '' })
   await page.click('#delete-account-reauth')
   await page.waitForFunction(() => document.getElementById('deletion-notice')?.textContent.includes('Your account was deleted'))
   assert.equal((await calls()).runs, runs, 'confirmed-gone data is not deleted again')

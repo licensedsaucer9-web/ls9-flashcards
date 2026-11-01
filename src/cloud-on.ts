@@ -61,6 +61,8 @@ let recoverPopup: (() => void) | null = null
 let freshPersonalDeck = false
 let deckOpenFailed = false
 let deleting = false
+/** Bumped when a deletion screen is left, so a Google confirmation finishing later deletes nothing. */
+let reauthAttempt = 0
 /** Outcome of an account deletion. Survives the sign-out that follows, unlike pendingError. */
 let deletionNotice = ''
 const prompted = new Set<string>()
@@ -791,12 +793,15 @@ function reauthProblem(code: string): string {
 }
 
 /** `user.delete()` needs a recent sign-in, so deletion always starts by confirming with Google. */
-async function reauthenticate(user: User, marker: DeletionMarker): Promise<'ok' | 'redirect' | string> {
+async function reauthenticate(user: User, marker: DeletionMarker): Promise<'ok' | 'redirect' | 'left' | string> {
   const provider = new GoogleAuthProvider()
+  const attempt = ++reauthAttempt
+  const left = () => attempt !== reauthAttempt || auth?.currentUser?.uid !== user.uid
   try {
     await reauthenticateWithPopup(user, provider)
-    return 'ok'
+    return left() ? 'left' : 'ok'
   } catch (error) {
+    if (left()) return 'left'
     const code = authCode(error)
     if (!redirectInstead(code)) return reauthProblem(code)
     saveMarker(marker)
@@ -842,7 +847,10 @@ async function confirmAccountDeletion(): Promise<void> {
   const confirm = document.getElementById('delete-account-confirm') as HTMLButtonElement
   const status = document.getElementById('delete-status') as HTMLElement
   input.addEventListener('input', () => { confirm.disabled = input.value.trim() !== 'DELETE' })
-  document.getElementById('delete-account-cancel')?.addEventListener('click', () => hooks?.onIdentityChanged())
+  document.getElementById('delete-account-cancel')?.addEventListener('click', () => {
+    reauthAttempt += 1
+    hooks?.onIdentityChanged()
+  })
   confirm.addEventListener('click', () => {
     if (input.value.trim() !== 'DELETE' || auth?.currentUser?.uid !== user.uid) return
     confirm.disabled = true
@@ -850,7 +858,7 @@ async function confirmAccountDeletion(): Promise<void> {
     void (async () => {
       const marker = { ...startDeletionMarker(user.uid, Date.now(), readMarker()), phase: 'confirm' as const }
       const outcome = await reauthenticate(user, marker)
-      if (outcome === 'redirect') return
+      if (outcome === 'redirect' || outcome === 'left') return
       if (outcome !== 'ok') {
         status.textContent = `${outcome} Nothing was deleted.`
         confirm.disabled = false
@@ -941,7 +949,7 @@ function showReauthForAuthDelete(user: User, message: string): void {
     void (async () => {
       const marker = readMarker() ?? startDeletionMarker(user.uid, Date.now(), null)
       const outcome = await reauthenticate(user, marker)
-      if (outcome === 'redirect') return
+      if (outcome === 'redirect' || outcome === 'left') return
       if (outcome !== 'ok') {
         if (status) status.textContent = outcome
         button.disabled = false
@@ -955,6 +963,7 @@ function showReauthForAuthDelete(user: User, message: string): void {
     })
   })
   document.getElementById('delete-account-later')?.addEventListener('click', () => {
+    reauthAttempt += 1
     void stopDeletion('Your cloud data is deleted. Sign in on this device again to delete the sign-in account.')
   })
 }
