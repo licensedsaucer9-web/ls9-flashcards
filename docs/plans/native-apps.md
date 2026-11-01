@@ -26,7 +26,7 @@ The archived proposal was written against `1.2.0`. What changed since:
 | Themes | Twelve themes stored per browser in `localStorage`. | Shared as-is. |
 | Updates | Settings → Check for update compares `release.json` and drops the service worker cache (`src/app-update.ts`). | Replaced by store updates in the mobile build. |
 | Auth | Google via `signInWithPopup` (`src/cloud-on.ts`). | Does not work in an embedded WebView; needs a native bridge. |
-| Account deletion | Not implemented. | Required by both stores. |
+| Account deletion | Settings → Delete account, entirely client-side (no Blaze): typed `DELETE`, Google re-authentication, budgeted batch deletes of the account's Firestore data, then the Auth user, then the device copy; resumable (#180, [architecture](../architecture.md#account-deletion)). | Meets the in-app requirement of both stores once the native auth bridge can re-authenticate; Apple also needs token revocation and Play a web deletion route (section 5). |
 
 ## 1. Recommended approach
 
@@ -90,7 +90,7 @@ failed gate.
 | Speech input (`speech-input.ts`) | **Native plugin on both.** Android WebView has no Web Speech recognition; iOS WKWebView recognition is limited. Same switch semantics: off by default, device-local, mic button not rendered when off or unavailable. |
 | Themes (`theme.ts`) | Shared. Also set the native status bar color from `--bg`. |
 | Service worker and update flow (`app-update.ts`, `vite-plugin-pwa`) | **Not in the mobile build.** No SW registration, no install hints, no Check for update; the store delivers updates. The PWA keeps all of it. |
-| Account deletion | **New**, needed by both stores (section 5). |
+| Account deletion | Shared: `src/account-deletion.ts` and the Settings flow. The native build swaps only re-authentication (`reauthenticateWithPopup`/`Redirect`) for the native sign-in bridge (section 5). |
 
 Proposed layout (later, not in this plan's PR): `capacitor.config.ts`,
 `ios/`, `android/`, a `build:mobile` script producing `dist-mobile` with the
@@ -139,8 +139,8 @@ stranded. Never merge accounts by email; provider linking keeps the Firebase
 UID.
 
 **Rules.** Ownership is `request.auth.uid`, so new providers need no rules
-change. Account deletion will (section 5) and goes through the normal rules
-review and separate deploy, not through this plan.
+change. The owner-only delete rules for account deletion (#180) are already
+in `firestore.rules`; their deploy is separate, as for every rules change.
 
 ## 5. Store costs and steps
 
@@ -168,12 +168,39 @@ review and separate deploy, not through this plan.
   access notes.
 - **In-app account deletion** (5.1.1(v)), including Apple token revocation.
 
-**Account deletion (both stores).** Physical deletes are denied by current
-rules, and deleting a parent document leaves subcollections. Plan an
-authenticated, idempotent deletion path that blocks further sync for the UID,
-removes progress, settings, activity and owned decks, deletes the Auth user and
-clears the local account database. A trusted backend (Cloud Functions needs
-Blaze billing) is the likely route; this needs its own design and rules review.
+**Account deletion (both stores).** Both stores require that an app which lets
+people create an account also lets them delete it, from inside the app:
+
+- *Apple* (App Review Guideline 5.1.1(v)): account deletion must be initiated
+  in the app, delete the account and its associated data (not just deactivate
+  it), and be easy to find. Apps offering Sign in with Apple must also revoke the
+  user's Apple tokens through the Sign in with Apple REST API when the account
+  is deleted.
+- *Google Play* (User Data policy, account deletion requirement): the app must
+  offer deletion in the app **and** a web link, entered in the Data safety form,
+  where a user can request deletion without reinstalling the app. Deleted data
+  must be listed in Data safety; any data kept (and why, and for how long) must
+  be disclosed.
+
+The web app already does the in-app part without Blaze (#180; see
+[architecture](../architecture.md#account-deletion)): Settings → Delete account
+deletes the account's Firestore data in batches of at most 500, then the
+Firebase Auth user, then the local database, and resumes after interruptions or
+the daily quota. For the stores the remaining work is:
+
+- Re-authentication through the native sign-in bridge instead of the web popup.
+- Sign in with Apple token revocation. Without Cloud Functions the client can
+  call Firebase's `revokeAccessToken` with a fresh Apple authorization code
+  during the re-authentication step, before `user.delete()`.
+- Play's web deletion route: the hosted web app's Settings → Delete account
+  works from any browser, so that URL (plus a short help page) can be the
+  Data safety link.
+- Disclosures: feedback stays (it is anonymous unless the user ticked Include my
+  account), a shared deck's vocabulary stays for its other members, and the
+  private daily backups keep deleted data until they age out (14 dumps).
+- Stale clients: another signed-in device can still write until its ID token
+  expires (up to an hour); the confirmation tells users to sign out elsewhere
+  first. A server-side sync block would need a trusted backend.
 
 ## 6. Risks
 
@@ -186,7 +213,7 @@ Blaze billing) is the likely route; this needs its own design and rules review.
 | Speech differs between web and native | Native plugins behind the existing switches; keep the web path unchanged; per-language device checks. |
 | Local data loss on upgrade or origin change | Stable origin and DB names; `storage.persist()`; cloud backstop; upgrade test in each phase. |
 | Apple sign-in creates a second account | Explicit linking only; cross-client UID check. |
-| Account deletion is incomplete or resurrected by stale clients or backups | Server-side sync block, recursive delete, erasure-aware restore tooling. |
+| Account deletion is incomplete or resurrected by stale clients or backups | Client deletion confirms an empty pass before deleting Auth; users are told to sign out elsewhere first; erasure-aware restore tooling; a server-side sync block would need a trusted backend. |
 | The 14-day tester clock slips | Recruit 12 testers and enroll the Play account early. |
 | Offline cold start still waits on provisioning | Check in the spike; cache the last validated account/deck binding if needed. |
 
@@ -205,8 +232,8 @@ Can start now without touching code:
 After the sync and feedback churn settles:
 
 - Spike (phase 1), then mobile build and adapters.
-- Account deletion design and rules review can run alongside the native
-  auth bridge.
+- Native re-authentication for account deletion and Apple token revocation
+  can run alongside the native auth bridge.
 - Android closed test and iOS TestFlight run concurrently once the shared build
   passes the spike gate; only the Apple-specific sign-in is iOS-only work.
 
@@ -224,8 +251,8 @@ Pages workflow.
    continuous days.
 4. **Apple's US$99/yr:** approve it, and individual or organization account
    (affects the public seller name)?
-5. Account deletion backend: accept Blaze billing for a Cloud Function, or
-   another trusted backend?
+5. Account deletion is client-side (#180). Is that enough for review, or is a
+   trusted backend (Blaze) wanted later for a server-side sync block?
 6. Minimum OS versions and whether tablets/iPad are in scope.
 
 ## Sources
@@ -234,6 +261,11 @@ Pages workflow.
   <https://support.google.com/googleplay/android-developer/answer/14151465>
 - Apple App Review Guidelines 4.8, Login Services:
   <https://developer.apple.com/app-store/review/guidelines/#login-services>
+- Apple App Review Guidelines 5.1.1(v), account deletion:
+  <https://developer.apple.com/app-store/review/guidelines/#data-collection-and-storage>
+  and <https://developer.apple.com/support/offering-account-deletion-in-your-app/>
+- Google Play, account deletion requirements:
+  <https://support.google.com/googleplay/android-developer/answer/13327111>
 - Archived proposal with further sources (Capacitor config, Firebase auth,
   deletion requirements, signing):
   [mobile-store-proposal-20261010.md](../archive/mobile-store-proposal-20261010.md)
