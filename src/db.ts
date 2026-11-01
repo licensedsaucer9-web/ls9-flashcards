@@ -4,6 +4,6 @@ export { getDecks, getActiveDeck, putDeckFeatures, getDeckCardCounts, createLoca
 export { getSettings, putSettings } from './db-settings.ts'
 export { getReviewActivity, saveReview } from './db-activity.ts'
 export { localDeckFile, localUserFile, readLocalState, getAllCards, getCard, putCard, putCards, insertMissingSeeds, deleteCard, countCards, type DueByTier, getDueByTier, selectDueCards, getDueCards } from './db-cards.ts'
-export { type MergeResult, mergeDeckIntoDb, mergeProgressIntoDb, acknowledgeRevision, type CloudSnapshot, readCloudSnapshot, acknowledgePending, applyStagedProgress } from './db-cloud.ts'
+export { type MergeResult, mergeDeckIntoDb, mergeProgressIntoDb, acknowledgeRevision, type CloudSnapshot, readCloudSnapshot, acknowledgePending, applyStagedProgress, readPullCursor, recordPullCursor } from './db-cloud.ts'
 export { importLegacyData, localDatabaseHasWork } from './db-legacy.ts'
 export { type GuestCopyMode, copyGuestDatabase } from './db-guest.ts'

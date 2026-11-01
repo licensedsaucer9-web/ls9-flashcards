@@ -1403,7 +1403,8 @@ async function boot() {
       if (route === 'home' || route === 'deck' || route === 'decks') scheduleRender()
       return
     }
-    void syncNow()
+    // Throttled: switching apps often must not re-read the account each time.
+    void syncNow({ foreground: true })
       .then(() => {
         const now = parseRoute().name
         if (now === 'home' || now === 'deck' || now === 'decks') scheduleRender()
@@ -1414,7 +1415,7 @@ async function boot() {
   })
   window.addEventListener('online', () => {
     if (!accountSignIn || !captureStudyLock().uid) return
-    void syncNow().catch(() => {
+    void syncNow({ foreground: true }).catch(() => {
       /* The pending records stay until the next foreground retry. */
     })
   })

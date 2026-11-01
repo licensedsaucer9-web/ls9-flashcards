@@ -11,13 +11,15 @@ import {
   memoryLocalCache,
   setDoc,
   terminate,
+  Timestamp,
 } from 'firebase/firestore'
-import { commitActivity, ensureExtraDeck, pullDeckCards, pullCloud, commitCard, commitProgress, commitSettings } from '../src/cloud-push.ts'
+import { commitActivity, ensureExtraDeck, pullDeckCards, pullCloud, PULL_OVERLAP_MS, commitCard, commitProgress, commitSettings } from '../src/cloud-push.ts'
 import { review, newSrs } from '../src/srs.ts'
 import { clampSrs, MAX_EASE, MAX_EXAMPLE_LENGTH, MAX_INTERVAL_DAYS, MAX_TAGS, MAX_TERM_LENGTH } from '../src/limits.ts'
 import { importCsv } from '../src/csv.ts'
 import { parseStoredReviewActivity } from '../src/streak.ts'
 import { applyAck, chunkItems, isDirty, runDirtyQueue } from '../src/record-sync.ts'
+import { docsToFiles } from '../src/firestore-docs.ts'
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg)
@@ -426,6 +428,77 @@ try {
   assert(isolated.rejected.length === 1 && deckAcks.join() === ALICE, 'rejected extra write does not block original sync')
   await commitCard(alice, extraId, 'extra-card', null, 999)
   assert((await pullDeckCards(aliceSecond, extraId))[0].data.deletedAt === 999, 'extra-deck tombstone reaches second client')
+
+  // Incremental pulls (#171). Reads are what Firestore bills: one per document returned, and one
+  // for a query that returns nothing, plus the settings document.
+  const CARA = 'cara'
+  const cara = db(CARA), caraSecond = db(CARA, undefined, 'second-device')
+  await setDoc(doc(cara, 'users', CARA), { deckId: CARA, schemaVersion: 1, migrationStatus: 'new' })
+  await setDoc(doc(cara, 'decks', CARA), { memberUids: [CARA] })
+  const hourAgo = Timestamp.fromMillis(Date.now() - 3_600_000)
+  const DAY = 86_400_000
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const admin = ctx.firestore()
+    for (let i = 0; i < 40; i++) await setDoc(doc(admin, 'decks', CARA, 'cards', `c${i}`), { ...cardDoc(`c${i}`), de: `w${i}`, syncedAt: hourAgo })
+    for (let i = 0; i < 25; i++) await setDoc(doc(admin, 'users', CARA, 'progress', `c${i}`), { ...srs(), syncedAt: hourAgo })
+    for (let i = 0; i < 20; i++) {
+      // Half the review history is older than the recent-activity window.
+      const at = Date.now() - (i < 10 ? 60 : 1) * DAY - i
+      await setDoc(doc(admin, 'users', CARA, 'activity', randomUUID()), { at, timeZone: 'Europe/Oslo', syncedAt: hourAgo })
+    }
+  })
+  const full = await pullCloud(cara, CARA, CARA)
+  assert(full.cards.length === 40 && full.progress.length === 25 && full.activity.length === 20, 'the first pull reads everything')
+  assert(full.cursor === hourAgo.toMillis(), 'the cursor is the newest server write time seen')
+  assert(full.cards.every(row => !('syncedAt' in row.data)) && full.progress.every(row => !('syncedAt' in row.data)), 'the sync clock stays out of the records')
+  // The first incremental pull reaches back the overlap and re-reads what was written in it once.
+  const overlapped = await pullCloud(cara, CARA, CARA, false, { since: full.cursor - PULL_OVERLAP_MS })
+  assert(overlapped.cards.length === 40 && overlapped.cursor === full.cursor, 'the overlap window is re-read')
+  const unchanged = await pullCloud(cara, CARA, CARA, false, { since: full.cursor })
+  assert(unchanged.cards.length + unchanged.progress.length + unchanged.activity.length === 0 && unchanged.cursor === null, 'nothing changed, nothing is read')
+  assert(full.reads === 86 && unchanged.reads === 4, `full pull ${full.reads} reads, unchanged incremental pull ${unchanged.reads} reads`)
+  console.log(`reads per pull (40 cards, 25 progress, 20 activity): full ${full.reads}, unchanged incremental ${unchanged.reads}`)
+  const daily = await pullCloud(cara, CARA, CARA, false, { activityFrom: Date.now() - 30 * DAY })
+  assert(daily.cards.length === 40 && daily.progress.length === 25 && daily.activity.length === 10, 'a daily full pull reads only recent activity')
+
+  // Changes and deletions from another device arrive in the next incremental pull.
+  assert(await commitCard(caraSecond, CARA, 'c3', null, Date.now()) === 'wrote', 'the second device deletes a card')
+  assert(await commitCard(caraSecond, CARA, 'c-new', content('c-new', { de: 'neu', updated_at: 50 }), 0) === 'wrote', 'and adds one')
+  assert(await commitProgress(caraSecond, CARA, 'c4', srs({ reps: 5, updated_at: 1_800_000_000_000 })) === 'wrote', 'and grades one')
+  const reviewId = randomUUID()
+  assert(await commitActivity(caraSecond, CARA, reviewId, { at: Date.now(), timeZone: 'Europe/Oslo' }) === 'wrote', 'with a review event')
+  // The window an hour back has settled, so the pull starts at the cursor.
+  const changes = await pullCloud(cara, CARA, CARA, false, { since: full.cursor })
+  assert(changes.cards.length === 2 && changes.progress.length === 1 && changes.activity.length === 1, 'only the changed records are read')
+  assert(changes.reads === 5, `an incremental pull of four changes reads ${changes.reads}`)
+  assert(changes.cursor > full.cursor, 'the cursor moves to the new server write time')
+  const files = docsToFiles(changes, CARA, 0)
+  assert(files.deck.deleted_ids.c3 > 0 && !files.deck.cards.some(card => card.id === 'c3'), 'the deletion arrives as a tombstone')
+  assert(files.deck.cards.some(card => card.id === 'c-new') && files.user.progress.c4.reps === 5 && files.user.activity?.[reviewId], 'the edits arrive')
+  // A retry that changes nothing writes nothing, so it does not show up as a change.
+  assert(await commitCard(caraSecond, CARA, 'c3', null, 1) === 'noop', 'an older tombstone does not rewrite the card')
+  const settled = await pullCloud(cara, CARA, CARA, false, { since: changes.cursor })
+  assert(settled.reads === 4, 'nothing after the newest change is read again')
+  // A review older than the recent window that a long-offline device uploads after the cursor still
+  // arrives in the daily full pull, beside the recent events.
+  const lateId = randomUUID()
+  assert(await commitActivity(caraSecond, CARA, lateId, { at: Date.now() - 45 * DAY, timeZone: 'Europe/Oslo' }) === 'wrote', 'an old review is uploaded late')
+  const lateDaily = await pullCloud(cara, CARA, CARA, false, { activityFrom: Date.now() - 30 * DAY, activitySince: changes.cursor })
+  assert(lateDaily.activity.length === 12 && lateDaily.activity.some(row => row.id === lateId) && lateDaily.activity.some(row => row.id === reviewId),
+    'the daily full pull reads recent activity and activity changed since the cursor')
+  assert(lateDaily.cursor > changes.cursor, 'and the cursor moves past the late review')
+  assert(lateDaily.reads === 41 + 25 + 11 + 1 + 1, `the daily full pull reads ${lateDaily.reads}`)
+  const recentOnly = await pullCloud(cara, CARA, CARA, false, { activityFrom: Date.now() - 30 * DAY })
+  assert(!recentOnly.activity.some(row => row.id === lateId), 'without activitySince the late review is missed')
+
+  // A client from before #171 writes no syncedAt. The incremental pull misses it; the daily full pull does not.
+  await setDoc(doc(caraSecond, 'decks', CARA, 'cards', 'c-old-client'), cardDoc('c-old-client', { de: 'alt' }))
+  const missed = await pullCloud(cara, CARA, CARA, false, { since: changes.cursor })
+  assert(!missed.cards.some(row => row.id === 'c-old-client'), 'an unstamped write is not seen incrementally')
+  assert((await pullCloud(cara, CARA, CARA, false, { activityFrom: Date.now() - 30 * DAY })).cards.some(row => row.id === 'c-old-client'), 'the daily full pull reads it')
+  // Such a client copies a stamped tombstone back unchanged when it deletes; the rules accept that.
+  const stamped = (await getDoc(doc(cara, 'decks', CARA, 'cards', 'c-new'))).data()
+  await setDoc(doc(caraSecond, 'decks', CARA, 'cards', 'c-new'), { ...stamped, deletedAt: Date.now() })
   console.log('cloud sync emulator ok')
 } finally {
   await Promise.all(stores.map((store) => terminate(store).catch(() => {})))

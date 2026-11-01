@@ -66,6 +66,21 @@ export interface LocalDeck extends PublicSettings {
   settingsUpdatedAt?: number
   /** Cloud deck to sync instead of `id`, set when another account already held `id`. */
   cloudId?: string
+  /** Where the last cloud pull of this deck left off. Removed with the deck, so its cards are never assumed. */
+  pullCursor?: PullCursor
+}
+
+export type PullCursor = {
+  /** `uid/cloudId` the cursor was read from; any other binding starts from a full pull. */
+  key: string
+  /** Newest server write time this deck has merged, or null when no pulled document carried one. */
+  at: number | null
+  /** Device time when `at` last moved. */
+  movedAt: number
+  /** A pull at least the overlap after `movedAt` re-read the overlap window, so later pulls start at `at`. */
+  settled: boolean
+  /** Device time of the last full pull. */
+  fullAt: number
 }
 
 export interface Settings {

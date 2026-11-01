@@ -27,18 +27,24 @@ try {
       if (id.endsWith('/src/sync-backend.ts')) return `export * from './cloud-sync.ts'`
       if (id.endsWith('/src/cloud-handle.ts')) return 'export function cloudFirestore() { return {} }'
       if (id.endsWith('/src/cloud-push.ts')) return `
-        export async function accountDeckId() { return 'fixture-original' }
+        export const PULL_OVERLAP_MS = 2 * 60 * 1000
+        export async function accountDeckId() {
+          if (globalThis.quota) throw { code: 'resource-exhausted' }
+          return 'fixture-original'
+        }
         export async function ensureExtraDeck(_db, _uid, deckId) {
           globalThis.ensured?.push(deckId)
           await globalThis.beforeEnsure?.(deckId)
           return globalThis.takenDecks?.includes(deckId) ? 'taken' : 'ok'
         }
         export async function pullDeckCards() { return [] }
-        export async function pullCloud(_db, _uid, _deckId, extra) {
+        export async function pullCloud(_db, _uid, _deckId, extra, options) {
           globalThis.pullStarted = true
           globalThis.pulls = (globalThis.pulls ?? 0) + 1
+          globalThis.pullOptions?.push(options)
           if (globalThis.waitForPull) await new Promise(resolve => { globalThis.releasePull = resolve })
-          return extra ? (globalThis.extraDocs ?? { cards: [], progress: [], activity: [], settings: { direction: 'de-en', sessionSize: 20, tier: 3, settingsUpdatedAt: 0 } }) : globalThis.cloudDocs
+          const docs = extra ? (globalThis.extraDocs ?? { cards: [], progress: [], activity: [], settings: { direction: 'de-en', sessionSize: 20, tier: 3, settingsUpdatedAt: 0 } }) : globalThis.cloudDocs
+          return { ...docs, cursor: globalThis.pullCursor ?? null }
         }
         const commit = async (...args) => {
           if (globalThis.rejectDeck === args[1]) throw { code: 'permission-denied' }
@@ -323,6 +329,8 @@ try {
     const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
     await api.switchActiveDeck(deckId)
     await api.putCard({ ...globalThis.sample, id: 'fixture-claimed' })
+    // Earlier passes found this deck free; a fresh session is when an ID turns out to be claimed.
+    cloud.resetSyncMemory()
     globalThis.takenDecks = [deckId]; globalThis.ensured = []; globalThis.pushes = []
     const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
     const first = { outcome, ensured: globalThis.ensured, pushes: globalThis.pushes }
@@ -343,7 +351,7 @@ try {
   assert(claimed.first.pushes.some(args => args[1] === cloudId && args[2] === 'fixture-claimed'), 'cards upload to the fresh cloud deck')
   assert(!claimed.first.pushes.some(args => args[1] === localId || args[4] === localId), 'nothing is written under the claimed ID')
   assert.equal(claimed.again, 'synced')
-  assert.deepEqual(claimed.secondEnsured, [cloudId], 'the recorded cloud ID is reused without retrying the claimed one')
+  assert.deepEqual(claimed.secondEnsured, [], 'the recorded cloud ID is reused, and not re-checked this session, without retrying the claimed one')
   assert(claimed.secondPushes.some(args => args[1] === cloudId && args[2] === 'fixture-claimed-2'), 'later passes keep the fresh cloud deck')
   assert.equal(claimed.card.deckId, localId, 'local records keep the local deck ID')
   // Two tabs fall back concurrently: the later one adopts the first recorded cloud ID.
@@ -368,6 +376,32 @@ try {
   assert(raced.pushes.some(args => args[1] === 'fixture-other-tab-cloud' && args[2] === 'fixture-raced'), 'the later tab uploads to the recorded cloud deck')
   assert.equal(raced.ensured.length, 2)
   assert(!raced.pushes.some(args => args.includes(raced.ensured[1])), 'nothing is written to the abandoned fallback')
+  // A pull whose merge another tab's deck switch skipped is not fresh: the next light pass pulls again (#171).
+  await a.evaluate(async () => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
+    await api.switchActiveDeck('fixture-original')
+    cloud.resetSyncMemory()
+    globalThis.pulls = 0; globalThis.pullStarted = false; globalThis.waitForPull = true; globalThis.pushes = []
+    globalThis.pass = cloud.cloudSyncPass({ requestAgain() {}, now: () => 9_000_000 })
+  })
+  await a.waitForFunction(() => globalThis.pullStarted)
+  await b.evaluate(async () => { const api = await import('/src/db.ts'); await api.createLocalDeck('Skipped merge', 'French') })
+  const skippedOutcome = await a.evaluate(async () => {
+    globalThis.waitForPull = false
+    globalThis.releasePull()
+    return globalThis.pass
+  })
+  await b.evaluate(async () => { const api = await import('/src/db.ts'); await api.switchActiveDeck('fixture-original') })
+  const afterSkip = await a.evaluate(async () => {
+    const cloud = await import('/src/cloud-sync.ts')
+    const outcome = await cloud.cloudSyncPass({ requestAgain() {}, light: true, now: () => 9_000_000 + 60_000 })
+    const again = await cloud.cloudSyncPass({ requestAgain() {}, light: true, now: () => 9_000_000 + 120_000 })
+    return { outcome, again, pulls: globalThis.pulls }
+  })
+  assert.equal(skippedOutcome, 'idle', 'the switched-away pass stops without merging')
+  assert.equal(afterSkip.outcome, 'synced')
+  assert.equal(afterSkip.again, 'synced')
+  assert.equal(afterSkip.pulls, 2, 'the light pass after a skipped merge pulls again; the one after it is throttled')
   // Passes after a local change (light) skip the full-account pull while a recent one is fresh; everything else pulls.
   const light = await a.evaluate(async () => {
     const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts')
@@ -391,6 +425,75 @@ try {
   assert(light.every(step => step.outcome === 'synced'))
   assert(light[1].pushed.includes('fixture-light-1'), 'a light pass still uploads the changed record')
   assert(light[2].pushed.includes('fixture-light-2') && light[3].pushed.includes('fixture-light-3'))
+  // Foreground and reconnect pulls are throttled; launch and Sync now always pull (#171).
+  const foreground = await a.evaluate(async () => {
+    const cloud = await import('/src/cloud-sync.ts')
+    cloud.resetSyncMemory()
+    globalThis.pulls = 0; globalThis.pullOptions = []; globalThis.pullCursor = 7_000_000
+    const T = 5_000_000, steps = []
+    const run = async (label, control) => {
+      const outcome = await cloud.cloudSyncPass({ requestAgain() {}, ...control })
+      steps.push({ label, outcome, pulls: globalThis.pulls })
+    }
+    await run('launch', { now: () => T })
+    await run('foreground inside the interval', { foreground: true, now: () => T + 9 * 60_000 })
+    await run('reconnect inside the interval', { foreground: true, now: () => T + 9 * 60_000 + 1 })
+    await run('foreground after the interval', { foreground: true, now: () => T + cloud.FOREGROUND_PULL_INTERVAL_MS + 1 })
+    await run('Sync now inside the interval', { now: () => T + cloud.FOREGROUND_PULL_INTERVAL_MS + 2 })
+    await run('a day after the full pull', { now: () => T + cloud.FULL_PULL_INTERVAL_MS })
+    globalThis.pullCursor = undefined
+    const cursor = { key: 'k', at: 42, movedAt: T, settled: false, fullAt: T }
+    const changes = cloud.pullPlan(cursor, T + 1)
+    return { steps, options: globalThis.pullOptions, plans: {
+      first: cloud.pullPlan(null, T),
+      noClock: cloud.pullPlan({ ...cursor, at: null }, T + 1),
+      changes,
+      settledChanges: cloud.pullPlan({ ...cursor, settled: true }, T + 1),
+      daily: cloud.pullPlan(cursor, T + cloud.FULL_PULL_INTERVAL_MS),
+    }, cursors: {
+      soon: cloud.nextCursor('k', cursor, changes, null, T + cloud.PULL_OVERLAP_MS - 1),
+      later: cloud.nextCursor('k', cursor, changes, 42, T + cloud.PULL_OVERLAP_MS),
+      moved: cloud.nextCursor('k', { ...cursor, settled: true }, changes, 50, T + 5),
+      older: cloud.nextCursor('k', cursor, changes, 30, T + cloud.PULL_OVERLAP_MS),
+    }, recent: cloud.RECENT_ACTIVITY_MS, overlap: cloud.PULL_OVERLAP_MS, T }
+  })
+  assert.deepEqual(foreground.steps.map(step => step.pulls), [1, 1, 1, 2, 3, 4], 'foreground pulls wait out the interval; Sync now does not')
+  assert(foreground.steps.every(step => step.outcome === 'synced'))
+  // The earlier passes left a cursor without a server clock, so the launch re-reads in full; the rest read changes.
+  const T = foreground.T
+  assert.deepEqual(foreground.options, [
+    { activityFrom: T - foreground.recent, activitySince: 0 },
+    { since: 7_000_000 - foreground.overlap },
+    { since: 7_000_000 },
+    { activityFrom: T + 86_400_000 - foreground.recent, activitySince: 7_000_000 },
+  ], 'between daily full pulls only changes since the cursor are read, the overlap window once')
+  assert.deepEqual(foreground.plans.first, { kind: 'first', options: {} }, 'the first pull reads everything, all activity included')
+  assert.equal(foreground.plans.noClock.kind, 'full')
+  assert.deepEqual(foreground.plans.changes, { kind: 'changes', options: { since: 42 - foreground.overlap } })
+  assert.deepEqual(foreground.plans.settledChanges, { kind: 'changes', options: { since: 42 } })
+  assert.equal(foreground.plans.daily.kind, 'full')
+  // The daily full pull still reads activity that changed since the cursor, however old the review (#171).
+  assert.deepEqual(foreground.plans.daily.options, { activityFrom: T + 86_400_000 - foreground.recent, activitySince: 42 - foreground.overlap })
+  assert.deepEqual(foreground.plans.noClock.options, { activityFrom: T + 1 - foreground.recent, activitySince: 0 })
+  // An exhausted daily quota keeps the change on this device and says why (#171).
+  const quota = await a.evaluate(async () => {
+    const api = await import('/src/db.ts'), cloud = await import('/src/cloud-sync.ts'), sync = await import('/src/sync.ts')
+    cloud.resetSyncMemory()
+    await api.putCard({ ...globalThis.sample, id: 'fixture-quota' })
+    globalThis.quota = true; globalThis.pushes = []
+    const outcome = await cloud.cloudSyncPass({ requestAgain() {} })
+    await sync.syncNow()
+    globalThis.quota = false
+    const settings = await api.getSettings()
+    return { outcome, message: sync.getSyncStatus().message, pushes: globalThis.pushes.length, pending: settings.localRevision > settings.acknowledgedRevision }
+  })
+  assert.equal(quota.outcome, 'quota')
+  assert.equal(quota.message, 'Daily cloud limit reached, studying offline until it resets')
+  assert(quota.pushes === 0 && quota.pending, 'the change stays pending on this device')
+  const { soon, later, moved, older } = foreground.cursors
+  assert(!soon.settled && later.settled && later.at === 42, 'the window settles only once a pull started the overlap after the cursor moved')
+  assert(moved.at === 50 && !moved.settled && moved.movedAt === T + 5 && moved.fullAt === T, 'a newer write moves the cursor and reopens the window')
+  assert(older.at === 42, 'the cursor never moves back')
   assert(resumed.ids.includes('fixture-remote'))
   assert(!resumed.ids.includes('fixture-local'))
   assert.deepEqual(external, [])

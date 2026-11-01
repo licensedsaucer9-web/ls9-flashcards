@@ -25,7 +25,7 @@ import { publicFirebaseWeb } from './firebase-web.ts'
 import { acknowledgePending, copyGuestDatabase, recordAssignedDeck, getSettings, importLegacyData, localDatabaseHasWork } from './db.ts'
 import { esc } from './dom.ts'
 import { provisionAccount } from './provision.ts'
-import { cancelPopupWhenPageReturns, deckOpenFailure, retryableDeckOpen } from './sign-in-flow.ts'
+import { cancelPopupWhenPageReturns, deckOpenFailure, QUOTA_DECK_MESSAGE, quotaCode, retryableDeckOpen } from './sign-in-flow.ts'
 import { bindStudyDatabase, captureStudyLock } from './study-lock.ts'
 import type { NeedsFixing } from './record-sync.ts'
 import { forgetNeedsFixing, getSyncStatus, onSyncStatus, syncNow } from './sync.ts'
@@ -263,6 +263,7 @@ async function adoptUser(user: User): Promise<void> {
   let deckId = ''
   let personal = false
   let created = false
+  let quotaReached = false
   try {
     const provisioned = await openProvisionedAccount(user)
     deckId = provisioned.deckId
@@ -275,8 +276,14 @@ async function adoptUser(user: User): Promise<void> {
       showAuthError(error)
       return
     }
-    showDeckOpenFailure(error)
-    return
+    // Out of daily reads: an account this device has opened before keeps studying from its own copy.
+    // Its deck assignment is already recorded there, and sync resumes after the reset.
+    quotaReached = quotaCode(code) && await withTimeout(localDatabaseHasWork(accountDatabaseName(user.uid)), 4000).catch(() => false)
+    if (ticket !== ticketId) return
+    if (!quotaReached) {
+      showDeckOpenFailure(error)
+      return
+    }
   }
   if (ticket !== ticketId) return
   label = user.displayName || user.email || 'Signed in'
@@ -312,6 +319,7 @@ async function adoptUser(user: User): Promise<void> {
   deckOpenFailed = false
   welcomeRelease?.()
   welcomeRelease = null
+  if (quotaReached) hooks?.toast(QUOTA_DECK_MESSAGE)
   if (booted && hooks) {
     const paint = () => hooks?.onIdentityChanged()
     if (freshPersonalDeck) {
