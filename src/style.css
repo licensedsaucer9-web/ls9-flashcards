@@ -189,6 +189,77 @@
   --clash-ink: #1a0d24;
 }
 
+/* Pastels: soft light surfaces with dark ink; each has one deeper accent for
+   selected/primary controls, and --line stays at 3:1 for control borders. */
+:root[data-theme='pink'] {
+  color-scheme: light;
+  --bg: #fdeef4;
+  --bg-elev: #fae0eb;
+  --surface: #fff8fb;
+  --surface-2: #f7d2e2;
+  --line: #b0587f;
+  --text: #4a1631;
+  --muted: #7d3a5c;
+  --der: #1f5a9c;
+  --die: #a3164d;
+  --das: #26683a;
+  --none: #6e4058;
+  --again: #a32626;
+  --hard: #7a4700;
+  --good: #26683a;
+  --easy: #1f5a9c;
+  --gender: #7b2d9c;
+  --shadow: rgb(176 58 115 / 14%);
+  --backdrop: rgb(74 22 49 / 40%);
+  --pastel-accent: #b23a73;
+}
+
+:root[data-theme='mint'] {
+  color-scheme: light;
+  --bg: #e8f7ef;
+  --bg-elev: #d9f0e4;
+  --surface: #f6fcf9;
+  --surface-2: #c8e8d7;
+  --line: #4b876a;
+  --text: #153a2b;
+  --muted: #3c5e4f;
+  --der: #1c5994;
+  --die: #9e2048;
+  --das: #1f6537;
+  --none: #455f53;
+  --again: #a12a22;
+  --hard: #724800;
+  --good: #1f6537;
+  --easy: #1c5994;
+  --gender: #6c3596;
+  --shadow: rgb(21 58 43 / 12%);
+  --backdrop: rgb(21 58 43 / 40%);
+  --pastel-accent: #2b7356;
+}
+
+:root[data-theme='lavender'] {
+  color-scheme: light;
+  --bg: #f1ecfb;
+  --bg-elev: #e6ddf7;
+  --surface: #fbf9fe;
+  --surface-2: #dccff3;
+  --line: #7b62b3;
+  --text: #2b1d4d;
+  --muted: #544874;
+  --der: #1d5899;
+  --die: #a01c50;
+  --das: #22663a;
+  --none: #574d72;
+  --again: #a3262a;
+  --hard: #744700;
+  --good: #22663a;
+  --easy: #1d5899;
+  --gender: #6f2fa0;
+  --shadow: rgb(43 29 77 / 12%);
+  --backdrop: rgb(43 29 77 / 40%);
+  --pastel-accent: #6a48b0;
+}
+
 #theme:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 3px;
@@ -1516,3 +1587,26 @@ p code {
 .listen-status:empty { display: none; }
 @keyframes listen-pulse { 50% { opacity: 0.55; } }
 @media (prefers-reduced-motion: reduce) { .speak.listen[aria-pressed="true"] { animation: none; } }
+
+/* Pastels: the deeper accent fills primary and selected controls. */
+:root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) :is(.primary, .chip.is-on, .chip.is-on:hover, .seg button.is-on) {
+  background: var(--pastel-accent);
+  border-color: var(--pastel-accent);
+  color: var(--surface);
+}
+/* Faded due counts would drop below AA on the accent fill. */
+:root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) .chip.is-on.type-chip small {
+  opacity: 1;
+}
+:root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) :is(.tab.is-active, h1) {
+  color: var(--pastel-accent);
+}
+/* The accent label would drop below AA on the usual --surface-2 hover fill. */
+@media (hover: hover) and (pointer: fine) {
+  :root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) .tab.is-active:hover {
+    background: var(--bg-elev);
+  }
+}
+:root:is([data-theme='pink'], [data-theme='mint'], [data-theme='lavender']) .progress-fill {
+  background: var(--pastel-accent);
+}
