@@ -31,8 +31,10 @@ to the network, and `speech-test.html` is not precached
 (`npm run test:sw-navigation`).
 
 Settings → Send feedback writes one create-only document to the top-level
-`feedback` collection (message, optional email, app version, server time, and
-the uid only when signed in). Device-only builds cannot send it. The draft stays
+`feedback` collection (message, optional email, app version and server time).
+It is anonymous by default: the uid is stored only when a signed-in user ticks
+"Include my account so you can reply", which guests do not see and which resets
+after each send. Device-only builds cannot send it. The draft stays
 in memory across Settings re-renders and failed sends; offline or refused sends
 say so inline. A slow send is not abandoned: the form stays locked and says it
 is still sending until the queued write succeeds or fails, so a retry cannot
