@@ -1019,6 +1019,20 @@ select:focus {
   margin-bottom: 12px;
 }
 
+.setting.danger-zone {
+  border-color: color-mix(in srgb, var(--again) 45%, var(--line));
+  background: color-mix(in srgb, var(--again) 6%, var(--surface));
+}
+
+.danger-zone .kicker {
+  color: var(--again);
+}
+
+.danger-zone ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
 .feedback-form {
   display: flex;
   flex-direction: column;

@@ -88,7 +88,8 @@ try {
     await denied(getDoc(ref(BOB)), 'cross-account extra-deck read')
     await denied(getDocs(collection(db(BOB), 'users', ALICE, 'decks', progressDeckId, kind)), 'cross-account extra-deck list')
     await denied(setDoc(ref(ALICE), invalid), 'invalid extra-deck shape')
-    await denied(deleteDoc(ref(ALICE)), 'extra-deck delete')
+    await denied(deleteDoc(ref(BOB)), 'cross-account extra-deck delete')
+    await assertSucceeds(deleteDoc(ref(ALICE)))
     await assertSucceeds(setDoc(ref(ALICE), valid))
   }
   await denied(setDoc(doc(db(ALICE), 'users', ALICE, 'decks', progressDeckId, 'settings', 'other'), settings()), 'extra settings singleton')
@@ -162,7 +163,7 @@ try {
     updateDoc(doc(db(ALICE), 'users', ALICE), { migrationStatus: 'complete' }),
     'mark migration complete',
   )
-  await denied(deleteDoc(doc(db(ALICE), 'users', ALICE)), 'delete account')
+  await denied(deleteDoc(doc(db(BOB), 'users', ALICE)), 'delete someone else\'s account')
 
   await assertSucceeds(setDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current'), settings({ sessionSize: 0 })))
   await assertSucceeds(getDoc(doc(db(ALICE), 'users', ALICE, 'settings', 'current')))
@@ -212,7 +213,7 @@ try {
     setDoc(doc(db(ALICE), 'users', ALICE, 'progress', SEED), progress({ interval: 1.5 })),
     'fractional interval',
   )
-  await denied(deleteDoc(doc(db(ALICE), 'users', ALICE, 'progress', SEED)), 'delete progress')
+  await denied(deleteDoc(doc(db(BOB), 'users', ALICE, 'progress', SEED)), 'cross-user progress delete')
 
   await denied(setDoc(doc(db(ALICE), 'decks', BOB), { memberUids: [ALICE] }), 'create a deck whose id is not the uid')
   await denied(setDoc(doc(db(ALICE), 'decks', ALICE), { memberUids: [ALICE, BOB] }), 'create a deck with an extra member')
@@ -270,13 +271,12 @@ try {
   const extra = await assertSucceeds(getDoc(doc(db(ALICE), 'decks', extraDeckId)))
   assert(extra.data().ownerUid === ALICE && extra.data().memberUids.join() === ALICE,
     'extra deck has its creator as owner and sole member')
-  await denied(getDocs(collection(db(ALICE), 'decks')), 'extra-deck owner cannot list decks')
+  await denied(getDocs(collection(db(ALICE), 'decks')), 'extra-deck owner cannot list all decks')
   await denied(updateDoc(doc(db(ALICE), 'decks', extraDeckId), { ownerUid: BOB }), 'immutable extra-deck owner')
   for (const memberUids of [[ALICE, BOB], [BOB], []]) {
     await denied(updateDoc(doc(db(ALICE), 'decks', extraDeckId), { memberUids }), 'immutable extra-deck membership')
   }
   await denied(setDoc(doc(db(ALICE), 'decks', extraDeckId), extraDeck), 'second extra-deck write')
-  await denied(deleteDoc(doc(db(ALICE), 'decks', extraDeckId)), 'extra-deck delete')
   await assertSucceeds(setDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', SEED), card()))
   await assertSucceeds(updateDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', SEED), { en: 'hound', updated_at: 3 }))
   await assertSucceeds(getDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', SEED)))
@@ -284,7 +284,6 @@ try {
   assert(extraCards.size === 1, 'extra-deck owner can list cards')
   await denied(setDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', 'bad.id'), card()), 'invalid extra-deck card id')
   await denied(updateDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', SEED), { de: 'x'.repeat(201) }), 'invalid extra-deck card content')
-  await denied(deleteDoc(doc(db(ALICE), 'decks', extraDeckId, 'cards', SEED)), 'extra-deck card delete')
   for (const uid of [BOB, null]) {
     const label = uid ? 'outsider' : 'signed-out'
     await denied(getDoc(doc(db(uid), 'decks', extraDeckId)), `${label} extra-deck read`)

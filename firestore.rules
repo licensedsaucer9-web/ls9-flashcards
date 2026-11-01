@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // Production rules for the LS9 Flashcards sync data (each user's own cards, progress,
-// decks and activity) and the create-only app feedback. They are deployed to the
+// decks and activity) and the create-only app feedback. Owners may delete their own
+// data so Settings → Delete account works without Cloud Functions. They are deployed to the
 // production Firebase project and also run against the emulator in CI and pull
 // requests; change them deliberately and keep scripts/limits-test.mjs and the
 // emulator tests in step with any limit you change.
@@ -21,6 +22,14 @@ service cloud.firestore {
       return signedIn()
         && exists(/databases/$(database)/documents/decks/$(deckId))
         && request.auth.uid in get(/databases/$(database)/documents/decks/$(deckId)).data.memberUids;
+    }
+
+    // The personal deck is keyed by the uid; a created deck names its owner.
+    // Only the owner may delete a deck or its cards (account deletion).
+    function ownsDeck(deckId) {
+      return isMember(deckId)
+        && (deckId == request.auth.uid
+          || get(/databases/$(database)/documents/decks/$(deckId)).data.get('ownerUid', null) == request.auth.uid);
     }
 
     function validId(id) {
@@ -149,30 +158,32 @@ service cloud.firestore {
       allow get: if isOwner(uid);
       allow list: if false;
       allow create: if isOwner(uid) && validAccountCreate(uid);
-      allow update, delete: if false;
+      allow update: if false;
+      // Account deletion: a user may delete only their own documents.
+      allow delete: if isOwner(uid);
 
       match /settings/{docId} {
         allow get, list: if isOwner(uid) && docId == 'current';
         allow create, update: if isOwner(uid) && docId == 'current' && validSettings();
-        allow delete: if false;
+        allow delete: if isOwner(uid);
       }
 
       match /progress/{cardId} {
         allow get, list: if isOwner(uid);
         allow create, update: if isOwner(uid) && validProgress(cardId);
-        allow delete: if false;
+        allow delete: if isOwner(uid);
       }
 
       match /decks/{deckId} {
         match /progress/{cardId} {
           allow get, list: if isOwner(uid);
           allow create, update: if isOwner(uid) && validProgress(cardId);
-          allow delete: if false;
+          allow delete: if isOwner(uid);
         }
         match /settings/{docId} {
           allow get, list: if isOwner(uid) && docId == 'current';
           allow create, update: if isOwner(uid) && docId == 'current' && validSettings();
-          allow delete: if false;
+          allow delete: if isOwner(uid);
         }
       }
 
@@ -195,7 +206,8 @@ service cloud.firestore {
 
     match /decks/{deckId} {
       allow get: if isMember(deckId);
-      allow list: if false;
+      // Account deletion finds the decks it created. Only a query on its own uid passes.
+      allow list: if signedIn() && resource.data.ownerUid == request.auth.uid;
       allow create: if signedIn()
         && ((deckId == request.auth.uid
           && request.resource.data.keys().hasOnly(['memberUids']))
@@ -203,12 +215,14 @@ service cloud.firestore {
             && request.resource.data.keys().hasOnly(['ownerUid', 'memberUids'])
             && request.resource.data.ownerUid == request.auth.uid))
         && request.resource.data.memberUids == [request.auth.uid];
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if ownsDeck(deckId);
 
       match /cards/{cardId} {
         allow get, list: if isMember(deckId);
         allow create, update: if isMember(deckId) && validCard(cardId);
-        allow delete: if false;
+        // Sync removes a card with a tombstone. Deleting is for account deletion.
+        allow delete: if ownsDeck(deckId);
       }
     }
 

@@ -47,6 +47,15 @@ export function rememberCopyDecision(
   storage.setItem(KEY, JSON.stringify(all))
 }
 
+/** Account deletion forgets this device's answers for the deleted account. */
+export function forgetCopyDecisions(storage: Store & Pick<Storage, 'removeItem'>, uid: string): void {
+  const all = readAll(storage)
+  if (!(uid in all)) return
+  delete all[uid]
+  if (Object.keys(all).length) storage.setItem(KEY, JSON.stringify(all))
+  else storage.removeItem(KEY)
+}
+
 /**
  * A stored answer is not applied again. Replaying it would write the old
  * device database over the account after the session is restored.

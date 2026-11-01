@@ -2,9 +2,13 @@ import { getApps, initializeApp } from 'firebase/app'
 import {
   browserLocalPersistence,
   connectAuthEmulator,
+  deleteUser,
   getAuth,
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithPopup,
+  reauthenticateWithRedirect,
   setPersistence,
   signInWithPopup,
   signOut,
@@ -18,7 +22,11 @@ import {
   type Firestore,
 } from 'firebase/firestore'
 import type { AccountHooks } from './account-hooks.ts'
-import { copyAlreadyDecided, rememberCopyDecision, sessionCopyMode, type CopyDecision } from './copy-choice.ts'
+import {
+  clearDeletionMarker, deleteAccountData, readDeletionMarker, remainingBudget, startDeletionMarker, writeDeletionMarker,
+  type DeletionMarker,
+} from './account-deletion.ts'
+import { copyAlreadyDecided, forgetCopyDecisions, rememberCopyDecision, sessionCopyMode, type CopyDecision } from './copy-choice.ts'
 import { includeGuestVocabulary } from './guest-copy.ts'
 import { setCloudFirestore } from './cloud-handle.ts'
 import { publicFirebaseWeb } from './firebase-web.ts'
@@ -31,6 +39,7 @@ import type { NeedsFixing } from './record-sync.ts'
 import { forgetNeedsFixing, getSyncStatus, onSyncStatus, syncNow } from './sync.ts'
 import { accountDatabaseName, currentLocalDatabaseName } from './user.ts'
 import { rehearsalNote, rehearsalPreview, storagePrefix } from './rehearsal.ts'
+import type { LocalDeck } from './types.ts'
 
 const GUEST_KEY = `${storagePrefix}.device-study`
 
@@ -51,6 +60,11 @@ let popupGeneration = 0
 let recoverPopup: (() => void) | null = null
 let freshPersonalDeck = false
 let deckOpenFailed = false
+let deleting = false
+/** Bumped when a deletion screen is left, so a Google confirmation finishing later deletes nothing. */
+let reauthAttempt = 0
+/** Outcome of an account deletion. Survives the sign-out that follows, unlike pendingError. */
+let deletionNotice = ''
 const prompted = new Set<string>()
 
 function iosHomeScreen(): boolean {
@@ -255,6 +269,13 @@ async function adoptUser(user: User): Promise<void> {
   popupBusy = false
   recoverPopup = null
   const ticket = ++ticketId
+  if (deleting) return
+  const marker = readMarker()
+  if (marker && marker.uid === user.uid && marker.phase !== 'confirm') {
+    // An interrupted deletion continues before anything provisions the account again.
+    await runAccountDeletion(user)
+    return
+  }
   showOpeningDeck()
   if (!firestore) {
     showAuthError({ code: 'missing-config' })
@@ -338,6 +359,7 @@ function startGoogleSignIn(): void {
     return
   }
   if (auth.currentUser) return
+  deletionNotice = ''
   if (popupBusy) {
     if (Date.now() - popupStartedAt < 800) return
     if (recoverPopup) recoverPopup()
@@ -446,6 +468,7 @@ async function initAccount(config: { apiKey: string; authDomain: string; project
     connectFirestoreEmulator(firestore, host, Number(portText))
   }
   await setPersistence(auth, browserLocalPersistence)
+  await settleDeletionRedirect(auth)
   await new Promise<void>((resolve, reject) => {
     let first = true
     onAuthStateChanged(auth!, (user) => {
@@ -488,6 +511,7 @@ async function showWelcome(googleReady: boolean): Promise<void> {
           <button class="danger" type="button" id="sign-out-account" ${auth?.currentUser ? '' : 'hidden'}>Sign out of Google</button>
         </div>
         <p class="note" id="auth-error">${esc(pendingError || (googleReady ? '' : 'Google sign-in is not configured on this build.'))}</p>
+        ${deletionNoticeHtml()}
       </div>
     </section>
   `
@@ -586,6 +610,7 @@ export async function prepareAccount(next: AccountHooks): Promise<void> {
   } catch (error) {
     showAuthError(error)
   }
+  await removeDeletedDeviceCopy()
   await maybeWelcome(true)
 }
 
@@ -622,6 +647,7 @@ export function accountPanelHtml(): string {
         <button class="primary" type="button" id="google-sign-in">Continue with Google</button>
         <button class="danger" type="button" id="sign-out-account" ${auth?.currentUser ? '' : 'hidden'}>Sign out of Google</button>
         <p class="note" id="auth-error">${esc(pendingError)}</p>
+        ${deletionNoticeHtml()}
       </div>
     `
   }
@@ -635,6 +661,12 @@ export function accountPanelHtml(): string {
       <button class="secondary" type="button" id="sync-now-account">Sync now</button>
       <button class="danger" type="button" id="sign-out-account">Sign out</button>
       <p class="note" id="auth-error">${esc(pendingError)}</p>
+      ${deletionNoticeHtml()}
+    </div>
+    <div class="setting danger-zone" id="delete-account-setting">
+      <p class="kicker" style="margin:0">Delete account</p>
+      <p class="note">Permanently delete this account, its cloud data and this device’s copy of it.</p>
+      <button class="danger" type="button" id="delete-account">Delete account</button>
     </div>
   `
 }
@@ -704,6 +736,9 @@ export function bindAccountPanel(panelHooks: AccountHooks): void {
   })
   bindSignOutButton()
   bindNeedsFixing()
+  document.getElementById('delete-account')?.addEventListener('click', () => {
+    void confirmAccountDeletion()
+  })
 }
 
 export async function syncAccountNow(): Promise<void> {
@@ -713,4 +748,291 @@ export async function syncAccountNow(): Promise<void> {
   } catch {
     /* Status stays on this device until the records are acknowledged. */
   }
+}
+
+function deletionNoticeHtml(): string {
+  return deletionNotice ? `<p class="note" id="deletion-notice" role="status">${esc(deletionNotice)}</p>` : ''
+}
+
+function readMarker(): DeletionMarker | null {
+  try {
+    return readDeletionMarker(localStorage)
+  } catch {
+    return null
+  }
+}
+
+/** Without the marker an interrupted deletion could not resume, so a failed write stops the run. */
+function saveMarker(marker: DeletionMarker): void {
+  writeDeletionMarker(localStorage, marker)
+}
+
+/** Re-authentication through a redirect returns here. A cancelled redirect deletes nothing. */
+async function settleDeletionRedirect(current: Auth): Promise<void> {
+  const marker = readMarker()
+  if (!marker) return
+  const result = await getRedirectResult(current).catch(() => null)
+  if (marker.phase !== 'confirm') return
+  if (result?.user.uid === marker.uid) {
+    saveMarker({ ...marker, phase: 'data' })
+    return
+  }
+  clearDeletionMarker(localStorage)
+  deletionNotice = 'Account deletion was cancelled. Nothing was deleted.'
+}
+
+/** Popups fail in some browsers and installed apps; a redirect works there. */
+function redirectInstead(code: string): boolean {
+  return code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment'
+}
+
+function reauthProblem(code: string): string {
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return 'Google sign-in was closed.'
+  if (code === 'auth/user-mismatch') return 'Choose the Google account you are signed in with.'
+  return `Google sign-in stopped (${code}).`
+}
+
+/** `user.delete()` needs a recent sign-in, so deletion always starts by confirming with Google. */
+async function reauthenticate(user: User, marker: DeletionMarker): Promise<'ok' | 'redirect' | 'left' | string> {
+  const provider = new GoogleAuthProvider()
+  const attempt = ++reauthAttempt
+  const left = () => attempt !== reauthAttempt || auth?.currentUser?.uid !== user.uid
+  try {
+    await reauthenticateWithPopup(user, provider)
+    return left() ? 'left' : 'ok'
+  } catch (error) {
+    if (left()) return 'left'
+    const code = authCode(error)
+    if (!redirectInstead(code)) return reauthProblem(code)
+    saveMarker(marker)
+    await reauthenticateWithRedirect(user, provider)
+    return 'redirect'
+  }
+}
+
+function deletionScreen(title: string, body: string): HTMLElement | null {
+  hooks?.setTabs(false)
+  const main = document.querySelector<HTMLElement>('#main')
+  if (!main) return null
+  main.innerHTML = `
+    <section class="screen scroll">
+      <header class="topbar"><h1>${esc(title)}</h1></header>
+      <div class="setting danger-zone">${body}</div>
+    </section>
+  `
+  return main
+}
+
+async function confirmAccountDeletion(): Promise<void> {
+  const user = auth?.currentUser
+  if (!user || captureStudyLock().uid !== user.uid || deleting) return
+  const main = deletionScreen('Delete account', `
+    <p class="kicker" style="margin:0">This permanently deletes</p>
+    <ul class="note">
+      <li>Your review progress, deck settings and review history</li>
+      <li>The cards and word edits in your own deck and in decks you created</li>
+      <li>Your sign-in account, ${esc(label)}</li>
+      <li>This account’s copy on this device</li>
+    </ul>
+    <p class="note">Kept: feedback you sent, and a shared deck’s word list for its other members. This can’t be undone. Sign out on your other devices first so they don’t upload this account’s cards again.</p>
+    <label for="delete-confirm">Type DELETE to confirm</label>
+    <input type="text" id="delete-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+    <p class="note">Google then asks you to sign in again.</p>
+    <button class="danger" type="button" id="delete-account-confirm" disabled>Delete account</button>
+    <button class="secondary" type="button" id="delete-account-cancel">Cancel</button>
+    <p class="note" id="delete-status" role="status" aria-live="polite"></p>
+  `)
+  if (!main) return
+  const input = document.getElementById('delete-confirm') as HTMLInputElement
+  const confirm = document.getElementById('delete-account-confirm') as HTMLButtonElement
+  const status = document.getElementById('delete-status') as HTMLElement
+  input.addEventListener('input', () => { confirm.disabled = input.value.trim() !== 'DELETE' })
+  document.getElementById('delete-account-cancel')?.addEventListener('click', () => {
+    reauthAttempt += 1
+    hooks?.onIdentityChanged()
+  })
+  confirm.addEventListener('click', () => {
+    if (input.value.trim() !== 'DELETE' || auth?.currentUser?.uid !== user.uid) return
+    confirm.disabled = true
+    status.textContent = 'Confirm with Google…'
+    void (async () => {
+      const marker = { ...startDeletionMarker(user.uid, Date.now(), readMarker()), phase: 'confirm' as const }
+      const outcome = await reauthenticate(user, marker)
+      if (outcome === 'redirect' || outcome === 'left') return
+      if (outcome !== 'ok') {
+        status.textContent = `${outcome} Nothing was deleted.`
+        confirm.disabled = false
+        return
+      }
+      await runAccountDeletion(user)
+    })().catch((error: unknown) => {
+      status.textContent = `Account deletion stopped (${authCode(error)}). Nothing was deleted.`
+      confirm.disabled = false
+    })
+  })
+  input.focus()
+}
+
+async function localCloudDeckIds(dbName: string): Promise<string[]> {
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(dbName)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+  try {
+    if (!db.objectStoreNames.contains('decks')) return []
+    const decks = await new Promise<LocalDeck[]>((resolve, reject) => {
+      const request = db.transaction('decks', 'readonly').objectStore('decks').getAll()
+      request.onsuccess = () => resolve(request.result as LocalDeck[])
+      request.onerror = () => reject(request.error)
+    })
+    return decks.filter((deck) => deck.origin !== 'original').map((deck) => deck.cloudId ?? deck.id)
+  } finally {
+    db.close()
+  }
+}
+
+function deleteLocalDatabase(name: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(name)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+  })
+}
+
+/** This device's copy of the account: its database and its copy-prompt answers. */
+async function removeDeviceCopy(uid: string): Promise<boolean> {
+  try {
+    forgetCopyDecisions(localStorage, uid)
+    await withTimeout(deleteLocalDatabase(accountDatabaseName(uid)), 5000)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** After the cloud data is confirmed gone, a device copy left by an interrupted run goes at the next launch. */
+async function removeDeletedDeviceCopy(): Promise<void> {
+  const marker = readMarker()
+  if (!marker || marker.phase !== 'auth' || auth?.currentUser?.uid === marker.uid) return
+  await removeDeviceCopy(marker.uid)
+}
+
+/** Leave the account; the marker resumes the deletion when it signs in on this device again. */
+async function stopDeletion(message: string): Promise<void> {
+  deletionNotice = message
+  if (auth?.currentUser) await signOut(auth).catch(() => {})
+  endDeletionScreen()
+}
+
+function endDeletionScreen(): void {
+  deleting = false
+  hooks?.toast(deletionNotice)
+  welcomeRelease?.()
+  welcomeRelease = null
+  if (!booted) return
+  if (location.hash !== '#/settings') location.hash = '#/settings'
+  hooks?.onIdentityChanged()
+}
+
+function showReauthForAuthDelete(user: User, message: string): void {
+  deletionScreen('Delete account', `
+    <p class="note">${esc(message)}</p>
+    <button class="danger" type="button" id="delete-account-reauth">Confirm with Google</button>
+    <button class="secondary" type="button" id="delete-account-later">Sign out and finish later</button>
+    <p class="note" id="delete-status" role="status" aria-live="polite"></p>
+  `)
+  const button = document.getElementById('delete-account-reauth') as HTMLButtonElement | null
+  const status = document.getElementById('delete-status')
+  button?.addEventListener('click', () => {
+    button.disabled = true
+    void (async () => {
+      const marker = readMarker() ?? startDeletionMarker(user.uid, Date.now(), null)
+      const outcome = await reauthenticate(user, marker)
+      if (outcome === 'redirect' || outcome === 'left') return
+      if (outcome !== 'ok') {
+        if (status) status.textContent = outcome
+        button.disabled = false
+        return
+      }
+      deleting = false
+      await runAccountDeletion(user)
+    })().catch((error: unknown) => {
+      if (status) status.textContent = `Google sign-in stopped (${authCode(error)}).`
+      button.disabled = false
+    })
+  })
+  document.getElementById('delete-account-later')?.addEventListener('click', () => {
+    reauthAttempt += 1
+    void stopDeletion('Your cloud data is deleted. Sign in on this device again to delete the sign-in account.')
+  })
+}
+
+/**
+ * Firestore data first, in budgeted batches; the Auth user only after a pass found
+ * nothing left; this device's copy last. Every step is recorded in the marker, so a
+ * closed tab, a lost connection or a spent daily budget resumes at the next sign-in.
+ */
+async function runAccountDeletion(user: User): Promise<void> {
+  if (!firestore || deleting) return
+  deleting = true
+  const uid = user.uid
+  const knownDeckIds = await withTimeout(localCloudDeckIds(accountDatabaseName(uid)), 4000).catch(() => [])
+  // Stop study and sync writing to the account while it is deleted.
+  ticketId += 1
+  bindStudyDatabase({ uid: null, dbName: currentLocalDatabaseName() })
+  deletionScreen('Deleting account', `
+    <p class="note" id="delete-progress" role="status" aria-live="polite">Deleting your cloud data…</p>
+  `)
+  const progress = (text: string) => {
+    const el = document.getElementById('delete-progress')
+    if (el) el.textContent = text
+  }
+  let marker = startDeletionMarker(uid, Date.now(), readMarker())
+  try {
+    if (marker.phase !== 'auth') {
+      const today = remainingBudget({ ...marker, phase: 'data' }, Date.now())
+      marker = today.marker
+      saveMarker(marker)
+      let deleted = 0
+      const result = await deleteAccountData(firestore, uid, {
+        budget: today.remaining,
+        knownDeckIds,
+        onBatch: (count) => {
+          deleted += count
+          marker = { ...marker, deletedToday: marker.deletedToday + count }
+          saveMarker(marker)
+          progress(`Deleting your cloud data… ${deleted} records deleted.`)
+        },
+      })
+      if (result.state === 'budget') {
+        await stopDeletion(`Deleted ${marker.deletedToday} cloud records today. To stay within the free daily cloud limit, the rest is deleted after midnight Pacific time: sign in on this device again then to continue.`)
+        return
+      }
+      marker = { ...marker, phase: 'auth' }
+      saveMarker(marker)
+    }
+  } catch (error) {
+    const code = authCode(error)
+    await stopDeletion(quotaCode(code)
+      ? 'Daily cloud limit reached. Your account is partly deleted; sign in on this device again after midnight Pacific time to continue.'
+      : `Account deletion stopped (${code}). Your account is partly deleted; sign in on this device again to continue.`)
+    return
+  }
+  progress('Cloud data deleted. Deleting your sign-in account…')
+  try {
+    await deleteUser(user)
+  } catch (error) {
+    const code = authCode(error)
+    if (code === 'auth/requires-recent-login') {
+      showReauthForAuthDelete(user, 'Your cloud data is deleted. Confirm with Google once more to delete the sign-in account.')
+      return
+    }
+    await stopDeletion(`Your cloud data is deleted, but the sign-in account was not (${code}). Sign in on this device again to finish.`)
+    return
+  }
+  // A device copy that could not be removed now goes at the next launch.
+  if (await removeDeviceCopy(uid)) clearDeletionMarker(localStorage)
+  deletionNotice = 'Your account was deleted. You are signed out.'
+  endDeletionScreen()
 }

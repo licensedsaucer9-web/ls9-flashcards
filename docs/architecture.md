@@ -133,6 +133,12 @@ needs that deck's ID in its local deck list to select it. The additive productio
 rules were deployed separately and verified on 2026-10-16; Pages never deploys
 rules. See the [operating record](firebase-rollout-plan.md#current-operations--2026-10-17).
 
+Owners may delete their own documents (account deletion, below): everything
+under `users/{uid}`, and a deck and its cards when the deck is their personal
+deck (`decks/{uid}`) or names them as `ownerUid`. A signed-in user may list
+`decks` only with a query on their own `ownerUid`. Members of a shared deck
+cannot delete it or its cards, and `/feedback` stays create-only.
+
 `firestore.rules` denies unauthenticated access and validates client shapes,
 ownership, membership, and immutable account assignment. Rules do not govern
 Admin SDK operations. The operator importer validates its own inputs and
@@ -552,3 +558,51 @@ and the emulator suite checks both sides of each boundary):
   then never reaches other devices, and a later edit is queued as usual. The list is rebuilt
   by each pass that reaches the queue and cleared on a deck switch. While records are listed,
   the sign-out confirmation offers the list instead of Sync now, which cannot clear them.
+
+## Account deletion
+
+Settings → Delete account (signed in only) runs entirely in the client; the Spark plan has
+no Cloud Functions. The confirmation lists what is deleted and kept, requires typing
+`DELETE`, then re-authenticates with Google (`reauthenticateWithPopup`, falling back to
+`reauthenticateWithRedirect` where popups fail), because `user.delete()` needs a recent
+sign-in. Study and sync are unbound from the account first. Then, in order
+(`src/account-deletion.ts`, `runAccountDeletion` in `src/cloud-on.ts`):
+
+1. **Firestore.** Pages of at most 500 documents are deleted with one batch each:
+   `users/{uid}/activity`, `/progress`, `/settings/current`; for every deck the account
+   created (found by an `ownerUid` query plus the decks this device knows) its nested
+   progress and settings, its cards, then its deck document; then the personal deck's
+   cards and `decks/{uid}`; `users/{uid}` last. Card deletes are checked against the deck
+   document, so it always goes after its cards. Passes repeat until one finds nothing; only
+   that empty pass counts as done. A shared deck the account only joined keeps its cards,
+   and feedback stays (anonymous unless the sender ticked Include my account).
+2. **Auth.** `user.delete()`, only after the empty pass. If Firebase wants a fresher
+   sign-in, the screen asks to confirm with Google once more; data is not deleted again.
+3. **This device.** The account's IndexedDB database and its copy-prompt answers go.
+   Device-wide preferences (theme, speech) stay. The user ends signed out with a message.
+
+**Resuming.** A `localStorage` marker (`<prefix>.account-deletion`) records the uid, the
+phase (`confirm` during a redirect, `data`, `auth`) and the deletes spent on the current
+Pacific day. A closed tab, a network error, an exhausted quota or the daily budget signs
+the user out with a message; the next sign-in of that account on this device resumes before
+anything provisions the account again. A redirect that comes back without a sign-in clears
+a `confirm` marker and deletes nothing. A device copy left after the Auth user is gone is
+removed at the next launch. Another device keeps its own copy, and while its ID token is
+still valid (up to an hour) it could upload again, so the confirmation asks users to sign
+out elsewhere first.
+
+**Spark budget.** The free quota is per project and shared by all users: 20,000 deletes,
+20,000 writes and 50,000 reads a day, reset at midnight Pacific. Deleting a document costs
+one delete and one read (it is listed first); each empty query and existence check costs one
+read more, a few dozen per pass. One account spends at most `DAILY_DELETE_BUDGET` = 10,000
+deletes per Pacific day (half the project quota, so other accounts keep syncing), counted
+in the marker. A typical account finishes in one run: about 760 German cards plus their
+progress, settings and a few months of review history is roughly 2,000–5,000 documents,
+4–10 batches. A heavy account, say 3,000 cards, 3,000 schedules and 20,000 saved grades
+(about 100 a day for 200 days), has about 26,000 documents and finishes on the third
+Pacific day: 10,000 deletes and about 10,050 reads on each of the first two, 6,000 on the
+third, never more than half the delete and a fifth of the read quota. A run that hits the
+real quota anyway (`resource-exhausted`) stops the same way and resumes after the reset.
+`scripts/account-deletion-emulator-test.mjs` covers the rules, full 500-delete batches, an
+interrupted run, a budget stop and the resumed run; `scripts/account-deletion-ui-test.mjs`
+covers the Settings flow.

@@ -47,6 +47,10 @@ const fakeAuth = `
     localStorage.removeItem(key); auth.currentUser = null; emit();
   }
   export function connectAuthEmulator() { throw new Error('Unexpected emulator connection'); }
+  export async function getRedirectResult() { return null; }
+  export async function reauthenticateWithPopup() { throw new Error('Unexpected re-authentication'); }
+  export async function reauthenticateWithRedirect() { throw new Error('Unexpected re-authentication'); }
+  export async function deleteUser() { throw new Error('Unexpected account deletion'); }
 `
 
 let server
