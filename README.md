@@ -135,7 +135,8 @@ npm run preview  # serve the build on 127.0.0.1:4173
 npm test         # unit tests; no emulator and no Chromium
 npm run test:account-ui  # account/streak UI with synthetic auth and real IndexedDB in Chromium
 npm run test:decks-ui    # Decks preferences, unsaved Cards filters, navigation and preservation
-npm run test:rules  # Firestore rules, cloud sync, migration, and dump restore on the emulator (Java 21)
+npm run test:feedback-ui # Settings → Send feedback form with the send scripted
+npm run test:rules  # Firestore rules (including feedback), cloud sync, migration, and dump restore on the emulator (Java 21)
 ```
 
 `npm test` covers SRS, CSV, tiers, Firestore document shapes, account helpers, record sync, the migration files, and Firestore dump restore. It does not call live Firebase or GitHub. Account UI and rules timezone checks need Chromium (`node node_modules/playwright-core/cli.js install chromium`, or `CHROME=/path/to/chromium`); `npm run test:rules` also needs Java 21.

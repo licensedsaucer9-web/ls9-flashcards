@@ -171,6 +171,26 @@ Obtain the project's Admin SDK JSON only when its operation requires it.
 See [Admin SDK setup](https://firebase.google.com/docs/admin/setup#initialize_the_sdk).
 Do not commit it, put it in a build environment, or upload it to Pages.
 
+### App feedback
+
+Settings → Send feedback creates one document in the top-level `feedback`
+collection: `message` (trimmed, up to 2000 characters), optional `email` (up to
+254), `appVersion`, a server `createdAt`, and `uid` only when signed in (rules
+require it to equal `request.auth.uid`). Rules allow create only with that exact
+shape; clients cannot read, update or delete feedback, so read it in Firebase
+console → Firestore Database → `feedback`. There is no email notification.
+
+Until the production rules include `match /feedback/{id}`, every send is
+refused with `permission-denied`. The operator deploys the reviewed rules
+before the feature merges and publishes, then records the new rules checksum:
+
+```bash
+npx firebase deploy --only firestore:rules --project flashcards-ls9-prod
+```
+
+`npm run test:rules` covers the feedback rules (`scripts/feedback-emulator-test.mjs`)
+and `npm run test:feedback-ui` covers the Settings form.
+
 ## Private Firestore backup
 
 The local CLI writes a one-off Admin SDK JSON dump; this does not require Blaze

@@ -6,6 +6,7 @@ import {
   cardContentProblem, clampSrs, MAX_EASE, MAX_EXAMPLE_LENGTH, MAX_INTERVAL_DAYS, MAX_RANK, MAX_REPS, MAX_SESSION_SIZE, MAX_TAGS, MAX_TERM_LENGTH,
 } from '../src/limits.ts'
 import { MAX_SCHEDULE_DAYS, newSrs, review } from '../src/srs.ts'
+import { feedbackFields, feedbackProblem, MAX_FEEDBACK_APP_VERSION, MAX_FEEDBACK_EMAIL, MAX_FEEDBACK_MESSAGE } from '../src/feedback.ts'
 
 // 1. The constants are the rules' numbers, so they cannot drift apart unnoticed.
 const rules = readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8')
@@ -20,6 +21,9 @@ assert.equal(number(/ease <= (\d+)/), MAX_EASE)
 assert.equal(number(/reps <= (\d+)/), MAX_REPS)
 assert.equal(number(/rank <= (\d+)/), MAX_RANK)
 assert.equal(number(/sessionSize <= (\d+)/), MAX_SESSION_SIZE)
+assert.equal(number(/text\(data\.message, (\d+)\)/), MAX_FEEDBACK_MESSAGE)
+assert.equal(number(/text\(data\.email, (\d+)\)/), MAX_FEEDBACK_EMAIL)
+assert.equal(number(/text\(data\.appVersion, (\d+)\)/), MAX_FEEDBACK_APP_VERSION)
 
 // 2. Schedules: grading never leaves the caps, even from a stored schedule already past them, and
 // reviewing ahead of schedule never lengthens an interval.
@@ -58,4 +62,14 @@ assert.deepEqual(result.imported.map(item => item.de), ['hund', 'vogel'], 'only 
 assert.equal(result.errors.length, 2)
 assert.match(result.errors[0], /^Line 3: the first word or phrase is over 200 characters$/)
 assert.match(result.errors[1], /^Line 4: an example is over 1000 characters$/)
-console.log('limits: match the rules; schedules stay capped and early reviews do not lengthen; editor/CSV limits: ok')
+// 5. Feedback: what the form allows is what the rules accept, measured after trimming.
+assert.match(feedbackProblem('', ''), /Write a message/)
+assert.match(feedbackProblem('   \n ', ''), /Write a message/, 'whitespace only is empty')
+assert.equal(feedbackProblem(`  ${'m'.repeat(MAX_FEEDBACK_MESSAGE)}  `, ''), null, 'exactly at the limit after trimming is fine')
+assert.match(feedbackProblem('m'.repeat(MAX_FEEDBACK_MESSAGE + 1), ''), /over 2000/)
+assert.equal(feedbackProblem('Hi', ' me@example.com '), null)
+for (const bad of ['me', 'me@', 'me@example', 'me @example.com', 'a@b@c.d']) assert.match(feedbackProblem('Hi', bad), /valid email/, bad)
+assert.match(feedbackProblem('Hi', `${'e'.repeat(MAX_FEEDBACK_EMAIL)}@example.com`), /email is over 254/)
+assert.deepEqual(feedbackFields({ message: ' Hi ', email: '  ', appVersion: '1.5.0' }, null), { message: 'Hi', appVersion: '1.5.0' }, 'blank email and signed-out uid are omitted')
+assert.deepEqual(feedbackFields({ message: 'Hi', email: ' me@example.com ', appVersion: '1.5.0' }, 'u1'), { message: 'Hi', email: 'me@example.com', appVersion: '1.5.0', uid: 'u1' })
+console.log('limits: match the rules; schedules stay capped and early reviews do not lengthen; editor/CSV and feedback limits: ok')

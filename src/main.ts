@@ -74,6 +74,7 @@ import { captureStudyLock, studyLockCurrent, type StudyLock } from './study-lock
 import { rehearsalPreview } from './rehearsal.ts'
 import { buildInfo } from './build-info.ts'
 import { applyUpdate, checkForUpdate, clearUpdateParam } from './app-update.ts'
+import { bindFeedbackPanel, feedbackPanelHtml } from './feedback-ui.ts'
 import {
   bootSync,
   deckSelectionChanged,
@@ -1253,6 +1254,7 @@ async function renderCloudSettings() {
         <p class="note" id="speech-input-note">${listenAvailable() ? 'Show a mic button in Hard mode to answer by voice when the answer is in the language you are learning. Only on this device. The browser may send audio to Apple or Google servers for recognition.' : 'Speech input is not available in this browser.'}</p>
       </div>
       ${accountPanelHtml()}
+      ${feedbackPanelHtml()}
       <div class="setting">
         <p class="kicker" style="margin:0">Starter content</p>
         <p class="note">French/Spanish vocabulary and examples © 2026 LS9 Flashcards. Frequency ranks adapted from <a href="https://github.com/hermitdave/FrequencyWords" target="_blank" rel="noopener noreferrer">Hermit Dave’s FrequencyWords</a>, OpenSubtitles 2018 via OPUS. Curated content and derived rankings are licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>.</p>
@@ -1269,6 +1271,7 @@ async function renderCloudSettings() {
     </section>
   `
   bindAccountPanel(accountHooks)
+  bindFeedbackPanel()
   $('#theme').addEventListener('change', (event) => {
     const theme = (event.target as HTMLSelectElement).value as Theme
     if (!chooseTheme(theme)) toast('Theme applied for now. Browser storage is unavailable.')

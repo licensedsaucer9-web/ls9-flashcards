@@ -974,6 +974,7 @@ label {
 
 input[type='text'],
 input[type='password'],
+input[type='email'],
 input[type='number'],
 textarea,
 select {
@@ -1016,6 +1017,45 @@ select:focus {
   border-radius: 18px;
   padding: 16px;
   margin-bottom: 12px;
+}
+
+.feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feedback-form[hidden] {
+  display: none;
+}
+
+.feedback-form .note {
+  margin: 0;
+}
+
+.feedback-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.feedback-count.is-over,
+.feedback-problem {
+  color: var(--again);
+}
+
+.feedback-problem:empty {
+  display: none;
+}
+
+.feedback-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.feedback-actions button {
+  min-height: 44px;
+  border-radius: 14px;
 }
 
 .seg {

@@ -71,6 +71,8 @@ async function pushLoaded(
   return commitCard(db, deckId, item.id, card ? cardContent(card) : null, deletedAt)
 }
 
+export { sendFeedback } from './cloud-feedback.ts'
+
 export const cloudTransport = true
 
 /** A "light" pass (after a local change) skips the account pull if one finished this recently. */
