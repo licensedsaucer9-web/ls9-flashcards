@@ -1,3 +1,5 @@
+> Superseded by [docs/plans/native-apps.md](../plans/native-apps.md) (#178).
+
 > Archived proposal from 2026-10-10, retained as design evidence rather than an active work plan. Implementation baselines and line references below are historical; current operation is in [README](../../README.md) and [the rollout plan](../firebase-rollout-plan.md).
 
 > Written by Codex (gpt-6.1-sol) on 2026-10-10. These are proposals, not decisions.
