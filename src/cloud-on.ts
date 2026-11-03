@@ -834,7 +834,7 @@ async function confirmAccountDeletion(): Promise<void> {
       <li>Your sign-in account, ${esc(label)}</li>
       <li>This account’s copy on this device</li>
     </ul>
-    <p class="note">Kept: feedback you sent, and a shared deck’s word list for its other members. This can’t be undone. Sign out on your other devices first so they don’t upload this account’s cards again.</p>
+    <p class="note">Kept: feedback you sent, and a shared deck’s word list for its other members. Private backups kept 30 days, then deleted. This can’t be undone. Sign out on your other devices first so they don’t upload this account’s cards again.</p>
     <label for="delete-confirm">Type DELETE to confirm</label>
     <input type="text" id="delete-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false" />
     <p class="note">Google then asks you to sign in again.</p>

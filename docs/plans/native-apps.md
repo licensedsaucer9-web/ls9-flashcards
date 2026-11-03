@@ -197,7 +197,8 @@ the daily quota. For the stores the remaining work is:
   Data safety link.
 - Disclosures: feedback stays (it is anonymous unless the user ticked Include my
   account), a shared deck's vocabulary stays for its other members, and the
-  private daily backups keep deleted data until they age out (14 dumps).
+  private daily backups keep deleted data until they age out: backups kept 30 days
+  (local dumps after 14, the Drive copy is purged after 30 days).
 - Stale clients: another signed-in device can still write until its ID token
   expires (up to an hour); the confirmation tells users to sign out elsewhere
   first. A server-side sync block would need a trusted backend.

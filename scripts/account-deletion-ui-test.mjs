@@ -167,7 +167,7 @@ try {
   assert.equal(await page.locator('#delete-account-setting.danger-zone').isVisible(), true, 'Delete account sits in a danger card')
   await openConfirm()
   const explained = await page.locator('#main').textContent()
-  for (const text of [/review progress/, /decks you created/, /sign-in account/, /this device/, /feedback you sent/, /can’t be undone/]) {
+  for (const text of [/review progress/, /decks you created/, /sign-in account/, /this device/, /feedback you sent/, /backups kept 30 days/i, /can’t be undone/]) {
     assert.match(explained, text, `the confirmation explains ${text}`)
   }
   assert.equal(await page.locator('#delete-account-confirm').isDisabled(), true)
