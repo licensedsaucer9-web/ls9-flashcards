@@ -5,11 +5,12 @@ and public URL rename before continuing development on 2026-10-04.
 
 | Purpose | Current name / URL |
 | --- | --- |
-| Application source (private) | [ls9-flashcards](https://github.com/licensedsaucer9-web/ls9-flashcards) |
-| Legacy data (private) | [ls9-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) |
+| Application source (public) | [ls9-flashcards](https://github.com/licensedsaucer9-web/ls9-flashcards) |
+| Legacy data (private, archived) | [ls9-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) |
 | Built site (public) | [ls9-flashcards-site](https://github.com/licensedsaucer9-web/ls9-flashcards-site) |
 | Public app | <https://licensedsaucer9-web.github.io/ls9-flashcards-site/> |
 | Test rehearsal | <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/rehearsal/> |
+| Retired auth previews (kill-switch `sw.js` only since #118) | `auth-spike/` and `auth-spike-prod/` under the public app |
 | Retired old-installation URL (404 page, plus kill-switch workers since 2026-10-26) | `https://licensedsaucer9-web.github.io/german-flashcards-site/` |
 
 ## Old-site retirement, 2026-10-17

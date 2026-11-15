@@ -24,7 +24,7 @@ billing were confirmed then; that dated check is not a fresh billing audit.
 The test database now contains the verified legacy import and newer rehearsal
 reviews. Production has been serving Firebase study since 2026-10-07; legacy
 studied-data import was waived. The latest recorded production rules deployment
-was verified on 2026-10-16. See the [operating record](firebase-rollout-plan.md#current-operations--2026-10-17);
+was verified on 2026-10-16; later rules changes have no receipt here. See the [operating record](firebase-rollout-plan.md#current-operations--2026-10-17);
 do not assume either database is empty.
 
 Test and production UIDs were confirmed separately in
@@ -63,7 +63,7 @@ basic sign-in scopes. See [Google sign-in setup](https://firebase.google.com/doc
 
 ## Prepare and verify a release candidate
 
-The #38 release tooling now builds the published Firebase client. Production
+The #38 release tooling builds the published Firebase client. Production
 study is live, and legacy import/device recovery (#37) was waived on 2026-10-07.
 Both Pages publish steps use matching master-only/non-PR guards: pushes to
 master publish after CI; pull requests do not publish. These local commands
@@ -84,16 +84,17 @@ npm run release:verify
 
 The builder pins actual Git HEAD, requires no source changes before/after
 the build, selects the production public web config and `/ls9-flashcards-site/`,
-and clears preview/bridge/emulator overrides. It refuses test/device/bridge
+and clears rehearsal/emulator overrides. It refuses rehearsal, device or emulator
 artifacts, an unversioned package, wrong project/base, or dirty source as
 candidates. Both publication conditions must keep the same exact
 master-only/non-PR guard. Ordinary development
-builds still work and mark local changes. The package version is `1.4.1`.
+builds still work and mark local changes. The package version is `1.5.0`.
 
 `dist-firebase/release.json` identifies version, full source commit, backend,
 project, base, mode, emulator flag and public-site repository. The same values
-are compiled into the app. Settings → Install shows version and short source
-commit even offline; the worker also caches `release.json`.
+are compiled into the app. Settings → App version shows version and short source
+commit even offline; the worker also caches `release.json`. **Check for update**
+there compares the running build with the served `release.json`.
 `release-candidate.json` binds that identity to a sorted SHA-256 inventory of
 all deployable files, excluding the inventory itself to avoid a checksum cycle.
 Local verification rejects changes, omissions and extra files. These hashes
@@ -108,8 +109,8 @@ BASE=/ls9-flashcards-site/ npm run preview -- --outDir dist-firebase --strictPor
 APP_URL=http://127.0.0.1:4173/ls9-flashcards-site/ node scripts/installable.mjs
 ```
 
-CI runs these checks, the isolated test rehearsal and unpublished recovery
-bridge checks, then verifies and uploads `firebase-candidate-SOURCE_SHA`.
+CI runs these checks and the isolated test rehearsal build checks, then
+verifies and uploads `firebase-candidate-SOURCE_SHA`.
 The upload includes `.nojekyll` after the artifact's private-file checks and
 expires after 14 days. Save the verified archive durably outside Git if the
 operational gate will take longer. Preserve its inventory fingerprint and CI
@@ -117,11 +118,13 @@ run/check results. A rebuilt PR or master commit is a different candidate and
 needs its own checks; do not mix files from different builds.
 
 Publication uses the exact tested `dist-firebase` bytes with both existing
-master-only/non-PR conditions kept together. The workflow retains `auth-spike/`
-and `auth-spike-prod/` during root cleanup for the historical previews. The separate old
+master-only/non-PR conditions kept together. Root cleanup excludes `auth-spike/`
+and `auth-spike-prod/`; the workflow then empties both retired previews except
+`auth-spike/rehearsal/` and writes `retired/kill-switch-sw.js` as their `sw.js`
+(#118). The separate old
 Pages URL was retired by owner decision on 2026-10-17; its repository is archived
-and its application/redirect replaced by a 404-only deployment. The unpublished bridge build/test remains historical
-tooling, not an active recovery route. See the [retirement record](archive/rename.md#old-site-retirement-2026-10-17). Pages does not deploy rules;
+and its application/redirect replaced by a 404-only deployment. The recovery
+bridge build was removed in #163. See the [retirement record](archive/rename.md#old-site-retirement-2026-10-17). Pages does not deploy rules;
 a local candidate build does not itself publish, deploy rules or migrate data.
 
 After the candidate is actually served, keep the matching local artifact and
@@ -157,6 +160,9 @@ is an operator action separate from Pages. The last recorded production
 deployment was verified on 2026-10-16 with SHA-256
 `863c8e03c918d81a67e88f166ca109bfe93c45c48f22b5ecf6dbfc9a3a1086f1`;
 see the [operating record](firebase-rollout-plan.md#current-operations--2026-10-17).
+Master publishes automatically, so a client change that needs new rules must
+wait until those rules are deployed to production. Record the new checksum
+(`sha256sum firestore.rules`) after each deployment.
 
 Set `GERMAN_FLASHCARDS_PRIVATE_DIR` to a durable directory outside every Git
 repository, with mode 700. Keep credentials, mappings, snapshots, baselines,
@@ -182,9 +188,10 @@ is anonymous. Rules allow create only with that exact
 shape; clients cannot read, update or delete feedback, so read it in Firebase
 console → Firestore Database → `feedback`. There is no email notification.
 
-Until the production rules include `match /feedback/{id}`, every send is
-refused with `permission-denied`. The operator deploys the reviewed rules
-before the feature merges and publishes, then records the new rules checksum:
+Sends need production rules that include `match /feedback/{id}`; without them
+every send is refused with `permission-denied`. The feature merged on
+2026-11-01 (#173) with that deployment as a precondition; no checksum for it is
+recorded in this repository. The deploy command is:
 
 ```bash
 npx firebase deploy --only firestore:rules --project flashcards-ls9-prod
@@ -227,7 +234,16 @@ checksum, and elapsed time in `backup-status.json`. The user timer
 `firestore-backup.timer` runs that command at 08:30 and keeps 14 dumps. Since
 2026-10-25 it runs from a pinned clone at `~/.local/ls9-flashcards-backup`
 (detached at a merged master commit, `npm ci --ignore-scripts`), not from the
-development checkout, so branch switches never change the backup job.
+development checkout, so branch switches never change the backup job. To move
+it to a newer merged master commit:
+
+```bash
+cd ~/.local/ls9-flashcards-backup
+git fetch && git checkout --detach origin/master && npm ci --ignore-scripts
+```
+
+`ops/firestore-backup.service` and `ops/firestore-backup.timer` are older copies
+of the user units; the installed service points at the pinned clone.
 Every read in one run uses a single `readTime` (a few seconds before the start, within
 Firestore's one-hour window), so the dump is a point-in-time snapshot: an account created
 while it runs cannot appear without its deck. Before reporting `ok: true` the job runs the
@@ -236,7 +252,8 @@ restore validator (`prepareRestore`) on the new dump. A dump restore would refus
 and exits non-zero. Stdout is the status object. A failed run writes `ok: false` and a non-zero
 exit. A separate `firestore-drive-copy.timer` runs an rclone copy of dumps and
 `backup-status.json` to the configured off-machine backup destination at 08:45.
-The local backup and copy jobs both succeeded on 2026-10-17. Their private
+After a successful copy it deletes off-machine dumps older than 30 days, which
+is the "backups kept 30 days" stated in account deletion. Its private
 configuration stays on the host; a successful copy job is not a restore drill.
 
 The 2026-10-17 scheduled backup reported the `activity` collection's aggregate
@@ -247,12 +264,11 @@ The #74 source writes version-2 dumps, including extra deck ownership/cards,
 per-deck settings/progress, and tombstones alongside the unchanged German paths
 and account-wide activity. Version-1 dumps still restore the original deck.
 Extra-deck nested parent documents need not exist. Aggregate settings/progress
-counts include every deck. The daily runner's source checkout was updated to
-this code on 2026-10-17, after that morning's backup/copy. No new live dump was
-triggered by the update. Record a subsequent version-2 dump and isolated restore
-of extra-deck settings/progress/tombstones before declaring that coverage
-qualified. The configured off-machine copy and its successful job are separate
-from that restore evidence.
+counts include every deck. The daily dumps are version 2. Record an isolated
+restore of extra-deck settings/progress/tombstones before declaring that
+coverage qualified. The off-machine copy and its successful job are separate
+from that restore evidence. Dumps omit `syncedAt`, the incremental-pull cursor
+field; after a restore each device's next full pull reads every document again.
 
 This `kind: firestore` dump differs from the GitHub snapshot accepted by
 `migrate import`. Restoring it does not recreate Google Auth identities,
@@ -268,7 +284,10 @@ emulator project, not `flashcards-ls9-prod` or `flashcards-ls9-auth-test`.
 `/german-flashcards-site/`, authorized hosts
 `licensedsaucer9-web.github.io` and `flashcards-ls9-prod.firebaseapp.com`,
 and the SHA-256 of `firestore.rules` and `firebase.json`. Both Pages publish
-steps must stay `if: ${{ false }}`. Stdout is one JSON object of blockers,
+steps must be `if: ${{ false }}`. Publication has been enabled since
+2026-10-07, so the command now stops with "Pages publication is enabled;
+preflight refuses to continue"; it is kept as the record of the waived #36
+gate. When it ran, stdout was one JSON object of blockers,
 checksums, and device-route counts. Rules deployment, Admin access, UID
 confirmation, production inspection, backup, and publication stay outside
 this command.
@@ -347,10 +366,9 @@ Git. For a live throwaway project, pass that project's credential and omit
 
 The isolated auth-only spike imported Authentication only and did not read/write
 flashcards or Firestore. Its source was removed from the tree (#122) and is kept at
-the git tag `archive/firebase-auth-spike`.
-
-- Test identity preview: <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/>
-- Production identity preview: <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike-prod/>
+the git tag `archive/firebase-auth-spike`. Its test (`auth-spike/`) and
+production (`auth-spike-prod/`) previews were retired in #118 and now serve only
+a kill-switch `sw.js`; `auth-spike/rehearsal/` is the separate full-app rehearsal.
 
 The original test spike passed sign-in/cancel on desktop Chrome, iPhone Safari,
 and the installed iPhone preview. The installed preview also restored its
@@ -360,10 +378,9 @@ headless blocked-popup check passed; Safari's popup setting did not intercept
 the installed preview's synthetic-link flow. These are dated spike results,
 not proof of every current full-app release.
 
-If the auth-only tool is needed again, check out that tag. The published preview
-builds under `auth-spike/` stay on the site; the deploy workflow leaves them
-touched, and preview workers exclude nested preview paths. Keep old study storage
-intact; clearing Safari website data can erase reviews.
+If the auth-only tool is needed again, check out that tag. The next master
+publish would replace a restored preview with the kill-switch worker again.
+Keep old study storage intact; clearing Safari website data can erase reviews.
 
 GitHub Pages cannot proxy Firebase's sign-in helper. If login requires a hosting
 change, use [Firebase's redirect guidance](https://firebase.google.com/docs/auth/web/redirect-best-practices)

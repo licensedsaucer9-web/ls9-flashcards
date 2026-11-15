@@ -126,8 +126,8 @@ Tier selection and the seed update for a pre-tier-4 database are covered by
 not a native-speaker review.
 
 **Deployment prerequisite.** `firestore.rules` now accepts tier 4 on cards and in the
-`tier` and `selectedTiers` settings fields. The currently recorded production rules
-reject them. Every existing account uploads the new cards on its next open, and
+`tier` and `selectedTiers` settings fields. The last production rules deployment
+recorded in this repository (2026-10-16) predates this and rejects them. Every existing account uploads the new cards on its next open, and
 rejected writes stay pending and keep the sync status red, so deploy the updated rules through the
 normal operator procedure **before** this client is published (master publishes Pages;
 Pages does not deploy rules). The change is additive, so older clients keep working
@@ -171,8 +171,8 @@ accepts all supported article tokens and the same generic front/back columns.
 
 **Deployment prerequisite:** the additive article whitelist in `firestore.rules`
 must be deployed separately through the normal operator procedure before these
-new cards can sync against production. The currently recorded production rules
-reject these new tokens. Pages does not deploy rules; this change does not deploy,
+new cards can sync against production. The last production rules deployment
+recorded in this repository (2026-10-16) predates them and rejects these tokens. Pages does not deploy rules; this change does not deploy,
 publish a preview or touch any account. Old German clients remain compatible
 with the additive rules, but should be upgraded before opening these decks because
 they cannot render the new article tokens correctly. New client/operator validation

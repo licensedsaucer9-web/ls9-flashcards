@@ -3,24 +3,32 @@
 - Read `README.md` for release state and `docs/architecture.md` for implemented
   behavior. `docs/firebase-rollout-plan.md` is the only active plan; setup,
   migration, and rehearsal guides are runbooks, not separate roadmaps.
+  `docs/plans/` holds proposals (native apps; later speech-input phases) that
+  are not decided or scheduled.
+- This repository, its issues and its PRs are public; the private-data rules
+  below apply to everything posted here.
 - For UI design work, read `docs/design-workflow.md`. Penpot is our workspace
   for editable sketches and discussion before implementation. The app, code,
   tests and architecture docs remain authoritative; Penpot can contain proposals
   and example states, and does not automatically sync with the code.
 - The real-data test rehearsal (#22–#25) is complete as of 2026-10-04.
   Publication and the `1.0.0` device checks are recorded. The legacy data repo
-  is archived. A daily private Firestore backup runs on this machine, and one
-  isolated emulator restore of a production dump has been verified. The daily
-  backup and off-machine rclone copy jobs both succeeded on 2026-10-17. The
-  runner was updated to current master afterward; a version-2 extra-deck
-  dump/restore still needs its own evidence. Job success does not prove every
-  remote file or installed-device acceptance. See the operating record in
+  is archived. A daily private Firestore backup runs on the operator's machine
+  from a pinned clone detached at a merged master commit (refreshed with
+  `npm ci --ignore-scripts`, not the development checkout), followed by an
+  off-machine rclone copy. One isolated emulator restore of a production dump
+  has been verified; an isolated restore of a version-2 extra-deck dump still
+  needs its own evidence. Job success does not prove every remote file or
+  installed-device acceptance. See the operating record in
   `docs/firebase-rollout-plan.md`.
 
 - Current source supports multiple decks and per-deck preferences/progress.
   Names, selection, optional-feature switches and local deck deletion are
-  device-local. Production rules were verified on 2026-10-16 with SHA-256
-  `863c8e03c918d81a67e88f166ca109bfe93c45c48f22b5ecf6dbfc9a3a1086f1`.
+  device-local. The last recorded production rules deployment was verified on
+  2026-10-16 with SHA-256
+  `863c8e03c918d81a67e88f166ca109bfe93c45c48f22b5ecf6dbfc9a3a1086f1`. Later
+  `firestore.rules` changes need an operator deployment before the client that
+  depends on them merges, because master publishes automatically.
   The former `german-flashcards-site` URL is retired; its archived repository
   serves only a 404 page. Use `ls9-flashcards-site` for the current app.
 
