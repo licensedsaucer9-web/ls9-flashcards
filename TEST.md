@@ -1,12 +1,11 @@
 # LS9 Flashcards — manual acceptance guide
 
 Use a disposable browser profile for study/editor checks. Existing personal
-decks and legacy storage must remain intact. The public root still serves the
-renamed legacy GitHub-sync client; the Firebase client is staged and the real-data
-test rehearsal is complete. Production acceptance remains in the
-[rollout plan](docs/firebase-rollout-plan.md).
+decks and legacy storage must remain intact. The public root serves the
+Firebase production client; master publishes it after CI. Recorded and
+remaining production evidence is in the [rollout plan](docs/firebase-rollout-plan.md).
 
-A fresh device-study deck has 514 built-in cards in three tiers. Existing
+A fresh device-study deck has 764 built-in German cards in four tiers. Existing
 decks gain missing seeds without resetting existing SRS; deleted seeds stay
 deleted.
 
@@ -47,36 +46,38 @@ provisioning or recover the old root app's device-only data.
 The [published rehearsal](docs/firebase-rehearsal.md) supports physical-device
 testing. Check its visible revision: merged source changes do not automatically
 publish that preview. An ordinary `VITE_SYNC_BACKEND=firebase` build defaults
-to production; do not sign an unmigrated owner into it before the Admin import.
+to production; use the rehearsal build for test sign-ins.
 
 For candidate preparation from clean committed source, use `npm run release:build`
-and `npm run release:verify`. In Settings → Install, record the displayed version
+and `npm run release:verify`. In Settings → App version, record the displayed version
 and source revision, then reload offline and confirm they remain the same. The
 installability test also verifies the offline Settings and cached `release.json`
 identity against the artifact. See [the candidate runbook](docs/firebase-setup.md#prepare-and-verify-a-release-candidate)
-for checksum/CI evidence and later read-only served verification. Production
-publication and physical installation updates remain #38's operational gate.
+for checksum/CI evidence and later read-only served verification. Installed-device
+update checks are recorded separately from publication.
 
 ## 1. Tiers
 
-1. Review shows saved **Deck tier** pills reading `T1: <due>`, `T2: <due>`, `T3: <due>` (due-now count only; accessible name such as `Tier 1, 23 due`). Tier 1 is selected
-   on a fresh profile and includes 100 words.
+1. Review shows saved **Deck tier** pills reading `T1: <due>` to `T4: <due>` (due-now count only; accessible name such as `Tier 1, 23 due`). Tier 1 is selected
+   on a fresh profile and includes 100 words. French and Spanish hide `T4`.
 2. Tier 2 alone includes its own 150 words. Tier 2 + Tier 3 includes 414
    words and excludes Tier 1. Pills show due counts for their own bucket.
 3. Tier 3 alone includes 264 words and excludes tiers 1 and 2. Reload, switch
    decks, and sync a second client to verify the exact selection persists.
-   Turning off the last tier returns to all three. Old cumulative settings
-   retain their scope on upgrade.
-4. Cards has an unsaved browse tier filter, and rows show `T1` / `T2` / `T3` badges.
+   Turning off the last tier returns to all four. Tier 4 alone includes 250
+   words. Old cumulative settings retain their scope on upgrade, so tier 4
+   stays off until selected.
+4. Cards has an unsaved browse tier filter, and rows show `T1` to `T4` badges.
    Changing this filter must leave the saved Review tier and next review unchanged.
 5. Spot-check tier 1's frequency order against the README: it opens with
    `haben`, `gut`, `sein`, `werden`, `können` and ends at `groß` / `Hand`.
 
-6. Decks also saves review direction: **DE → EN** shows German first;
-   **EN → DE** shows English first. Change it and start a new review to verify.
-7. Review shows tier, word-type, and session-size chips in that order.
-   Decks retains review direction and optional-feature switches.
-   Settings retains account controls, Theme, Install/version, and the SRS note.
+6. Decks also saves review direction: **German → English** shows German first;
+   **English → German** shows English first. Change it and start a new review to verify.
+7. Review shows tier, word-type, and session-size chips in that order, then the
+   Hard mode switch. Decks retains review direction and optional-feature switches.
+   Settings shows App version, Theme, Speech, Speech input, Account (and Delete
+   account when signed in), Feedback, starter attribution, Install and the SRS note.
 
 ## 2. Review loop and exit
 
@@ -92,7 +93,8 @@ publication and physical installation updates remain #38's operational gate.
 4. Grade **Again / Hard / Good / Easy** with buttons or keys 1–4. Nouns also
    offer **Gender** (key 5), which requeues with a smaller ease penalty than Again.
 5. Grade one card, then **Close** mid-session. Return to home with that grade
-   saved. Start again and confirm a fresh queue; completion offers **Back home**.
+   saved. Start again and confirm a fresh queue; completion offers **Home** and
+   **N more**.
 6. When the selected tier and word type are caught up, the due count stays at
    zero and **Review N cards ahead** remains enabled. It reviews matching cards
    soonest due first, obeys Custom/All, and saves grades normally. Empty tiers or
@@ -135,8 +137,8 @@ rehearsal preview.
 
 ## 5. Editor and CSV
 
-1. Deck → **Add card**: enter `Hundewetter`, `awful weather`, article `das`.
-   It is due and starts in tier 3; widen the Deck filter to see it.
+1. Cards → **Add card**: enter `Hundewetter`, `awful weather`, article `das`.
+   It is due and starts in tier 3; widen the Cards filter to see it.
 2. Edit a built-in card. The note gives rank/tier; override its tier to 1 and
    confirm the badge changes without resetting SRS.
 3. Import a CSV such as:
@@ -156,8 +158,8 @@ rehearsal preview.
 
 ## 6. Direction, installation, and offline study
 
-1. Settings → **EN → DE**. Start review; the front is English. Switch back to
-   **DE → EN** and check the German front.
+1. Decks → **English → German**. Start review; the front is English. Switch back to
+   **German → English** and check the German front.
 2. On a build served by preview or HTTPS, check the manifest and service worker.
    Chrome/Edge may offer installation. On iPhone Safari, use Share →
    **Add to Home Screen**.
@@ -184,9 +186,13 @@ cutover. Never use the old public root as evidence of the staged client's sync.
 ## Automated checks and evidence
 
 `npm test` covers pure logic and synthetic migration inputs without a browser
-or live service. `npm run test:account-ui` checks the account UI with synthetic
-Google sessions and real IndexedDB in Chromium. `npm run test:rules` uses the
-Firestore emulator for rules, cloud sync, and migration (Java 21 and Chromium).
+or live service. `npm run test:account-ui` checks the account UI, including
+account deletion, with synthetic Google sessions and real IndexedDB in Chromium.
+`npm run test:rules` uses the Firestore emulator for rules, feedback, account
+deletion, cloud sync, migration and restore (Java 21 and Chromium). CI also runs
+`test:decks-ui`, `test:themes-ui`, `test:hard-mode-ui`, `test:speech-ui`,
+`test:speech-input-ui`, `test:speech-page`, `test:update-ui`, `test:feedback-ui`,
+`test:sw-navigation` and `test:starter-ui`.
 
 With a preview running, `APP_URL=URL node scripts/installable.mjs` checks
 manifest/worker, mobile guest controls, installability, and offline reload.
@@ -198,7 +204,8 @@ The real #25 rehearsal passed on 2026-10-04; its
 [record](https://github.com/licensedsaucer9-web/ls9-flashcards/issues/25#issuecomment-5980511235)
 distinguishes server comparisons from human checks. New manual results should
 record build, date, device/browser, method, and outcome. Keep record-level
-values and operator files private. Production acceptance is still outstanding.
+values and operator files private. The rollout plan lists which production
+acceptance checks are recorded and which remain.
 
 
 ## Forgiving streaks (#58)
@@ -224,6 +231,34 @@ Production two-device/installed-app acceptance belongs to release.
 ## Themes
 
 Run `npm run test:themes-ui` for disposable Chromium checks. In Settings, select
-Light and Dark with touch or keyboard. Confirm readable screens, article badges,
+each theme (Dark, Light, Halloween, Christmas, NeoPunk, Nature, Coffee,
+Dissonant, Cute Pink, Cuter Pink, Mint, Lavender) with touch or keyboard. Confirm readable screens, article badges,
 grade buttons and dialogs on mobile and desktop, then reload to check persistence.
 The theme applies to every deck/account on this device and does not sync.
+
+## Hard mode and speech
+
+1. Turn on **Hard mode** on Review and start a session. A correct first answer
+   saves Easy; a wrong answer offers one retry, then Good or Again. A correct
+   word with the wrong article saves Gender. The result stays until **Next card**.
+2. Turn on Settings → **Speech**. Review shows 🔊 for the visible face and speaks
+   it in the deck's language. Leaving review or changing card stops speech.
+3. Turn on Settings → **Speech input**. In Hard mode with English → German
+   (answer in the target language), 🎤 appears beside the answer field; the
+   transcript fills the field and is graded only when submitted. It is hidden
+   for the other direction.
+4. `speech-test.html` on the served build is the standalone recognition test
+   page; it loads from the network, not the app shell.
+
+## Settings: update, feedback and account deletion
+
+1. **Check for update** reports "You're up to date" on the current build; on an
+   older installed build it reloads into the published one. Study data and
+   sign-in remain.
+2. **Send feedback** on a Firebase build: send with and without an email; signed
+   in, the **Include my account** tick is off by default and resets after each
+   send. Offline, the form says it could not send and keeps the draft.
+3. Use only a disposable test account for **Delete account**: type `DELETE`,
+   confirm with Google, then check that the user ends signed out with a message.
+   Signing in again with that Google account starts a new, unstudied account.
+   Never test this on a real account.

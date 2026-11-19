@@ -9,13 +9,14 @@ above the start button. Custom opens a number picker in increments of five;
 Done saves the size and Cancel leaves it unchanged. Review direction and the
 optional-feature switches live on Decks. Preferences remain separate per deck.
 
-**Release state, 2026-10-25:** The public site’s `release.json` reports `1.5.0` with the Firebase production backend; its `sourceCommit` names the exact published master commit and changes with every publish (it is not repeated here). Since `1.5.0` the guest-to-account copy keeps each deck's progress in its own deck, schedules and text lengths are kept within what the server accepts, and Hard mode saves a second miss as Again. This includes typed-answer Hard mode (`1.5.0`), selectable themes (`1.4.2`), exact tier combinations in Review (`1.4.1`), compact Review controls (`1.4.0`), forgiving streaks, multi-deck creation/selection, per-deck preferences and cloud progress, and swipe tab navigation. Deck names, selection, optional-feature switches, and local deck deletion remain device-local; another device needs an extra deck's ID in its local list to select it. Version `1.2.0` added the word-type filter, and `1.1.0` added word-type badges; `1.0.0` shipped on 2026-10-07. A new account gets the built-in 514-word deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified the original production login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) records current operations and remaining evidence.
+**Release state, 2026-11-15:** The public site’s `release.json` reports `1.5.0` with the Firebase production backend; its `sourceCommit` names the exact published master commit and changes with every publish (it is not repeated here). Master publishes after CI without a version bump, so changes merged since `1.5.0` are live under that version: German tier 4, an optional speak button and speech input in Hard mode, more themes, Settings → App version with **Check for update**, incremental sync, Settings → **Send feedback**, account deletion, the guest-to-account copy keeping each deck's progress in its own deck, schedules and text lengths kept within what the server accepts, and Hard mode saving a second miss as Again. Earlier versions added typed-answer Hard mode (`1.5.0`), selectable themes (`1.4.2`), exact tier combinations in Review (`1.4.1`), compact Review controls (`1.4.0`), forgiving streaks, multi-deck creation/selection, per-deck preferences and cloud progress, and swipe tab navigation. Deck names, selection, optional-feature switches, and local deck deletion remain device-local; another device needs an extra deck's ID in its local list to select it. Version `1.2.0` added the word-type filter, and `1.1.0` added word-type badges; `1.0.0` shipped on 2026-10-07. A new account gets the built-in 764-word German deck with no studied progress. Legacy studied data and old-device recovery are waived. Joakim verified the original production login, cancellation, per-account cards, and an offline grade that synced to a second client. The [rollout plan](docs/firebase-rollout-plan.md) records current operations and remaining evidence.
 
 **Release evidence:** Additive production rules were verified on 2026-10-16.
-The daily backup and off-machine copy jobs succeeded on 2026-10-17, and the
-backup runner was updated to current master afterward. A successful version-2
-dump/restore and installed-device/two-device feature acceptance remain separate
-checks. See the [current operating record](docs/firebase-rollout-plan.md#current-operations--2026-10-17)
+Later rules changes (starter articles, exact tier selection, tier 4,
+incremental sync, feedback and account deletion) have no deployment receipt in this repository. The daily
+backup runs from a pinned clone of a merged master commit and writes version-2
+dumps; an isolated version-2 restore and installed-device/two-device feature
+acceptance remain separate checks. See the [current operating record](docs/firebase-rollout-plan.md#current-operations--2026-10-17)
 and [streak release checklist](docs/firebase-rollout-plan.md#forgiving-streaks--58).
 
 **Historical Prod v1 scope (2026-10-04):** ship the single-deck app with reliable Google sync,
@@ -31,7 +32,7 @@ remain in use so existing progress is preserved.
 
 On a Firebase build, Google sign-in gives each account its own schedule in Firestore; new accounts receive personal decks. Device-only study remains available. The app stores current SRS state and minimal streak activity, without detailed review history, an interval multiplier, or FSRS. See [the architecture](docs/architecture.md) for storage and sync guarantees.
 
-The private [ls9-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) repo is a frozen recovery snapshot of the legacy deck. This source has no GitHub data writer or token form. Keep `PUBLIC_SITE_DEPLOY_KEY` for Pages deployment.
+The private, archived [ls9-flashcards-data](https://github.com/licensedsaucer9-web/ls9-flashcards-data) repo is a frozen recovery snapshot of the legacy deck. This source has no GitHub data writer or token form. Keep `PUBLIC_SITE_DEPLOY_KEY` for Pages deployment.
 
 ## Available language decks
 
@@ -113,9 +114,39 @@ copies merge into the signed-in account; the counter may update after sync.
 
 ## Themes
 
-**Settings → Theme** switches between Dark (the original palette) and Light.
-The choice applies immediately across the app and survives reloads on this
-device. It stays separate from account sync and per-deck study preferences.
+**Settings → Theme** offers Dark (the original palette), Light, Halloween,
+Christmas, NeoPunk, Nature, Coffee, Dissonant, and the pastel Cute Pink,
+Cuter Pink, Mint and Lavender. The choice applies immediately across the app
+and survives reloads on this device. It stays separate from account sync and
+per-deck study preferences.
+
+## Speech
+
+**Settings → Speech** adds a 🔊 speak button to review cards, read with the
+browser's speech synthesis in the deck's language. **Settings → Speech input**
+adds a 🎤 button beside the Hard-mode answer field when the answer is in the
+language you are learning; the recognised text fills the field for you to
+check and submit. Both are off by default, stay on this device and are disabled
+when the browser lacks the API. Speech recognition may send audio to Apple or
+Google servers; the app stores no audio or transcript. `speech-test.html` on
+the public site is a standalone device test page for recognition. See
+[architecture](docs/architecture.md#speech).
+
+## Settings
+
+From the top: **App version** (version and short source commit, available
+offline, with **Check for update**), Theme, Speech, Speech input, Account,
+Delete account (signed in only), Feedback, starter-content attribution,
+Install and an SRS summary.
+
+**Check for update** reads the published `release.json`. When its version or
+source commit differs from the running build, it removes this app's service
+worker and caches and reloads; study data and sign-in are not touched.
+
+**Send feedback** stores a message, an optional email and the app version in
+Firestore. It is anonymous unless you add an email or, when signed in, tick
+**Include my account so you can reply**. It needs a Firebase build and a
+connection.
 
 ## Account
 
@@ -124,6 +155,8 @@ A Firebase build offers **Continue with Google** and **Study on this device**. N
 A profile name on an older install is local data only. It does not select a cloud account. The first launch of this build removes the saved GitHub token (`german-flashcards.github` and `german-flashcards.github.shas`) from this browser.
 
 The in-app legacy profile recovery was retired (#163). After sign-in the app does not read old per-profile databases (`german-flashcards:<profile>`). A profile that was never copied stays on the device untouched but cannot be opened from the app.
+
+**Settings → Delete account** (signed in only) deletes the account's Firestore data, its Firebase sign-in record (not the Google account itself), and this device's copy, after you type `DELETE` and confirm with Google again. Feedback you sent and a shared deck's word list for its other members are kept. Private operator backups are kept for 30 days. It runs in the browser on the free Spark plan, so a very large account may finish over several days; an interrupted deletion resumes at the next sign-in of that account on the same device. Sign out on other devices first. See [architecture](docs/architecture.md#account-deletion).
 
 ## Develop
 
@@ -136,8 +169,14 @@ npm test         # unit tests; no emulator and no Chromium
 npm run test:account-ui  # account/streak UI with synthetic auth and real IndexedDB in Chromium
 npm run test:decks-ui    # Decks preferences, unsaved Cards filters, navigation and preservation
 npm run test:feedback-ui # Settings → Send feedback form with the send scripted
-npm run test:rules  # Firestore rules (including feedback), cloud sync, migration, and dump restore on the emulator (Java 21)
+npm run test:rules  # Firestore rules (including feedback and account deletion), cloud sync, migration, and dump restore on the emulator (Java 21)
 ```
+
+Other browser checks, all run by CI: `test:themes-ui`, `test:hard-mode-ui`,
+`test:speech-ui`, `test:speech-input-ui`, `test:speech-page`, `test:update-ui`,
+`test:sw-navigation` and `test:starter-ui` (needs a build; see
+[starter decks](docs/starter-decks.md#verification)). Run `npm run` to list
+every script.
 
 `npm test` covers SRS, CSV, tiers, Firestore document shapes, account helpers, record sync, the migration files, and Firestore dump restore. It does not call live Firebase or GitHub. Account UI and rules timezone checks need Chromium (`node node_modules/playwright-core/cli.js install chromium`, or `CHROME=/path/to/chromium`); `npm run test:rules` also needs Java 21.
 
@@ -159,25 +198,27 @@ Scan this code with your iPhone camera to open the app in Safari. A link opened 
 
 ![QR code for LS9 Flashcards](docs/app-qr.png)
 
-This source repository and the [review-data repository](https://github.com/licensedsaucer9-web/ls9-flashcards-data)
-stay private. The public `ls9-flashcards-site` repository contains only the
+This source repository is public. The [review-data repository](https://github.com/licensedsaucer9-web/ls9-flashcards-data)
+is private and archived. The public `ls9-flashcards-site` repository contains only the
 built site. Its `gh-pages` branch is the Pages source.
 
-On a pull request and on a push to `master`, the private repository tests the
+On a pull request and on a push to `master`, this repository's CI tests the
 app, builds a Firebase client with `BASE=/ls9-flashcards-site/` and
 `VITE_SYNC_BACKEND=firebase` into `dist-firebase`, and checks that the bundle
 names `flashcards-ls9-prod`, contains no GitHub token or private key, and
 still installs offline. CI also checks account UI, rules/cloud migration,
 and the isolated rehearsal build. A push to `master` then publishes
-`dist-firebase` with `rsync --delete`, removing obsolete root files while
-retaining `auth-spike/` and `auth-spike-prod/`. Pull requests do not publish.
-The private repository secret
+`dist-firebase` with `rsync --delete`, removing obsolete root files. The
+retired `auth-spike/` and `auth-spike-prod/` previews keep only a kill-switch
+`sw.js` (from `retired/`) that removes old installed copies; the test rehearsal
+under `auth-spike/rehearsal/` is left untouched. Pull requests do not publish.
+The repository secret
 `PUBLIC_SITE_DEPLOY_KEY` is a write-enabled SSH
 deploy key for that public repository only. The workflow does not publish
 from pull requests and does not deploy Firestore rules.
 
-The source version is `1.5.0`, adding typed-answer Hard mode with automatic grading. **Settings → Install** shows
-the running version and source revision, including offline. From a clean source
+The source version is `1.5.0`. **Settings → App version** shows
+the running version and short source commit, including offline. From a clean source
 checkout, `npm run release:build` prepares `dist-firebase` with production
 configuration; `npm run release:verify` checks its exact file inventory. CI
 retains this artifact after all checks, including `.nojekyll`. Master
@@ -193,7 +234,7 @@ archived. It no longer supplies a supported redirect.
 Use bookmarks and Home Screen icons created from the current URL. Studied
 progress from the old client is not imported. See the [retirement record](docs/archive/rename.md#old-site-retirement-2026-10-17).
 
-1. Open the new public URL in Safari and confirm the Firebase build under Settings → Install. Choose **Continue with Google** or **Study on this device**. A new account starts with an unstudied personal deck; no legacy schedule is imported.
+1. Open the new public URL in Safari and confirm the version under Settings → App version. Choose **Continue with Google** or **Study on this device**. A new account starts with an unstudied personal deck; no legacy schedule is imported.
 2. Add the new URL to the Home Screen. An old icon targets the retired scope and can retain separate installed-app storage or a cached offline client; opening it does not upgrade it to the new Firebase client. Keep any old installation/data you still want to preserve until you deliberately retire it.
 3. Check the current installation's offline save and second-device acknowledgement using the backup check below.
 
@@ -210,7 +251,7 @@ To check a new release on an iPhone:
 3. Turn Airplane Mode off and return to Flashcards. Wait for **Synced**, then open a second signed-in device and confirm the review. Use **Sync now** in Settings to retry manually.
 4. To check deletion without losing a real card, create a disposable card, wait for **Synced**, then delete it. After the second device syncs, the test card should remain absent.
 
-A private Firestore export is described in [Firebase setup](docs/firebase-setup.md#private-firestore-backup). It does not need Blaze. A user timer runs it daily and keeps 14 dumps. The matching [restore command](docs/firebase-setup.md#restore-a-firestore-dump) writes that dump only to an isolated target and does not restore Auth, this device's IndexedDB, rules, or hosting. The legacy data repo can be [verified without changing it](https://github.com/licensedsaucer9-web/ls9-flashcards-data#verify-an-existing-backup-without-changing-it), but cannot back up later Firebase reviews.
+A private Firestore export is described in [Firebase setup](docs/firebase-setup.md#private-firestore-backup). It does not need Blaze. A user timer runs it daily from a pinned clone of a merged master commit and keeps 14 local dumps; an off-machine copy keeps dumps for 30 days. The matching [restore command](docs/firebase-setup.md#restore-a-firestore-dump) writes that dump only to an isolated target and does not restore Auth, this device's IndexedDB, rules, or hosting. The legacy data repo can be [verified without changing it](https://github.com/licensedsaucer9-web/ls9-flashcards-data#verify-an-existing-backup-without-changing-it), but cannot back up later Firebase reviews.
 
 ## Other documentation
 
@@ -219,12 +260,14 @@ A private Firestore export is described in [Firebase setup](docs/firebase-setup.
 - [Architecture](docs/architecture.md): account/deck boundaries, persistence, merge rules, and current limits.
 - [Rename record](docs/archive/rename.md): repository/URL mapping and compatibility for old installations.
 - [Firebase setup](docs/firebase-setup.md): projects, build configuration, rules, private operator files, and backup command.
-- [Migration runbook](docs/firebase-migration.md): immutable snapshot export, baseline, Admin import, and confirmed device recovery.
+- [Migration runbook](docs/firebase-migration.md): immutable snapshot export, baseline, and Admin import; in-app device recovery was removed (#163).
 - [Rehearsal runbook](docs/firebase-rehearsal.md): isolated test preview, preflight, and preview checks.
 - [Live import evidence](docs/archive/issue-24-status.md): saved aggregate #24 readback and zero-write repeat results.
+- [Starter decks](docs/starter-decks.md): French/Spanish content, German tier 4, licensing and compatibility.
 - [TEST.md](TEST.md): manual acceptance and automated check commands.
+- Plans (not implemented, not decided): [native iOS and Android apps](docs/plans/native-apps.md); [speech input](docs/plans/speech-input.md), whose first two phases have shipped.
 
-The [archived multi-deck proposal](docs/archive/multi-deck-proposal-20261010.md) and [mobile-store proposal](docs/archive/mobile-store-proposal-20261010.md) retain dated, unadopted designs. They are not active implementation plans. The rollout plan remains the operational plan; the archive preserves evidence without reopening completed or waived migration work.
+The [archived multi-deck proposal](docs/archive/multi-deck-proposal-20261010.md) and [mobile-store proposal](docs/archive/mobile-store-proposal-20261010.md) retain dated designs. They are not active implementation plans; the native-apps plan supersedes the mobile proposal. The rollout plan remains the operational plan; the archive preserves evidence without reopening completed or waived migration work.
 
 ## License
 

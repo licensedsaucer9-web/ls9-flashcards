@@ -1,9 +1,9 @@
 # Release and operations plan
 
-Updated 2026-10-17. The historical production preparation used master `63b1ee0`.
+Updated 2026-11-15. The historical production preparation used master `63b1ee0`.
 This remains the repository's operational plan. Firebase production publication
 is complete; studied-data import and legacy device recovery were waived on
-2026-10-07. As of 2026-10-26 the public artifact reports `1.5.0` (its `sourceCommit` moves with each publish); multiple decks arrived in `1.3.0`.
+2026-10-07. As of 2026-11-15 the public artifact reports `1.5.0` (its `sourceCommit` moves with each publish); multiple decks arrived in `1.3.0`.
 The operating record below separates verified host state from pending
 installed-device/recovery evidence. The original Prod v1 scope and delivery
 procedures are retained as history, including gates later waived by the owner;
@@ -43,8 +43,9 @@ Use `flashcards-ls9-auth-test` for live rehearsals. Keep credentials, mappings,
 exports, baselines, and record-level reports outside Git, under
 `GERMAN_FLASHCARDS_PRIVATE_DIR`. Public records contain aggregate results and
 revision/checksum evidence only. Preserve existing installations and their
-storage. Retain the legacy write token until active devices have moved;
-`PUBLIC_SITE_DEPLOY_KEY` remains the Pages deployment credential.
+storage. The app no longer uses the legacy GitHub write token and removes a
+stored copy from the browser on launch; `PUBLIC_SITE_DEPLOY_KEY` is the
+repository's only Actions secret and remains the Pages deployment credential.
 
 The procedures live in [Firebase setup](firebase-setup.md),
 [the migration runbook](firebase-migration.md), and
@@ -61,25 +62,33 @@ of legacy progress recovery. See the [retirement record](archive/rename.md#old-s
 
 ## Current operations — 2026-10-17
 
-- **Published client:** public `release.json` was verified on 2026-10-26 at version `1.5.0`,
+- **Published client:** public `release.json` was read on 2026-11-15 at version `1.5.0`,
   production Firebase; read `sourceCommit` from the file for the exact master commit.
-  This includes Hard mode, themes, streaks, multiple decks, per-deck preferences/progress and swipe
-  navigation. Names, deck selection, optional-feature switches and local deck
+  This includes Hard mode, themes, streaks, multiple decks, per-deck preferences/progress, swipe
+  navigation, German tier 4, speech, App version/Check for update, incremental sync,
+  feedback and account deletion. Names, deck selection, optional-feature switches and local deck
   deletion remain device-local; another device needs an extra deck's ID locally.
 - **Rules:** the production `cloud.firestore` release was updated on
   2026-10-16 at 05:06 UTC. Readback matched the source rules SHA-256
   `863c8e03c918d81a67e88f166ca109bfe93c45c48f22b5ecf6dbfc9a3a1086f1`,
   including activity and extra-deck access. This was a rules-only deployment.
+  `firestore.rules` changed afterwards for starter articles, exact tier selection,
+  tier 4, incremental sync (`syncedAt`, #172), feedback (#173) and account deletion
+  (#181). Each of those PRs required a production deployment before merge; no
+  deployment receipt or checksum for them is recorded here. The current source
+  rules SHA-256 is
+  `8fc4c053d56719305d16bb6867066738a8411ee02b560430bad2d1d0cb31efc0`.
 - **Backup/copy:** the 08:30 Europe/Oslo `firestore-backup` job succeeded on
   2026-10-17 and reported activity coverage. The 08:45 `firestore-drive-copy`
-  rclone job also succeeded. Daily local retention is 14 dumps. This records
+  rclone job also succeeded. Daily local retention is 14 dumps; off-machine
+  dumps older than 30 days are deleted after each successful copy. This records
   a configured off-machine copy and successful job, not a new remote-file audit
   or restore qualification.
-- **Runner update:** the daily backup's source checkout was synchronized to
-  current master later on 2026-10-17, including version-2 extra-deck exports.
-  No live backup was triggered during that update. Record a subsequent
-  successful version-2 dump and isolated restore covering extra-deck settings,
-  progress and tombstones before declaring that coverage qualified.
+- **Runner:** since 2026-10-25 the backup runs from a pinned clone detached at a
+  merged master commit (`npm ci --ignore-scripts`), not the development
+  checkout. On 2026-11-15 it was moved to master `a65b36e`. Daily dumps are
+  version 2. Record an isolated restore covering extra-deck settings, progress
+  and tombstones before declaring that coverage qualified.
 - **Remaining acceptance:** current installed-device updates, two-device
   offline activity reconciliation and the version-2 restore check need their
   own recorded evidence. Earlier production login/isolation/offline-study and
@@ -250,7 +259,8 @@ a later authorized publication with the exact candidate and record both
 source and public-site revisions. See the [candidate runbook](firebase-setup.md#prepare-and-verify-a-release-candidate).
 Publication of this candidate is authorized. Both master publish steps use
 `github.event_name != 'pull_request' && github.ref == 'refs/heads/master'`.
-Retained auth/recovery paths stay excluded from the root cleanup. Served
+The retired auth previews now receive a kill-switch worker (#118); the rehearsal
+stays excluded from the root cleanup. Served
 evidence is still required before #38 closes. Real-device login and offline
 acceptance remain #39. Closing a preparation PR must not close
 this operational gate.
@@ -331,8 +341,8 @@ articles. See [content, provenance and compatibility](starter-decks.md). This is
 implementation evidence, not a production publication or device acceptance receipt.
 Before production sync of the new article values, deploy the reviewed additive
 article whitelist separately through the operator rules procedure; Pages still
-does not deploy rules. Update the private backup/restore operator checkout to
-understand those article values. No rules deployment, production account change
+does not deploy rules. The backup runner has since moved to a master commit that
+understands those article values. No rules deployment, production account change
 or real-data restore was performed for this implementation. The current operations
 record above remains the authority for actual deployed rules and restore evidence.
 
@@ -370,8 +380,8 @@ release requirements.
 ## Forgiving streaks — #58
 
 The `1.3.0` source implements the 10-review target, carrying partial repair,
-passive fire/moon/skull counter, and immutable per-account activity. The public
-site now reports `1.3.0`; the master workflow publishes after CI. Publication
+passive fire/moon/skull counter, and immutable per-account activity. Streaks were
+published in `1.3.0`; the master workflow publishes after CI. Publication
 alone does not prove the operational steps below. Retain or record their
 evidence rather than treating a merged feature PR as device/recovery acceptance.
 The 2026-10-16 rules deployment and 2026-10-17 scheduled backup/copy results are

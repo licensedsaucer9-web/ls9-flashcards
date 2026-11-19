@@ -89,11 +89,14 @@ local `HEAD`. Export reads
 `data.json` and `users/*.json` at that exact commit, including a v1 `data.json`
 if present. It ignores uncommitted working files and leaves the data repo intact.
 
+The data repository is now archived, so its `main` no longer changes.
+
 ```bash
-git -C /home/joakim/src/german-flashcards-data fetch origin main
-SOURCE_COMMIT=$(git -C /home/joakim/src/german-flashcards-data rev-parse origin/main)
+DATA_REPO=/path/to/ls9-flashcards-data   # private clone of the data repository
+git -C "$DATA_REPO" fetch origin main
+SOURCE_COMMIT=$(git -C "$DATA_REPO" rev-parse origin/main)
 npm run migrate -- export \
-  --repo /home/joakim/src/german-flashcards-data \
+  --repo "$DATA_REPO" \
   --commit "$SOURCE_COMMIT" \
   --out "$MIGRATION_DIR/exports/REPLACE_WITH_TIMESTAMP-rehearsal.json"
 ```
@@ -193,11 +196,13 @@ device untouched, but the app can no longer reach it. No database or storage
 key is deleted. Device-mode builds still run the one-time import of the
 original single-user `german-flashcards` database into the active profile.
 
-`npm run migrate -- preflight` still reports the historical #34 aggregate from
+`npm run migrate -- preflight` reported the historical #34 aggregate from
 `unreachedInstallationClasses()`: 2 installation classes, 0 proven reads, and
-2 blockers. It is a class count, not a census of active installations. #34 and
-#36 were closed as not planned after the waiver; do not reopen that work based
-on this count.
+2 blockers. It is a class count, not a census of active installations. With
+Pages publication enabled the command now refuses to run (see
+[Firebase setup](firebase-setup.md#production-preflight)). #34 and #36 were
+closed as not planned after the waiver; do not reopen that work based on this
+count.
 
 ## 5. Record results and preserve the historical release evidence
 

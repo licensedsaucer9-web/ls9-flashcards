@@ -7,11 +7,9 @@ The full-app rehearsal URL is:
 
 <https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/rehearsal/>
 
-The auth-only identity preview is its parent:
-<https://licensedsaucer9-web.github.io/ls9-flashcards-site/auth-spike/>.
-Neither preview is linked from the public root app.
+It is not linked from the public root app.
 
-The auth-only parent and the earlier `auth-spike-prod/` build are retired (#118): the
+The auth-only identity preview at its parent (`auth-spike/`) and the earlier `auth-spike-prod/` build are retired (#118): the
 publish workflow leaves only `retired/kill-switch-sw.js` as their `sw.js`, so any browser that
 still has the old worker removes it. Only `auth-spike/rehearsal/` remains. Restoring the
 auth-only preview below would be undone by the next publish.
@@ -126,6 +124,9 @@ label, revision, manifest scope, and separate guest database. Legacy database
 records, preferences, and sentinel PAT keys must remain exactly unchanged.
 Installability also exercises guest study, mobile controls, and offline reload.
 These checks do not sign into Google and do not replace a physical iPhone check.
+`rehearsal:check` still opens the auth-only parent and waits for its sign-in
+button. Since that preview was retired (#118) the page no longer exists, so the
+live check cannot pass until the script drops that step.
 
 On an iPhone, open the exact rehearsal URL in Safari. Confirm the **Test
 rehearsal** label, test project, and source revision; choose **Study on this

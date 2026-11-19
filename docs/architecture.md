@@ -1,7 +1,8 @@
 # Architecture and data guarantees
 
-This describes the implementation as of 2026-10-17, including published streaks,
-multiple decks, per-deck preferences/progress, and swipe tab navigation.
+This describes the implementation on master as of 2026-11-15, including streaks,
+multiple decks, per-deck preferences/progress, swipe tab navigation, Hard mode,
+speech, themes, incremental sync, feedback and account deletion.
 For what is deployed and what remains, use the
 [rollout plan](firebase-rollout-plan.md).
 
@@ -25,6 +26,12 @@ identity is emitted as `release.json` and precached by the service worker.
 Settings reads the bundled identity without network access, so an installed
 offline client reports the version it is actually running. A source change
 alters the bundled identity and worker precache revision.
+Settings → App version shows that identity and offers **Check for update**
+(`src/app-update.ts`): it fetches `release.json` with `cache: 'no-store'` and a
+cache-busting query, and when the published version or source commit differs it
+unregisters this app's service worker, deletes this scope's Workbox caches and
+reloads. localStorage, IndexedDB, Firestore and sign-in are not touched
+(`npm run test:update-ui`).
 The worker serves the app shell only for app navigations. Other `*.html`
 pages, such as the standalone `speech-test.html`, and the auth-spike paths go
 to the network, and `speech-test.html` is not precached
@@ -317,8 +324,9 @@ Review saves the active deck's tier, word-type selection, and session size.
 Its compact size row offers 10 / 20 / 30 / All and a Custom dialog in increments
 of five. Done saves the choice; Cancel, Escape, and tapping outside discard it.
 Previously saved sizes remain valid until changed. Decks saves review direction. Cards starts its browse tier filter at the saved
-tier, but browsing does not write preferences. Settings retains account, install,
-and SRS information. These control locations do not change storage or deck
+tier, but browsing does not write preferences. Settings holds the app version,
+theme, speech switches, account, account deletion, feedback, install and SRS
+information. These control locations do not change storage or deck
 assignment. Extra decks keep their own preferences and schedules; streak
 activity remains account-wide.
 
@@ -470,11 +478,10 @@ and repeat-import behavior.
 `npm run migrate -- backup` writes a private Firestore dump with a checksum.
 Version 2 includes extra deck ownership/cards and nested per-deck settings and
 progress, alongside the original German paths, activity and tombstones. The
-restore accepts version-1 dumps too. The operator checkout was updated to this
-code on 2026-10-17, after that day's successful scheduled backup. Verify a new
-version-2 dump and isolated extra-deck restore before calling that coverage
-qualified. The off-machine copy job succeeded that morning; job success and
-restore qualification are separate evidence.
+restore accepts version-1 dumps too. The daily job runs from a pinned clone of a
+merged master commit and writes version-2 dumps. Verify an isolated extra-deck
+restore of one before calling that coverage qualified; job success and restore
+qualification are separate evidence.
 `npm run migrate -- restore` puts that dump back only onto an isolated
 target, and only where the target is empty or already identical. It does not
 restore Google Auth identities, IndexedDB, rules, or hosting. The frozen
@@ -576,6 +583,9 @@ sign-in. Study and sync are unbound from the account first. Then, in order
    document, so it always goes after its cards. Passes repeat until one finds nothing; only
    that empty pass counts as done. A shared deck the account only joined keeps its cards,
    and feedback stays (anonymous unless the sender ticked Include my account).
+   The confirmation also says private backups are kept 30 days: the operator's
+   daily dumps keep 14 local copies and the off-machine copies are deleted after
+   30 days, so a deleted account ages out of them.
 2. **Auth.** `user.delete()`, only after the empty pass. If Firebase wants a fresher
    sign-in, the screen asks to confirm with Google once more; data is not deleted again.
 3. **This device.** The account's IndexedDB database and its copy-prompt answers go.
